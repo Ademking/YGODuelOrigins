@@ -35,8 +35,6 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 - **Holograms** for face-up monsters, toggled from **Menu → Holograms** during a duel.
 - **Sound and visual effects**, including a Fusion vortex, Ritual circle, Exodia effects, and a 3D dice roll.
 
-Premade decks are playable adaptations, not exact recreations of single anime duels. Jaden's HERO deck was checked against the community's [Jaden anime deck](https://ygoprodeck.com/deck/jaden-yuki-anime-deck-604037).
-
 ## Getting started
 
 Requirements: [Node.js](https://nodejs.org/) 18 or newer and an internet connection (card images load at runtime).
