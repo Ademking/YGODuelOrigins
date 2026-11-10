@@ -1,23 +1,39 @@
-# YGO Duel Origins
+<div align="center">
 
-A browser-based Yu-Gi-Oh! dueling game built with Phaser and TypeScript. Build your deck, pick a duelist, and play against the CPU with a rules engine modelled on the 2004-era rules.
+<img src="assets/ui/duel-origins-logo.webp" alt="YGO Duel Origins" width="560">
 
-<video src="https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4" controls width="100%"></video>
+### A browser-based Yu-Gi-Oh! dueling game
 
-[Watch the trailer (1080p60)](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4)
+Build your deck, pick a duelist, and play against the CPU with a rules engine modelled on 2004-era rules.
 
-[![Watch on YouTube](https://img.youtube.com/vi/HZ72t1aUXQE/hqdefault.jpg)](https://www.youtube.com/watch?v=HZ72t1aUXQE)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
+![Phaser](https://img.shields.io/badge/Phaser-3.90-FF4F00)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 
-Both players start with five cards. The first player draws during their first Draw Phase but cannot attack on the first turn.
+[Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts)
+
+</div>
+
+## Trailer
+
+<p align="center">
+  <video src="https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4" controls width="100%"></video>
+</p>
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=HZ72t1aUXQE">
+    <img src="https://img.youtube.com/vi/HZ72t1aUXQE/hqdefault.jpg" alt="Watch on YouTube" width="480">
+  </a>
+</p>
 
 ## Features
 
-- **Duel against the CPU** with a rules engine and AI that follow 2004-era rules.
+- **Duel against the CPU** with a rules engine and AI that follow 2004-era rules. Both players start with five cards. The first player draws during their first Draw Phase but cannot attack on the first turn.
 - **Deck editor** with paged card browsing and decks saved in the browser.
-- **About 3,150 playable cards.** Each one has its effect implemented in TypeScript, and [`docs/EFFECTS.md`](docs/EFFECTS.md) tracks coverage and remaining gaps.
+- **About 3,150 playable cards.** Each card's effect is implemented in TypeScript. [`docs/EFFECTS.md`](docs/EFFECTS.md) tracks coverage and remaining gaps.
 - **Premade decks for 19 duelists**, inspired by Yugi, Kaiba, Joey, Mai, Pegasus, Bakura, Marik, Mako, Weevil, Jaden, Zane, Syrus, Crowler, Chazz, Aster, Jesse, Axel, Bastion, and Alexis, plus Gravekeeper and Exodia archetypes.
 - **Holograms** for face-up monsters, toggled from **Menu → Holograms** during a duel.
-- **Sound effects and card visuals**, including a Fusion vortex, Ritual circle, Exodia effects, and a 3D dice roll.
+- **Sound and visual effects**, including a Fusion vortex, Ritual circle, Exodia effects, and a 3D dice roll.
 
 Premade decks are playable adaptations, not exact recreations of single anime duels. Jaden's HERO deck was checked against the community's [Jaden anime deck](https://ygoprodeck.com/deck/jaden-yuki-anime-deck-604037).
 
@@ -50,7 +66,7 @@ Open the URL Vite prints (port 5173 by default).
 
 ```
 assets/              Sound effects, zone icons, UI images (served to the browser)
-docs/EFFECTS.md      Card effect architecture, coverage, and remaining gaps
+docs/                EFFECTS.md (card effect architecture and coverage) and media/ (trailer)
 game-data/           Card database files read by the importers (not shipped in builds)
 scripts/             Card importers, coverage and verification scripts
 src/
