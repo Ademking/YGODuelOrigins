@@ -6,6 +6,8 @@ A browser-based Yu-Gi-Oh! dueling game built with Phaser and TypeScript. Build y
 
 [Watch the trailer (1080p60)](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4)
 
+[![Watch on YouTube](https://img.youtube.com/vi/HZ72t1aUXQE/hqdefault.jpg)](https://www.youtube.com/watch?v=HZ72t1aUXQE)
+
 Both players start with five cards. The first player draws during their first Draw Phase but cannot attack on the first turn.
 
 ## Features
