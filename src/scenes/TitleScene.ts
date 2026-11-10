@@ -8,7 +8,7 @@ import { gravityWellShader } from '../ui/gravityWell';
 
 const open = (url: string) => () => { window.open(url, '_blank', 'noopener'); };
 const openDiscord = open('https://discord.gg/VYfWyXyRuf');
-const openGithub = open('https://github.com/Ademking/');
+const openGithub = open('https://github.com/Ademking/YGODuelOrigins');
 
 // [text, colour]: who made it, what it is, then the notice that it is unofficial
 const ABOUT: [string, string][] = [

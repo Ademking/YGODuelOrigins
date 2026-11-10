@@ -10,7 +10,7 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 ![Phaser](https://img.shields.io/badge/Phaser-3.90-FF4F00)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 
-[Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts)
+**[Play now](https://ygo-duel-origins.vercel.app)** · [Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts)
 
 </div>
 
@@ -89,7 +89,9 @@ The raw data folders (`game-data/`, `.recovery/`) and the `.xlsx` and `.csv` sou
 
 ## Deploying
 
-Run `npm run build` and serve the `dist/` folder with any static HTTP server. Opening `index.html` directly as a file is not supported.
+The live version is hosted on Vercel at https://ygo-duel-origins.vercel.app and redeploys on every push to `main`.
+
+To host it yourself, run `npm run build` and serve the `dist/` folder with any static HTTP server. Opening `index.html` directly as a file is not supported.
 
 Saved decks and settings live in the browser's local storage, so they do not travel with a copied folder.
 
