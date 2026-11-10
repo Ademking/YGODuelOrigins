@@ -3,3 +3,4 @@
 *.png binary
 *.bin binary
 game-data/** -text
+*.mp4 binary
