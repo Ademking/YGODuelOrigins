@@ -1,0 +1,25 @@
+{
+  "name": "arcana-duel",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check": "tsx src/engine/selftest.ts",
+    "import:ygo": "tsx scripts/import-ygo.ts",
+    "verify:original": "node scripts/verify-original.mjs",
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "fuzz": "tsx tests/fuzz.ts",
+    "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

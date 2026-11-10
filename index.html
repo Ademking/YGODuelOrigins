@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>YGO Duel Origins</title>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Michroma&amp;display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #06050d; overflow: hidden; }
+    #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
+    #game canvas { touch-action: none; }
+    .rotate-notice { display: none; }
+    @media (pointer: coarse) and (orientation: portrait) and (max-width: 800px) {
+      .rotate-notice:not([hidden]) { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; background: #06050d; color: #f1ebdc; font: 16px Michroma, Arial, sans-serif; text-align: center; }
+      .rotate-notice p { max-width: 26rem; margin: 0; line-height: 1.6; }
+      .rotate-notice button { min-height: 48px; padding: 0 20px; border: 1px solid #d8b25e; border-radius: 2px; background: #14121f; color: #f1ebdc; font: inherit; cursor: pointer; }
+    }
+    input.ad-input { font: 16px Michroma, Arial, sans-serif; background: #0a0916; color: #f1ebdc; border: 1px solid #3a3456; border-radius: 2px; padding: 7px 12px; outline: none; }
+    .ad-log { box-sizing: border-box; overflow-y: auto; padding-right: 10px; font: 12px/1.65 Michroma, Arial, sans-serif; color: #9a93ae; scrollbar-width: thin; scrollbar-color: #7c6638 #0a0916; }
+    .ad-log b { color: #f1ebdc; }
+    .ad-log .turn { margin: 14px 0 6px; padding: 4px 10px; background: #1f1b33; color: #f0d08a; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+    .ad-log .turn:first-child { margin-top: 0; }
+    .ad-log .play { color: #f1ebdc; }
+    .ad-log .hurt { color: #ff8a9a; font-weight: bold; }
+    .ad-log .lost { color: #ffb070; }
+    .ad-log .heal { color: #7dffa6; font-weight: bold; }
+    input.ad-input::placeholder { color: #9a93ae; }
+    input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div class="rotate-notice" id="rotate-notice" role="dialog" aria-labelledby="rotate-title" aria-describedby="rotate-description">
+    <p id="rotate-title">Turn your device sideways</p>
+    <p id="rotate-description">The duel field and deck editor are easier to use in landscape.</p>
+    <button type="button" id="rotate-dismiss">Continue in portrait</button>
+  </div>
+  <script>document.getElementById('rotate-dismiss').addEventListener('click', () => { document.getElementById('rotate-notice').hidden = true; });</script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

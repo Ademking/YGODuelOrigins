@@ -1,0 +1,31 @@
+node_modules/
+dist/
+*.log
+.vite/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Intermediate run data; coverage/effects.json is the committed report (regenerate with npm run coverage)
+coverage/exercised.json
+coverage/smoke.json
+
+# Local data, backups and spreadsheets (kept on disk, not in git)
+game-data/
+.recovery/
+*.xlsx
+*.csv
+
+# Claude Code: keep the shared launch config, ignore per-user settings
+.claude/*
+!.claude/launch.json
