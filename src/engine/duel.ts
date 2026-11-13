@@ -1942,6 +1942,7 @@ export class Duel {
     if (!this.negated(att) && att.def.attackCost?.length) {
       const pseudo = this.pseudoLink(att, att.ctrl);
       for (const op of att.def.attackCost) await this.runOp(op, pseudo, true);
+      await this.cleanup();
     }
     const before = this.monsters(defSide).length;
     this.log(`${att.def.name} attacks ${tgt ? (tgt.faceUp ? tgt.def.name : 'a face-down monster') : this.name(defSide) + ' directly'}.`);
