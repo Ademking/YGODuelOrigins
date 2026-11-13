@@ -124,7 +124,21 @@ export const SPELLS_4: Record<string, Def> = {
   "Shinato's Ark": ritual('Shinato, King of a Higher Plane'),
   'Shooting Star Bow - Ceal': { equip: { f: FU, atk: -1000, rules: ['direct'] } },
   'Short Circuit': condSpell((d, p) => d.find({ ...OWN_FU, set: 'Batteryman' }, p).length >= 3, destroyAll({ side: 'opp' }), { ai: (d, me) => d.fieldCards(opp(me)).length * 700 }),
-  'Shrink': spell(run(({ d, t }) => { const c = t[0]; if (c && c.zone === 'mzone') d.addMod(c, -Math.floor(d.base(c, 'atk') / 2), 0); }, 500), { targets: [{ f: FU }] }),
+  'Shrink': spell(run(({ d, t }) => { const c = t[0]; if (c && c.zone === 'mzone') d.addMod(c, -Math.floor(d.base(c, 'atk') / 2), 0); }), {
+    targets: [{ f: FU }],
+    ai: (d, me) => {
+      const attack = d.curAttack;
+      if (!attack || attack.player === me) return 0;
+      const attacker = attack.attacker;
+      const before = d.atk(attacker);
+      const blocked = Math.min(before, Math.floor(d.base(attacker, 'atk') / 2));
+      if (!attack.target) return blocked;
+      const targetStat = attack.target.faceUp
+        ? attack.target.pos === 'atk' ? d.atk(attack.target) : d.defv(attack.target)
+        : 1500;
+      return before >= targetStat && before - blocked <= targetStat ? 800 + blocked : 0;
+    },
+  }),
   'Silent Doom': spell(run(async ({ d, p, card, t }) => { const c = t[0]; if (c && c.zone === 'gy' && (await d.specialSummon(c, p, 'def', 'special', false, card))) c.noAttackTurn = 1e9; }, 500), { targets: [{ f: { ...GY_M('self'), mtype: ['normal'] }, good: true }] }),
   'Six Samurai United': passive({
     onSummon: (d, src, c, how) => { if (how !== 'flip' && c.def.name.includes('Six Samurai')) addCtr(d, src, 1, 'bushido', 2); },
@@ -264,7 +278,7 @@ export const SPELLS_4: Record<string, Def> = {
     await tokens(d, p, 'Lamb Token', 2, 'def');
     d.addTemp({ until: d.turn, p, lock: { summon: (_d, _s, q) => q === p } });
   }, 400), { cond: (d, _c, p) => d.freeCount(p, 'm') >= 2 && d.canSpecial(p) }),
-  'Stumbling': passive({ onSummon: async (d, _src, c) => { if (c.faceUp && c.pos === 'atk' && c.zone === 'mzone') await d.changePos(c, 'def'); } }),
+  'Stumbling': passive({ onSummon: async (d, src, c) => { if (d.affects(src, c) && c.faceUp && c.pos === 'atk' && c.zone === 'mzone') await d.changePos(c, 'def'); } }),
   'Summon Cloud': passive({
     effects: [ign(run(async ({ d, p, card }) => {
       const c = await ssPick(d, p, d.find({ side: 'any', zone: ['hand', 'gy'], set: 'Cloudian', maxLv: 4, kind: 'monster' }, p).filter((x) => x.zone === 'gy' || x.owner === p), 'Special Summon a Cloudian');

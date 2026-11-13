@@ -10,10 +10,16 @@ export const soundFiles = {
 type Sound = keyof typeof soundFiles;
 const voices = new Map<Sound, HTMLAudioElement[]>();
 let muted = false;
+let volume = 1;
+const soundVolume = (sound: Sound) => (sound === 'hover' ? 0.12 : sound === 'click' ? 0.3 : 0.55) * volume;
+try {
+  const saved = localStorage.getItem('arcana-duel.volume');
+  if (saved !== null && Number.isFinite(Number(saved))) volume = Math.max(0, Math.min(1, Number(saved)));
+} catch {}
 try { muted = localStorage.getItem('arcana-duel.muted') === '1'; } catch {}
 
 function play(sound: Sound) {
-  if (muted) return;
+  if (muted || volume === 0) return;
   let pool = voices.get(sound);
   if (!pool) { pool = []; voices.set(sound, pool); }
   let audio = pool.find(voice => voice.paused || voice.ended);
@@ -23,7 +29,7 @@ function play(sound: Sound) {
   }
   audio ??= pool[0];
   audio.currentTime = 0;
-  audio.volume = sound === 'hover' ? 0.12 : sound === 'click' ? 0.3 : 0.55;
+  audio.volume = soundVolume(sound);
   void audio.play().catch(() => undefined);
 }
 
@@ -49,6 +55,13 @@ function fadeOut(sound: Sound, duration: number) {
 
 export const sfx = {
   get muted() { return muted; },
+  get volume() { return volume; },
+  setVolume(value: number) {
+    if (!Number.isFinite(value)) return;
+    volume = Math.min(1, Math.max(0, value));
+    for (const [sound, pool] of voices) for (const audio of pool) audio.volume = soundVolume(sound);
+    try { localStorage.setItem('arcana-duel.volume', String(volume)); } catch {}
+  },
   setMuted(value: boolean) {
     muted = value;
     if (value) for (const pool of voices.values()) for (const audio of pool) audio.pause();

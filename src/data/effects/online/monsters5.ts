@@ -118,7 +118,9 @@ export const MONSTERS_5: Record<string, Def> = {
   },
   'Elemental Hero Necroshade': {
     effects: [ign(run(({ d, p, card }) => { card.mark.necroUsed = true; d.addTemp({ until: d.turn, p, lock: { noTributes: (_d, _s, q, c) => q === p && c.def.name.includes('Elemental Hero') } }); }, (d, me) => (d.players[me].hand.some((c) => (c.def.lv ?? 0) >= 5 && c.def.name.includes('Elemental Hero')) && !d.players[me].normalDone ? 900 : -1)), {
-      from: ['gy'], label: 'Normal Summon an Elemental Hero without Tributes', cond: (d, c) => !c.mark.necroUsed && !d.players[c.owner].normalDone,
+      from: ['gy'], label: 'Normal Summon an Elemental Hero without Tributes',
+      cond: (d, c) => !c.mark.necroUsed && !d.players[c.owner].normalDone && d.freeCount(c.owner, 'm') > 0
+        && d.players[c.owner].hand.some((m) => !m.def.noNormal && (m.def.lv ?? 0) >= 5 && m.def.name.startsWith('Elemental Hero ')),
     })],
   },
   'Elemental Hero Neo Bubbleman': {
@@ -141,10 +143,10 @@ export const MONSTERS_5: Record<string, Def> = {
   },
   'Elemental Hero Prisma': {
     effects: [ign(run(async ({ d, p, card }) => {
-      const f = await pick(d, p, 'Reveal a Fusion Monster', d.players[p].extra.filter((x) => (x.def.mats ?? []).some((m) => d.players[p].deck.some((c) => d.matMatches(m, c)))), 'good');
+      const f = await pick(d, p, 'Reveal a Fusion Monster', d.players[p].extra.filter((x) => (x.def.mats ?? []).some((m) => d.players[p].deck.some((c) => c.def.name === (typeof m === 'string' ? m : m.name)))), 'good');
       if (!f) return;
       await d.reveal(opp(p), [f], 'Elemental Hero Prisma');
-      const m = await pick(d, p, 'Send a Fusion Material from your Deck', d.players[p].deck.filter((c) => (f.def.mats ?? []).some((x) => d.matMatches(x, c))), 'cost');
+      const m = await pick(d, p, 'Send a Fusion Material from your Deck', d.players[p].deck.filter((c) => (f.def.mats ?? []).some((x) => c.def.name === (typeof x === 'string' ? x : x.name))), 'cost');
       if (!m) return;
       await d.move(m, 'gy', { by: p });
       await d.shuffleDeck(p);

@@ -3,8 +3,9 @@ import { SOURCE_CARDS, SOURCE_TOKENS } from './sourceCards';
 import { CARD_EFFECTS } from './cardEffects';
 import { YGO_CATALOG } from './ygoCatalog';
 import { GOD_CARDS } from './godCards';
+import { SEAL_OF_ORICHALCOS } from './orichalcos';
 
-export const CARDS: CardDef[] = [...SOURCE_CARDS.map(source => ({ ...source, ...CARD_EFFECTS[source.name] })), ...GOD_CARDS];
+export const CARDS: CardDef[] = [...SOURCE_CARDS.map(source => ({ ...source, ...CARD_EFFECTS[source.name] })), ...GOD_CARDS, SEAL_OF_ORICHALCOS];
 
 for (const card of CARDS) {
   if (card.kind === 'monster') continue;

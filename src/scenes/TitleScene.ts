@@ -90,12 +90,23 @@ export class TitleScene extends Phaser.Scene {
     button(this, 640, 414, 320, 48, 'Deck Editor', () => this.scene.start('DeckEditor'), { size: 17 });
     button(this, 640, 472, 320, 48, 'Replay', () => this.scene.start('Watch'), { size: 17 });
     button(this, 640, 530, 320, 48, 'About', () => this.showAbout(), { size: 17 });
+    button(this, 640, 584, 320, 42, 'Changelog', () => this.showChangelog(), { size: 15 });
     button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
     const snd = button(this, 1196, 688, 130, 32, sfx.muted ? 'Sound: Off' : 'Sound: On', () => {
       sfx.setMuted(!sfx.muted);
       snd.setLabel(sfx.muted ? 'Sound: Off' : 'Sound: On');
     }, { size: 13 });
     caption(this, 24, 683, `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`, COL.dim, 9);
+    document.dispatchEvent(new Event('duel-origins:ready'));
+  }
+
+  private showChangelog() {
+    const dialog = document.querySelector<HTMLDialogElement>('#changelog');
+    if (dialog && !dialog.open) {
+      const version = dialog.querySelector('#changelog-version');
+      if (version) version.textContent = `Version ${__APP_VERSION__}`;
+      dialog.showModal();
+    }
   }
 
   private showAbout() {

@@ -34,6 +34,10 @@
     html, body { margin: 0; height: 100%; background: #06050d; overflow: hidden; }
     #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
     #game canvas { touch-action: none; }
+    #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; text-align: center; font: 16px/1.5 Arial, sans-serif; }
+    #changelog { box-sizing: border-box; width: min(600px, 92vw); max-height: 90vh; padding: 24px; border: 1px solid #d8b25e; background: #14121f; color: #f1ebdc; font: 16px/1.5 Arial, sans-serif; }
+    #changelog::backdrop { background: #06050dd9; }
+    #changelog button { color: #f1ebdc; background: #29213e; border: 1px solid #d8b25e; padding: 8px 16px; cursor: pointer; }
     .rotate-notice { display: none; }
     @media (pointer: coarse) and (orientation: portrait) and (max-width: 800px) {
       .rotate-notice:not([hidden]) { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; background: #06050d; color: #f1ebdc; font: 16px Michroma, Arial, sans-serif; text-align: center; }
@@ -55,12 +59,38 @@
 </head>
 <body>
   <div id="game"></div>
+  <div id="startup-status" role="status">Loading YGO Duel Origins…</div>
+  <dialog id="changelog" aria-labelledby="changelog-title">
+    <h2 id="changelog-title">Changelog</h2>
+    <h3 id="changelog-version">Version 1.0.1</h3>
+    <ul>
+      <li>Fixed several card interactions, including Flip Effects under Banisher of the Light, contact Fusion reveals, and Spellbinding Circle.</li>
+      <li>Improved CPU decisions around Equip Spells, Shrink, Lava Golem, and face-down defenders.</li>
+      <li>Added saved CPU decks, selectable starting Life Points, a volume slider, and deck editor shortcuts.</li>
+      <li>Added the Orichalcos preset and a reduced-effects setting.</li>
+      <li>Added visible startup progress and error messages.</li>
+    </ul>
+    <form method="dialog"><button type="submit" autofocus>Close</button></form>
+  </dialog>
   <div class="rotate-notice" id="rotate-notice" role="dialog" aria-labelledby="rotate-title" aria-describedby="rotate-description">
     <p id="rotate-title">Turn your device sideways</p>
     <p id="rotate-description">The duel field and deck editor are easier to use in landscape.</p>
     <button type="button" id="rotate-dismiss">Continue in portrait</button>
   </div>
   <script>document.getElementById('rotate-dismiss').addEventListener('click', () => { document.getElementById('rotate-notice').hidden = true; });</script>
-  <script type="module" src="/src/main.ts"></script>
+  <script type="module">
+    const status = document.getElementById('startup-status');
+    const fail = () => {
+      if (status.hidden) return;
+      status.textContent = 'The game could not start. Reload the page to retry. If the problem persists, check browser graphics support.';
+    };
+    const timeout = setTimeout(fail, 18000);
+    document.addEventListener('duel-origins:ready', () => {
+      clearTimeout(timeout);
+      status.hidden = true;
+    }, { once: true });
+    document.addEventListener('duel-origins:boot-error', fail, { once: true });
+    import('/src/main.ts').catch(fail);
+  </script>
 </body>
 </html>

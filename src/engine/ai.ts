@@ -81,11 +81,11 @@ export class AIController implements Controller {
   scoreAttack(d: Duel, me: Side, att: Card, tgt: Card | null): number {
     const a = d.atk(att);
     if (!tgt) return a + 200 + (a >= d.players[opp(me)].lp ? 10000 : 0);
-    const immune = d.hasRule(tgt, 'battleImmune');
     if (!tgt.faceUp) {
-      const guess = this.level === 'hard' ? 1600 : 1300;
-      return a > guess + 200 ? 500 : this.level === 'easy' ? 100 : -200;
+      const lp = d.players[me].lp;
+      return a >= 1000 ? (a - 1000) / 2 + (lp > 2500 ? 100 : -300) : -300;
     }
+    const immune = d.hasRule(tgt, 'battleImmune');
     if (tgt.pos === 'atk') {
       const t = d.atk(tgt);
       if (a > t) return (immune ? 0 : this.value(d, tgt, me)) + (a - t) + (a - t >= d.players[opp(me)].lp ? 10000 : 0);
@@ -312,7 +312,8 @@ export class AIController implements Controller {
     }
     const taken = this.targetedByMe(d, me);
     const score = (c: Card) =>
-      (p.purpose === 'bad' ? (mine(c) ? -v(c) : v(c)) : p.purpose === 'good' ? v(c) + (mine(c) ? 0 : 1) : -cost(c)) - (taken.has(c) ? 5000 : 0);
+      (p.purpose === 'bad' ? (mine(c) ? -v(c) : v(c) - (c.zone === 'mzone' && d.spellTraps(me).some((s) =>
+        s.faceUp && !d.negated(s) && s.def.name === 'Nightmare Wheel' && s.data.sel === c.uid && s.data.selMv === c.mv) ? 3500 : 0)) : p.purpose === 'good' ? (mine(c) ? v(c) : -v(c)) : -cost(c)) - (taken.has(c) ? 5000 : 0);
     const sorted = [...p.cards].sort((a, b) => score(b) - score(a));
     if (p.min === 0 && p.purpose !== 'cost') return sorted.filter((c) => score(c) > 0).slice(0, p.max);
     if (p.min === 0) return [];

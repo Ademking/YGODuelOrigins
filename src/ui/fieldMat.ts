@@ -55,6 +55,7 @@ export const FIELD_MATS = {
     vec2 kf = fract(kq) - 0.5;
     float star = (exp(-abs(kf.x) * 40.0) * exp(-abs(kf.y) * 8.0) + exp(-abs(kf.y) * 40.0) * exp(-abs(kf.x) * 8.0)) * step(0.93, hash21(kid + 4.0));
     col += vec3(1.0, 0.97, 0.85) * star * pow(0.5 + 0.5 * sin(t * 3.0 + hash21(kid) * 30.0), 6.0) * (1.0 - cover) * (1.0 - bed) * 0.6;` },
+  'The Seal of Orichalcos': { accent: '#237b62', passcode: '48179391', fx: 'pulse' },
   'Forest': { accent: '#3b7741', passcode: '87430998', fx: 'wind' },
   // Purple vortex over a scrolling neon-green wireframe floor.
   'Fusion Gate': { accent: '#512774', scene: `

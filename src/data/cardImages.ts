@@ -4,6 +4,7 @@ import { YGO_CATALOG } from './ygoCatalog';
 const PROVENANCE = CARD_PROVENANCE as Record<string, { passcode: string } | undefined>;
 const CATALOG_PASSCODES = new Map(YGO_CATALOG.map(card => [`ygo_${card.code}`, card.passcode]));
 const CARD_IMAGE_IDS: Record<string, number> = {
+  seal_of_orichalcos: 48179391,
   god_slifer: 10000020,
   god_ra: 10000010,
   god_obelisk: 10000000,

@@ -190,7 +190,8 @@ export const MONSTERS: Record<string, Def> = {
   'White Magical Hat': { effects: [trig('battleDamage', run(async ({ d, p, o }) => { const c = randomOf(d, d.players[o].hand); if (c) await d.discard(o, [c], p); }), { cond: oppDmg })] },
   'Kycoo the Ghost Destroyer': {
     effects: [trig('battleDamage', run(async ({ d, p, o }) => {
-      const cs = await d.select(p, "Kycoo: banish up to 2 cards from your opponent's Graveyard", d.players[o].gy, 0, 2, 'bad');
+      const monsters = d.players[o].gy.filter((c) => c.def.kind === 'monster' && !d.banishLocked(p, c));
+      const cs = await d.select(p, "Kycoo: banish up to 2 monsters from your opponent's Graveyard", monsters, 0, 2, 'bad');
       for (const c of cs) await d.banish(c, p);
     }), { optional: true, cond: oppDmg })],
     lock: { banish: (_d, src, p) => !!src && p !== src.ctrl },
@@ -598,7 +599,7 @@ export const MONSTERS: Record<string, Def> = {
       await d.damage(o, 800, card);
     }))],
   },
-  'Crass Clown': { effects: [trig('toAtk', { op: 'toHand', s: { t: 'choose', f: OPP_M } })] },
+  'Crass Clown': { effects: [trig(['toAtk', 'flipSummoned'], { op: 'toHand', s: { t: 'target' } }, { targets: [{ f: OPP_M }], cond: (_d, c) => c.pos === 'atk' })] },
   'Dream Clown': { effects: [trig('toDef', { op: 'destroy', s: { t: 'choose', f: OPP_M } })] },
   'Maha Vailo': selfMod((d, c) => 500 * d.equipsOf(c).length),
   'Maryokutai': {

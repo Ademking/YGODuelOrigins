@@ -26,19 +26,30 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
       waiting.push(() => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        const done = () => { running--; inflight.delete(key); resolve(); next(); };
+        const done = () => {
+          clearTimeout(timeout);
+          img.onload = img.onerror = null;
+          running--;
+          inflight.delete(key);
+          resolve();
+          next();
+        };
+        const timeout = setTimeout(() => { done(); img.removeAttribute('src'); }, 8000);
         img.onload = () => {
-          if (!textures.exists(key)) {
-            const canvas = document.createElement('canvas');
-            canvas.width = CW;
-            canvas.height = CH;
-            const ctx = canvas.getContext('2d')!;
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, CW, CH);
-            textures.addCanvas(key, canvas);
-          }
-          done();
+          try {
+            if (!textures.exists(key)) {
+              const canvas = document.createElement('canvas');
+              canvas.width = CW;
+              canvas.height = CH;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, CW, CH);
+                textures.addCanvas(key, canvas);
+              }
+            }
+          } finally { done(); }
         };
         img.onerror = done;
         img.src = `${BASE}${pass}.jpg`;

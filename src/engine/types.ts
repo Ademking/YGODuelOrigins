@@ -115,7 +115,7 @@ export interface Effect {
 export type Rule =
   | 'pierce' | 'direct' | 'battleImmune' | 'doubleAttack' | 'cantAttack'
   | 'lockOppAttack' | 'lockLv4Attack' | 'lockAtk1500'
-  | 'noDirect' | 'attackFromDef' | 'noTribute' | 'noEquip' | 'attackAll';
+  | 'noDirect' | 'attackFromDef' | 'noTribute' | 'noTributeSummon' | 'noEquip' | 'attackAll';
 
 export type Mat = string | { race?: Race; attr?: Attr; name?: string; set?: string; text?: string; fn?: (c: Card) => boolean; more?: boolean };
 export type Ability = 'gemini' | 'union' | 'spirit' | 'toon';

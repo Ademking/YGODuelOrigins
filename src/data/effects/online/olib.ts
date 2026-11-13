@@ -236,7 +236,7 @@ export const tributed = (c: Card) => (c.data.how === 'normal' && c.mark.tribTurn
 export const won = (self: Card, r: import('../../../engine/types').BattleInfo) => (r.att === self && r.killedT) || (r.tgt === self && r.killedA);
 /** Contact Fusion: Special Summon from the Fusion Deck by returning the listed materials you control to the Deck (or banishing them). */
 export function contact(names: string[], dest: 'deck' | 'banished' = 'deck', zones: ('mzone' | 'hand' | 'gy')[] = ['mzone']): Partial<CardDef> {
-  const find = (d: Duel, p: Side, n: string) => d.find({ side: 'self', zone: zones, fn: (_d, c) => c.def.name === n || c.def.alias === n }, p);
+  const find = (d: Duel, p: Side, n: string) => d.find({ side: 'self', zone: zones, fn: (engine, c) => engine.nameOf(c) === n }, p);
   return {
     noNormal: true,
     noFusionSpell: true,
@@ -244,10 +244,16 @@ export function contact(names: string[], dest: 'deck' | 'banished' = 'deck', zon
       from: ['extra'],
       cond: (d, p) => names.every((n) => find(d, p, n).length > 0),
       cost: [run(async ({ d, p }) => {
+        const materials: Card[] = [];
         for (const n of names) {
-          const c = await pick(d, p, `Select "${n}"`, find(d, p, n), 'cost');
-          if (c) await d.move(c, dest, { why: 'fusion' });
+          const candidates = find(d, p, n).filter((c) => !materials.includes(c));
+          const c = await pick(d, p, `Select "${n}"`, candidates, 'cost');
+          if (c) materials.push(c);
         }
+        const hidden = materials.filter((c) => c.zone === 'hand' || !c.faceUp);
+        await d.reveal(p, hidden, 'Contact Fusion materials');
+        await d.reveal(opp(p), hidden, 'Contact Fusion materials');
+        for (const c of materials) await d.move(c, dest, { why: 'fusion' });
         if (dest === 'deck') await d.shuffleDeck(p);
       })],
     },

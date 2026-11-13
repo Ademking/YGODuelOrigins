@@ -7,9 +7,14 @@ export const W = 1280, H = 720;
 /**
  * Internal render scale. The canvas is RES x the world size and each camera zooms by RES, so layout
  * code keeps using 1280x720 coordinates while vectors, text and cards are rasterized at screen
- * resolution. Never below 2: the browser then downsamples the canvas, which also antialiases cards.
+ * resolution. Cap mobile resolution to keep the canvas and text textures smaller.
  */
-export const RES = Phaser.Math.Clamp(Math.ceil(((window.screen?.width ?? W) * (window.devicePixelRatio || 1)) / W * 2) / 2, 2, 3);
+const touchDevice = window.matchMedia('(pointer: coarse)').matches;
+export const RES = Phaser.Math.Clamp(
+  Math.ceil(((window.screen?.width ?? W) * (window.devicePixelRatio || 1)) / W * 2) / 2,
+  touchDevice ? 1 : 1.5,
+  touchDevice ? 1.5 : 2,
+);
 
 /** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */
 export const FONT_H = 'Michroma, Arial, sans-serif';

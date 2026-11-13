@@ -57,11 +57,32 @@ export class SetupScene extends Phaser.Scene {
     button(this, cx - 92, 520, 172, 40, 'Edit Deck', () => edit(false), { size: 13 });
     button(this, cx + 92, 520, 172, 40, '+ New Deck', () => edit(true), { size: 13 });
 
+    let startingLP: 4000 | 8000 = store.get('arcana-duel.starting-lp') === '4000' ? 4000 : 8000;
+    const lifePoints = button(this, 395, 642, 136, 40, `${startingLP} LP`, () => {
+      startingLP = startingLP === 4000 ? 8000 : 4000;
+      store.set('arcana-duel.starting-lp', String(startingLP));
+      lifePoints.setLabel(`${startingLP} LP`);
+    }, { size: 13 });
+
+    const cpuDecks = names.filter((name) => !validateDeck(decks[name]).length);
+    const cpuSelect = document.createElement('select');
+    cpuSelect.className = 'ad-input';
+    cpuSelect.style.width = '205px';
+    cpuSelect.setAttribute('aria-label', 'CPU deck');
+    cpuSelect.add(new Option('CPU preset deck', ''));
+    cpuDecks.forEach((name) => cpuSelect.add(new Option(name, name)));
+    cpuSelect.value = store.get('arcana-duel.cpu-deck') ?? '';
+    if (cpuSelect.selectedIndex < 0) cpuSelect.selectedIndex = 0;
+    cpuSelect.addEventListener('change', () => store.set('arcana-duel.cpu-deck', cpuSelect.value));
+    this.add.dom(935, 642, cpuSelect);
+
     const start = button(this, 640, 642, 340, 54, 'Begin Duel', () => {
       const deckName = names[deckIndex];
       const opponent = OPPONENTS[opponentIndex === RANDOM ? randomDuelist() : opponentIndex];
       if (!deckName || !opponent || validateDeck(decks[deckName]).length) return;
-      const data: DuelInit = { deck: decks[deckName], deckName, opp: opponent, level: opponent.suggested };
+      const cpuDeck = cpuSelect.value ? decks[cpuSelect.value] : undefined;
+      const opp = cpuDeck ? { ...opponent, deck: cpuDeck } : opponent;
+      const data: DuelInit = { deck: decks[deckName], deckName, opp, level: opponent.suggested, startingLP };
       setSelectedDeck(deckName);
       this.scene.start('Duel', data);
     }, { size: 20, primary: true });

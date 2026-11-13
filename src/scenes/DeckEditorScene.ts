@@ -97,9 +97,9 @@ export class DeckEditorScene extends Phaser.Scene {
         this.filter.kind = k; this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 13, tab: true });
     });
-    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['race', RACES, 'Type'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
+    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
     cycles.forEach(([key, vals, label], i) => {
-      const b = button(this, 880 + i * 84.5, 120, 80, 26, '', () => {
+      const b = button(this, 880 + (i >= 2 ? i + 1 : i) * 84.5, 120, 80, 26, '', () => {
         (this.filter[key] as number) = ((this.filter[key] as number) + 1) % vals.length;
         this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 12 });
@@ -112,6 +112,17 @@ export class DeckEditorScene extends Phaser.Scene {
       this.cycleBtns.push(b);
     });
 
+    const races = document.createElement('select');
+    races.className = 'ad-input';
+    races.style.cssText = 'width: 82px; height: 26px; padding: 2px; font-size: 11px;';
+    races.setAttribute('aria-label', 'Monster type');
+    RACES.forEach((race, index) => races.add(new Option(index === 0 ? 'All types' : race, String(index))));
+    races.addEventListener('change', () => {
+      this.filter.race = races.selectedIndex;
+      this.page = 0;
+      this.renderPool();
+    });
+    this.add.dom(1049, 120, races);
     this.deckLayer = this.add.container(0, 0);
     this.poolLayer = this.add.container(0, 0);
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
@@ -281,7 +292,8 @@ export class DeckEditorScene extends Phaser.Scene {
     img.on('pointerdown', (p: Phaser.Input.Pointer) => { if (p.wasTouch && visible(p)) this.cardPanel.show(getCard(id)); });
     img.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (this.dragId || !visible(p)) return;
-      if (from === 'pool') { if (p.rightButtonReleased()) this.remove1(id); else this.add1(id); }
+      const duplicate = p.rightButtonReleased() && (p.event as MouseEvent).shiftKey;
+      if (duplicate || (from === 'pool' && !p.rightButtonReleased())) this.add1(id);
       else this.remove1(id);
     });
     return img;

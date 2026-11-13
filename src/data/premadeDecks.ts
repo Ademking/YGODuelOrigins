@@ -111,6 +111,16 @@ const recipes: Recipe[] = [
     main: { 'Blade Skater': 3, 'Etoile Cyber': 3, 'Cyber Tutu': 3, 'Cyber Prima': 2, 'Cyber Gymnast': 3, 'Cyber Kirin': 2, 'Dunames Dark Witch': 2, 'Amazoness Swords Woman': 2, 'Amazoness Fighter': 2, 'Warrior Lady of the Wasteland': 2, 'Polymerization': 3, 'Fusion Recovery': 2, 'Fusion Sage': 2, 'Fusion Weapon': 1, 'Mystical Space Typhoon': 2, 'Reinforcement of the Army': 1, 'Sakuretsu Armor': 2, 'Mirror Wall': 2, 'Waboku': 2, 'Negate Attack': 1, 'Magic Cylinder': 1 },
     extra: { 'Cyber Blader': 2 },
   },
+  {
+    id: 'orichalcos', name: 'Orichalcos', title: 'The Seal of Orichalcos', ace: 'The Seal of Orichalcos',
+    style: 'Field Spell and Warrior beatdown', suggested: 'normal',
+    main: {
+      'The Seal of Orichalcos': 2, 'Terraforming': 2, 'Gearfried the Iron Knight': 3, 'Goblin Attack Force': 3,
+      'Marauding Captain': 3, 'Command Knight': 3, 'D.D. Warrior Lady': 2, 'Exiled Force': 2, 'Blade Knight': 2,
+      'Spear Dragon': 2, 'Reinforcement of the Army': 2, 'The Warrior Returning Alive': 2, 'Mystical Space Typhoon': 2,
+      'Book of Moon': 2, 'Smashing Ground': 2, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Dust Tornado': 2,
+    },
+  },
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));

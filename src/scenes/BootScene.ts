@@ -16,7 +16,11 @@ export class BootScene extends Phaser.Scene {
   preload() {
     fitCamera(this);
     this.screen = new LoadingScreen(this);
-    this.load.on('progress', (progress: number) => this.screen.progress(progress * 0.8));
+    this.load.on('progress', (progress: number) => {
+      this.screen.progress(progress * 0.8);
+      const status = document.getElementById('startup-status');
+      if (status) status.textContent = `Loading game assets… ${Math.round(progress * 100)}%`;
+    });
     this.load.on('filecomplete', (key: string) => { if (key === BACK) this.normalizeCard(BACK); });
     this.load.setCORS('anonymous');
     this.load.image(BACK, CARD_BACK_URL);
@@ -36,6 +40,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    if (![BACK, 'game_logo', 'dice_sheet'].every((key) => this.textures.exists(key))) {
+      document.dispatchEvent(new Event('duel-origins:boot-error'));
+      return;
+    }
     this.normalizeCard(BACK);
     const dice = this.textures.get('dice_sheet');
     for (let value = 1; value <= 6; value++) {
@@ -48,6 +56,9 @@ export class BootScene extends Phaser.Scene {
       await new Promise((resolve) => setTimeout(resolve, 350));
       await this.screen.close();
       this.scene.start('Title');
+    }).catch((error: unknown) => {
+      console.error(error);
+      document.dispatchEvent(new Event('duel-origins:boot-error'));
     });
   }
 
