@@ -35,6 +35,14 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 - **Holograms** for face-up monsters, toggled from **Menu → Holograms** during a duel.
 - **Sound and visual effects**, including a Fusion vortex, Ritual circle, Exodia effects, and a 3D dice roll.
 
+## Rules, formats, and card availability
+
+The default duel uses 2004-era mechanics, including the first-turn draw and turn-player ignition priority after a successful summon. The card pool includes later releases. Every playable card is available in the Deck Editor from the start.
+
+The pool includes cards from 2006 sets such as Cyber Dragon Fusion support in Cyberdark Impact and Destiny HERO support in Enemy of Justice and Power of the Duelist. The original Six Samurai from Strike of Neos are playable. Search for Irou, Kamon, Nisashi, Yaichi, Yariza, or Zanji in the Deck Editor. Grandmaster, Spirit, Chamberlain, Return, Cunning and Six Samurai United are also available.
+
+A Goat preset would use the April 2005 Forbidden and Limited List, the Goat card pool through The Lost Millennium and cards legal at the 2005 World Championship, and period-specific rulings. An Edison fork would use the April 2010 SJC Edison card pool and March 2010 list. The card catalog and deck validator are in `src/data/cards.ts` and `src/data/decks.ts`. Timing, summoning mechanics and the first-turn draw are in `src/engine/duel.ts`. Implement Synchro Summons and historical card-text variants before treating an Edison fork as format-compatible.
+
 ## Getting started
 
 Requirements: [Node.js](https://nodejs.org/) 18 or newer and an internet connection (card images load at runtime).

@@ -55,6 +55,7 @@ export const FIELD_MATS = {
     vec2 kf = fract(kq) - 0.5;
     float star = (exp(-abs(kf.x) * 40.0) * exp(-abs(kf.y) * 8.0) + exp(-abs(kf.y) * 40.0) * exp(-abs(kf.x) * 8.0)) * step(0.93, hash21(kid + 4.0));
     col += vec3(1.0, 0.97, 0.85) * star * pow(0.5 + 0.5 * sin(t * 3.0 + hash21(kid) * 30.0), 6.0) * (1.0 - cover) * (1.0 - bed) * 0.6;` },
+  'The Seal of Orichalcos': { accent: '#237b62', passcode: '48179391', fx: 'pulse' },
   'Forest': { accent: '#3b7741', passcode: '87430998', fx: 'wind' },
   // Purple vortex over a scrolling neon-green wireframe floor.
   'Fusion Gate': { accent: '#512774', scene: `
@@ -151,7 +152,7 @@ export function loadFieldArt(textures: Phaser.Textures.TextureManager, name: Fie
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 512;
         const ctx = canvas.getContext('2d')!;
-        // The crop is small and JPEG-compressed, and the mat stretches it across the whole screen, so it is blurred
+        // The crop is small and JPEG-compressed, and the mat stretches it across the duel area, so it is blurred
         // once here: it reads as an out-of-focus backdrop instead of blocky pixels. Drawn slightly oversized so the
         // blur does not fade the edges. ponytail: ctx.filter; a browser without it (Safari < 18) shows the art unblurred.
         ctx.filter = 'blur(3px)';
@@ -234,8 +235,8 @@ function proceduralShader(scene: string, reducedMotion: boolean): string {
     }
     void main() {
       vec2 uv = vec2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
-      vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
       float t = time * ${reducedMotion ? '0.0' : '0.22'};
+      vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
       vec3 col = vec3(0.0);
       ${scene}
       // Same dim + vignette idea as the art mats so cards stay readable.

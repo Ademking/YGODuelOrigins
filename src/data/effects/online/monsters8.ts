@@ -92,7 +92,7 @@ export const MONSTERS_8: Record<string, Def> = {
     noNormal: true,
     effects: [
       ign(run(async ({ d, p, o, card }) => {
-        for (const c of await d.select(p, "Tribute 2 of your opponent's monsters", d.monsters(o).filter((x) => d.tributeOk(x)), 2, 2, 'cost')) await d.move(c, 'gy', { why: 'tribute' });
+        for (const c of await d.select(p, "Tribute 2 of your opponent's monsters", d.monsters(o).filter((x) => d.tributeOk(x)), 2, 2, 'bad')) await d.move(c, 'gy', { why: 'tribute' });
         await d.specialSummon(card, o, 'atk', 'special', false, card);
         d.players[p].normalDone = true;
       }, (d, me) => d.monsters(opp(me)).reduce((s, c) => s + (c.def.atk ?? 0), 0) - 3000), { from: ['hand'], label: "Tribute 2 opponent monsters: Special Summon to their field", cond: (d, _c, p) => d.monsters(opp(p)).filter((x) => d.tributeOk(x)).length >= 2 && !P(d, p).normalDone }),

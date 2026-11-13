@@ -34,6 +34,7 @@
     html, body { margin: 0; height: 100%; background: #06050d; overflow: hidden; }
     #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
     #game canvas { touch-action: none; }
+    #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; text-align: center; font: 16px/1.5 Arial, sans-serif; }
     .rotate-notice { display: none; }
     @media (pointer: coarse) and (orientation: portrait) and (max-width: 800px) {
       .rotate-notice:not([hidden]) { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; background: #06050d; color: #f1ebdc; font: 16px Michroma, Arial, sans-serif; text-align: center; }
@@ -49,18 +50,84 @@
     .ad-log .hurt { color: #ff8a9a; font-weight: bold; }
     .ad-log .lost { color: #ffb070; }
     .ad-log .heal { color: #7dffa6; font-weight: bold; }
+    .ad-volume {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 36px;
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      touch-action: none;
+      --volume: 100%;
+    }
+    .ad-volume:focus-visible { outline: 2px solid #d8b25e; outline-offset: 3px; border-radius: 4px; }
+    .ad-volume::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
+    }
+    .ad-volume::-moz-range-track {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
+    }
+    .ad-volume::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -5px;
+      border: 2px solid #fff1c9;
+      border-radius: 4px;
+      background: #d8b25e;
+    }
+    .ad-volume::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid #fff1c9; border-radius: 4px; background: #d8b25e; }
     input.ad-input::placeholder { color: #9a93ae; }
     input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
   </style>
 </head>
 <body>
   <div id="game"></div>
+  <div id="startup-status" role="alert" hidden></div>
   <div class="rotate-notice" id="rotate-notice" role="dialog" aria-labelledby="rotate-title" aria-describedby="rotate-description">
     <p id="rotate-title">Turn your device sideways</p>
     <p id="rotate-description">The duel field and deck editor are easier to use in landscape.</p>
     <button type="button" id="rotate-dismiss">Continue in portrait</button>
   </div>
   <script>document.getElementById('rotate-dismiss').addEventListener('click', () => { document.getElementById('rotate-notice').hidden = true; });</script>
-  <script type="module" src="/src/main.ts"></script>
+  <script type="module">
+    const status = document.getElementById('startup-status');
+    let ready = false;
+    const fail = () => {
+      if (ready) return;
+      status.hidden = false;
+      status.textContent = 'The game could not start. Reload the page to retry. If the problem persists, check browser graphics support.';
+    };
+    const offerCompatibility = () => {
+      if (new URLSearchParams(location.search).has('compat')) return;
+      const url = new URL(location.href);
+      url.searchParams.set('compat', '1');
+      const link = document.createElement('a');
+      link.href = url.href;
+      link.textContent = 'Start in compatibility mode';
+      link.style.color = '#f0d08a';
+      status.append(document.createElement('br'), link);
+    };
+    const startupFailed = () => { if (!ready) { fail(); offerCompatibility(); } };
+    const timeout = setTimeout(startupFailed, 18000);
+    document.addEventListener('duel-origins:ready', () => {
+      ready = true;
+      clearTimeout(timeout);
+      status.hidden = true;
+    }, { once: true });
+    document.addEventListener('duel-origins:boot-error', startupFailed, { once: true });
+    document.addEventListener('duel-origins:graphics-error', () => {
+      status.hidden = false;
+      status.textContent = 'The browser lost the graphics connection. Reload to start a new duel.';
+      offerCompatibility();
+    });
+    import('/src/main.ts').catch(startupFailed);
+  </script>
 </body>
 </html>

@@ -31,7 +31,7 @@ const glowMoss = (selfDraw: boolean): Def => ({
     if (c.def.kind === 'monster') { d.attackNegated = true; d.battleEnded = true; }
     else if (c.def.kind === 'spell') { if (ev && ev.attacker === card && (await d.confirm(p, 'Change the attack to a direct attack?', card))) ev.target = null; }
     else await d.changePos(card, 'def');
-  }))],
+  }), { cond: (_d, c) => c.faceUp })],
 });
 const aquaDolphin = (selfDamage: boolean): Def => ({
   effects: [ign(run(async ({ d, p, o }) => {
@@ -188,7 +188,7 @@ export const MONSTERS_9: Record<string, Def> = {
   'Neo-Spacian Glow Moss': glowMoss(false),
   'Neo-Spacian Grand Mole': {
     preBattle: async (d, self, other) => {
-      if (!other || other.ctrl === self.ctrl || !(await d.confirm(self.ctrl, 'Return both monsters to the hand?', self))) return false;
+      if (!self.faceUp || !other || other.ctrl === self.ctrl || !(await d.confirm(self.ctrl, 'Return both monsters to the hand?', self))) return false;
       await d.toHand(other);
       await d.toHand(self);
       return true;

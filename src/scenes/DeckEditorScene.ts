@@ -6,7 +6,7 @@ import type { Attr, CardDef, Race } from '../engine/types';
 import { CARD_K, faceKey } from '../ui/cardArt';
 import { loadCard, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
-import { button, caption, COL, FONT_N, htxt, modal, panel, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
+import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
@@ -97,9 +97,9 @@ export class DeckEditorScene extends Phaser.Scene {
         this.filter.kind = k; this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 13, tab: true });
     });
-    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['race', RACES, 'Type'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
+    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
     cycles.forEach(([key, vals, label], i) => {
-      const b = button(this, 880 + i * 84.5, 120, 80, 26, '', () => {
+      const b = button(this, 880 + (i >= 2 ? i + 1 : i) * 84.5, 120, 80, 26, '', () => {
         (this.filter[key] as number) = ((this.filter[key] as number) + 1) % vals.length;
         this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 12 });
@@ -112,6 +112,15 @@ export class DeckEditorScene extends Phaser.Scene {
       this.cycleBtns.push(b);
     });
 
+    const raceLabels = RACES.map((race) => race === 'Any' ? 'All types' : race);
+    const raceFilter = button(this, 1049, 120, 80, 26, 'Type: Any ▾', () => {
+      chooseFromList(this, 'Monster type', raceLabels, this.filter.race, (index) => {
+        this.filter.race = index;
+        raceFilter.setLabel(index === 0 ? 'Type: Any ▾' : `${RACES[index]} ▾`).setSelected(index !== 0);
+        this.page = 0;
+        this.renderPool();
+      });
+    }, { size: 12 });
     this.deckLayer = this.add.container(0, 0);
     this.poolLayer = this.add.container(0, 0);
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
@@ -281,7 +290,8 @@ export class DeckEditorScene extends Phaser.Scene {
     img.on('pointerdown', (p: Phaser.Input.Pointer) => { if (p.wasTouch && visible(p)) this.cardPanel.show(getCard(id)); });
     img.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (this.dragId || !visible(p)) return;
-      if (from === 'pool') { if (p.rightButtonReleased()) this.remove1(id); else this.add1(id); }
+      const duplicate = p.rightButtonReleased() && (p.event as MouseEvent).shiftKey;
+      if (duplicate || (from === 'pool' && !p.rightButtonReleased())) this.add1(id);
       else this.remove1(id);
     });
     return img;

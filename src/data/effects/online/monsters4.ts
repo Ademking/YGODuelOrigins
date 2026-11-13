@@ -267,7 +267,8 @@ export const MONSTERS_4: Record<string, Def> = {
     effects: [ign(run(async ({ d, p, card }) => {
       const top = dd(d, p).deck[dd(d, p).deck.length - 1];
       if (!top) return;
-      await d.reveal(opp(p), [top], 'Diamond Dude');
+      await d.reveal(p, [top], 'Diamond Dude revealed the top card');
+      await d.reveal(opp(p), [top], 'Diamond Dude revealed the top card');
       if (top.def.kind === 'spell' && top.def.stype === 'normal') {
         await d.move(top, 'gy', { by: p });
         card.data.diamond = { uid: top.uid, mv: top.mv, turn: d.turn };

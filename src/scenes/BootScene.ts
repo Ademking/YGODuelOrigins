@@ -36,6 +36,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    if (![BACK, 'game_logo', 'dice_sheet'].every((key) => this.textures.exists(key))) {
+      document.dispatchEvent(new Event('duel-origins:boot-error'));
+      return;
+    }
     this.normalizeCard(BACK);
     const dice = this.textures.get('dice_sheet');
     for (let value = 1; value <= 6; value++) {
@@ -48,6 +52,9 @@ export class BootScene extends Phaser.Scene {
       await new Promise((resolve) => setTimeout(resolve, 350));
       await this.screen.close();
       this.scene.start('Title');
+    }).catch((error: unknown) => {
+      console.error(error);
+      document.dispatchEvent(new Event('duel-origins:boot-error'));
     });
   }
 

@@ -157,9 +157,9 @@ export const SPELLS_3: Record<string, Def> = {
     await ssPick(d, owner, d.players[owner].gy.filter((x) => isLV(x) && lvBase(x.def.name) === base && lvNum(x.def.name) < n), 'Special Summon a lower LV monster', undefined, true);
   }, 300), { targets: [{ f: { ...FU, fn: (_d, c) => isLV(c) } }] }),
   'Level Limit - Area B': passive({
-    lock: { pos: (d, _s, c) => c.faceUp && d.lvOf(c) >= 4 && c.pos === 'def' },
-    onSummon: async (d, _src, c) => { if (c.faceUp && d.lvOf(c) >= 4 && c.pos === 'atk') await d.changePos(c, 'def'); },
-  }, { ops: [run(async ({ d }) => { for (const c of both(d)) if (c.faceUp && d.lvOf(c) >= 4 && c.pos === 'atk') await d.changePos(c, 'def'); }, (d, me) => d.monsters(opp(me)).filter((c) => c.faceUp && (c.def.lv ?? 0) >= 4 && c.pos === 'atk').length * 400)] }),
+    lock: { pos: (d, src, c) => d.affects(src, c) && c.faceUp && d.lvOf(c) >= 4 && c.pos === 'def' },
+    onSummon: async (d, src, c) => { if (d.affects(src, c) && c.faceUp && d.lvOf(c) >= 4 && c.pos === 'atk') await d.changePos(c, 'def'); },
+  }, { ops: [run(async ({ d, card }) => { for (const c of both(d)) if (d.affects(card, c) && c.faceUp && d.lvOf(c) >= 4 && c.pos === 'atk') await d.changePos(c, 'def'); }, (d, me) => d.monsters(opp(me)).filter((c) => c.faceUp && (c.def.lv ?? 0) >= 4 && c.pos === 'atk').length * 400)] }),
   'Level Modulation': spell(run(async ({ d, p, o, card }) => {
     await d.draw(o, 2);
     const c = await ssPick(d, p, d.players[p].gy.filter(isLV), 'Special Summon an LV monster', undefined, true, card);
@@ -321,8 +321,12 @@ export const SPELLS_3: Record<string, Def> = {
   }),
   'Monster Gate': spell(run(async ({ d, p, card }) => {
     const [m, others] = excavate(d, p);
+    const revealed = m ? [...others, m] : others;
+    await d.reveal(p, revealed, 'Monster Gate');
+    await d.reveal(opp(p), revealed, 'Monster Gate');
     for (const c of others) await d.move(c, 'gy', { by: p, why: 'mill' });
     if (m && d.canSpecial(p, m)) await d.specialSummon(m, p, await d.askPos(p, m), 'special', false, card);
+    else if (m) await d.move(m, 'gy', { by: p, why: 'mill' });
   }, 800), { cost: [{ op: 'tribute', s: { t: 'choose', f: OWN_M } }], cond: (d, _c, p) => d.players[p].deck.some(normalSummonable) }),
   'Monster Reincarnation': spell({ op: 'toHand', s: { t: 'target' } }, { cost: [{ op: 'discard', who: 'self', n: 1 }], targets: [{ f: GY_M('self'), good: true }] }),
   'Morale Boost': passive({
@@ -398,7 +402,7 @@ export const SPELLS_3: Record<string, Def> = {
   'O - Oversoul': spell({ op: 'summon', s: { t: 'target' } }, { targets: [{ f: { ...GY_M('self'), set: 'Elemental Hero', mtype: ['normal'] }, good: true }] }),
   'Ojama Delta Hurricane!!': condSpell((d, p) => ['Ojama Green', 'Ojama Yellow', 'Ojama Black'].every((n) => has(d, p, n)), destroyAll({ side: 'opp' }), { ai: (d, me) => d.fieldCards(opp(me)).length * 700 }),
   'Ojamagic': {
-    effects: [act({ ops: [] }), trig('toGY', run(async ({ d, p }) => {
+    effects: [act({ ops: [], cond: () => false }), trig('toGY', run(async ({ d, p }) => {
       for (const n of ['Ojama Green', 'Ojama Yellow', 'Ojama Black']) { const c = d.find(DECK({ name: n }), p)[0]; if (c) await d.toHand(c); }
       await d.shuffleDeck(p);
     }), { from: ['gy'], cond: (_d, c) => c.mark.from === 'hand' || c.mark.from === 'szone' })],

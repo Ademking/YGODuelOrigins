@@ -50,3 +50,10 @@ Current state:
 2. **Notes to remove.** Each `note` in `scripts/coverage.ts` is a known deviation; the larger ones are Bait Doll (needs a forced chain link) and Kotodama (simultaneous duplicates). Battle-only ATK changes (Mirror Wall, Fairy Box) and negation of Fusion / Ritual Summons are now implemented.
 3. **CPU play quality.** The AI uses per-effect value hints; complex cards (Destiny Board, Cocoon of Evolution, Prohibition, Earthshaker…) are legal but played simply.
 4. **Load time.** Card images load on demand (`src/ui/cardLoader.ts`): the title screen fetches 6, the Deck Editor fetches the deck plus one 30-card page of the pool (and quietly the next page), and a duel fetches only the two decks and Tokens before the first draw. Cards still loading show the card back.
+
+
+### Adding card behavior
+
+Use the smallest existing operation that expresses the effect. Look at the card's nearest counterpart in `src/data/effects/` first. Put activation timing in the effect's matcher, legal choices in target filters, and costs in the cost array. Add a `CardDef` hook when multiple cards need the same engine event or rule and the existing operations cannot express it. Keep shared hooks available to both human and CPU play.
+
+For review, exercise the effect through a real activation or battle in `tests/cards/`. Assert zone changes and the response window as well as the final result. The test helpers can queue targets, passes, and chain responses. This keeps card-specific behavior in card files and limits additions to the shared definition.

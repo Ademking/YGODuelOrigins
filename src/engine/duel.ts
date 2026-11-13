@@ -204,6 +204,7 @@ export class Duel {
     public ctl: [Controller, Controller],
     public onEvent: (e: UIEvent) => Promise<void> | void = () => {},
     public rng: () => number = Math.random,
+    public readonly startingLP: 4000 | 8000 = 8000,
   ) {
     this.players = [0, 1].map((s) => this.mkPlayer(s as Side, names[s], decks[s])) as [Player, Player];
     this.listens = this.allCards().some((c) => c.def.effects?.some((e) => e.when));
@@ -211,7 +212,7 @@ export class Duel {
 
   private mkPlayer(side: Side, name: string, dl: DeckList): Player {
     const P: Player = {
-      side, name, lp: 8000, deck: [], hand: [], m: [null, null, null, null, null], s: [null, null, null, null, null],
+      side, name, lp: this.startingLP, deck: [], hand: [], m: [null, null, null, null, null], s: [null, null, null, null, null],
       f: null, gy: [], banished: [], extra: [], normalDone: false, extraDone: 0, bonusSummons: 0, shieldTurn: -1, noAttackTurn: -1,
     };
     for (const id of dl.main) P.deck.push(this.mkCard(getCard(id), side, 'deck'));
@@ -1456,9 +1457,11 @@ export class Duel {
     if (speed < min) return false;
     const empty = this.chain.length === 0 && p === this.tp;
     if (speed === 1) {
+      const summonPriority = eff.type === 'ignition' && !eff.phase && evs.some((e) => e.e === 'summon' && e.player === p)
+        && (this.phase === 'M1' || this.phase === 'M2');
       const ok = eff.phase
         ? empty && evs.some((e) => e.e === 'open' && eff.phase!.includes((e.phase ?? this.phase) as 'SP'))
-        : empty && evs.some((e) => e.e === 'open' && e.main);
+        : empty && (summonPriority || evs.some((e) => e.e === 'open' && e.main));
       if (!ok) return false;
     }
     if (eff.type === 'activate') {
@@ -1610,7 +1613,7 @@ export class Duel {
       const top = this.chain[this.chain.length - 1];
       const chainEv: Ev | null = top ? { e: 'chain', link: top } : null;
       const evs: Ev[] = chainEv ? [ev, chainEv] : [ev];
-      const min = top ? Math.max(2, top.speed) : ev.e === 'summoning' ? 3 : minOverride ?? 2;
+      const min = top ? Math.max(2, top.speed) : ev.e === 'summoning' ? 3 : minOverride ?? (ev.e === 'summon' && p === first && p === ev.player && passes === 0 ? 1 : 2);
       const opts = this.responseOptions(p, evs, min);
       let pick: Action | null = null;
       if (opts.length) {
@@ -1895,11 +1898,17 @@ export class Duel {
     return this.attackTargets(c).length > 0;
   }
 
-  attackTargets(c: Card): (Card | null)[] {
+  private permitsAttackMode(c: Card, target: Card | null, replay = false) {
+    if (!this.hasRule(c, 'monsterMultiAttack')) return true;
+    if (target === null) return c.attacks <= (replay ? 1 : 0);
+    return c.data.hitDirect !== this.turn || (replay && c.attacks === 1);
+  }
+
+  attackTargets(c: Card, replay = false): (Card | null)[] {
     const mons = this.monsters(opp(c.ctrl));
     const lk = this.locks();
-    const allowed = (t: Card | null) => !lk.some((l) => l.lock.target?.(this, l.src, c, t)) && !(this.attacksAll(c) && (t === null || this.hits(c).includes(t.uid))) && !(c.data.noDirectTurn === this.turn && t === null);
-    if (lk.some((l) => l.lock.forceDirect?.(this, l.src, c))) return [null];
+    const allowed = (t: Card | null) => this.permitsAttackMode(c, t, replay) && !lk.some((l) => l.lock.target?.(this, l.src, c, t)) && !(this.attacksAll(c) && (t === null || this.hits(c).includes(t.uid))) && !(c.data.noDirectTurn === this.turn && t === null);
+    if (lk.some((l) => l.lock.forceDirect?.(this, l.src, c))) return this.permitsAttackMode(c, null, replay) ? [null] : [];
     const out: (Card | null)[] = mons.filter(allowed);
     if ((!mons.length || this.hasRule(c, 'direct')) && !this.hasRule(c, 'noDirect') && allowed(null)) out.push(null);
     return out;
@@ -1962,12 +1971,17 @@ export class Duel {
       const redirected = target !== tgt;
       const gone = target && (target.zone !== 'mzone');
       if (gone || (!redirected && this.monsters(defSide).length !== before)) {
-        const choice = await this.ask<Card | null | false>(att.ctrl, { t: 'replay', attacker: att, targets: this.attackTargets(att) });
+        const choice = await this.ask<Card | null | false>(att.ctrl, { t: 'replay', attacker: att, targets: this.attackTargets(att, true) });
         if (choice === false) { this.log(`${att.def.name} does not attack again.`); return; }
         target = choice;
         ev.target = target;
         this.log(`Replay: ${att.def.name} attacks ${target ? (target.faceUp ? target.def.name : 'a face-down monster') : 'directly'}.`);
         await this.emit({ t: 'attack', attacker: att, target });
+      }
+      if (!this.permitsAttackMode(att, target, true)) return;
+      if (this.hasRule(att, 'monsterMultiAttack')) {
+        if (!target) att.data.hitDirect = this.turn;
+        else if (att.attacks === 1 && att.data.hitDirect === this.turn) delete att.data.hitDirect;
       }
       await this.damageStep(att, target);
       for (const fn of ev.after ?? []) { await fn(); await this.cleanup(); }
@@ -2039,13 +2053,13 @@ export class Duel {
           else if (a < d) { dmgTo = att.ctrl; dmg = d - a; }
         }
         if (dmgTo !== null) { info.dmgTo = dmgTo; info.dmg = await this.battleDamage(dmgTo, dmg, dmgTo === tgt.ctrl ? att : tgt, dmgTo === tgt.ctrl ? tgt : att); }
+        if (flipped) this.raiseFlip(tgt);
         const tDead = killT && (await this.destroy(tgt, 'battle', att, att.ctrl));
         const aDead = killA && (await this.destroy(att, 'battle', tgt, tgt.ctrl));
         info.killedT = tDead;
         info.killedA = aDead;
         if (tDead) this.raise('destroysByBattle', att, tgt);
         if (aDead) this.raise('destroysByBattle', tgt, att);
-        if (flipped && tgt.zone !== 'banished') this.raiseFlip(tgt);
       }
       for (const [c, o] of [[att, tgt], [tgt, att]] as [Card | null, Card | null][]) {
         if (!c) continue;

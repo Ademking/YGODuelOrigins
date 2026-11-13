@@ -300,7 +300,9 @@ export const TRAPS: Record<string, Def> = {
   'Spellbinding Circle': passive({
     selfDestructIf: (d, c) => linkGone(d, c) && d.byUid(c.data.tgt)?.mark.lastWhy !== 'tribute',
     lock: { attack: (_d, src, a) => !!src && a.uid === src.data.tgt, pos: (_d, src, c) => !!src && c.uid === src.data.tgt },
-  }, { targets: [{ f: OPP_M }], ops: [linkTarget] }),
+  }, { targets: [{ f: OPP_FU }], ops: [linkTarget, run(({ d, t }) => {
+    if (d.curAttack && t[0] === d.curAttack.attacker) d.attackNegated = true;
+  })] }),
   "Fairy's Hand Mirror": spell(run(async ({ d, p, link }) => {
     const l = linkOf(link.ev);
     if (!l) return;
