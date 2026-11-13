@@ -1569,10 +1569,7 @@ export class DuelScene extends Phaser.Scene {
         const img = this.add.image(x, y, vis ? faceKey(this.textures, c.def.id) : BACK).setScale(0.42 * CARD_K).setInteractive({ useHandCursor: true });
         if (vis) setCardTexture(img, c.def.id);
         const sel = chosen.has(c);
-        const frame = this.add.graphics();
-        frame.fillStyle(COL.panel2, 1).fillPoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
-        frame.lineStyle(sel ? 2 : 1, sel ? COL.gold : COL.line, 1).strokePoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
-        grid.add(frame);
+        const mark = sel ? htxt(this, x, y + 74, '✓', 16, COL.goldTxt).setOrigin(0.5) : null;
         img.on('pointerover', () => this.cardPanel.show(c.def, { hidden: !vis }));
         img.on('pointerup', () => {
           if (single) return this.choose([c]);
@@ -1581,6 +1578,7 @@ export class DuelScene extends Phaser.Scene {
           render();
         });
         grid.add(img);
+        if (mark) grid.add(mark);
       });
       if (pages > 1) {
         if (page > 0) grid.add(button(this, x0 + 34, y0 + 176, 34, 48, '‹', () => { page--; render(); }, { size: 24 }));

@@ -177,3 +177,33 @@ test('CPU resolves Panther Warrior tribute before selecting its attack target', 
   assert.equal(attacks.filter(name => name === 'Panther Warrior').length, 1);
   assert.ok(duel.players[1].gy.some(card => card.def.name === 'Goblin Attack Force'));
 });
+
+test('Gravity Bind blocks Necroshade while Wildheart can attack', async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name.toLowerCase() === name.toLowerCase())!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Burst Stream of Destruction')), extra: [] };
+  let checked = false;
+  const duel = new OcgDuel([deck, deck], ['You', 'Jaden'], async prompt => {
+    if (prompt.t === 'chain') return prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Gravity Bind') ?? null;
+    if (prompt.t === 'main' && prompt.phase === 'M1') {
+      return prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Gravity Bind')
+        ?? prompt.actions.find(action => action.a === 'phase' && action.to === 'BP')
+        ?? prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    }
+    if (prompt.t === 'main' && prompt.phase === 'BP') {
+      const attackers = prompt.actions.flatMap(action => action.a === 'attack' ? [action.card.def.name] : []);
+      assert.ok(attackers.some(name => name.toLowerCase() === "elemental hero wildheart"));
+      assert.ok(!attackers.some(name => name.toLowerCase() === "elemental hero necroshade"));
+      checked = true;
+      return SURRENDER;
+    }
+    if (prompt.t === 'main') return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'yesno') return true;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, () => {}, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [id('Elemental HERO Necroshade'), id('Elemental HERO Wildheart')], opponentMonsters: [], traps: [id('Gravity Bind')], extra: [],
+  }, 0);
+  assert.ok(checked);
+});
