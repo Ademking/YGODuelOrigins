@@ -48,6 +48,7 @@ export class OcgDuel {
   private stopped = false;
   private nextId = 1;
   private slot?: number;
+  private cpuAttackCostPaid = false;
   private attackTarget?: Card | null;
   private choosingAttack = false;
   private destroyed = new Set<number>();
@@ -342,11 +343,18 @@ export class OcgDuel {
         if (attack) {
           await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
           if (this.stopped) return;
+          this.cpuAttackCostPaid = false;
           this.attackTarget = attack.target;
           this.choosingAttack = true;
           return { type: R.SELECT_BATTLECMD, action: B.SELECT_BATTLE, index: attack.index };
         }
         if (message.to_m2 || message.to_ep) return { type: R.SELECT_BATTLECMD, action: message.to_m2 ? B.TO_M2 : B.TO_EP, index: null };
+      }
+      if (message.type === M.SELECT_UNSELECT_CARD && this.choosingAttack && !this.cpuAttackCostPaid
+          && message.select_cards.length && !message.unselect_cards.length && message.min === 1 && message.max === 1) {
+        // Attack-cost scripts can offer cancellation even before the first tribute is paid.
+        this.cpuAttackCostPaid = true;
+        return { type: R.SELECT_UNSELECT_CARD, index: 0 };
       }
       if (message.type === M.SELECT_CARD && this.choosingAttack && prompt.selection) {
         this.choosingAttack = false;

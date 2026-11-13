@@ -153,3 +153,27 @@ test('the original board adapter receives turns, draws and legal Phaser actions'
   assert.equal(duel.players[1].hand.length, 5);
   assert.ok(duel.players[1].hand.every(card => card.def.id === ''));
 });
+
+test('CPU resolves Panther Warrior tribute before selecting its attack target', { timeout: 5000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Burst Stream of Destruction')), extra: [] };
+  let main2 = false;
+  const attacks: string[] = [];
+  const duel = new OcgDuel([deck, deck], ['You', 'Joey'], async prompt => {
+    if (main2) return SURRENDER;
+    if (prompt.t === 'main') return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => {
+    if (event.t === 'phase' && event.phase === 'M2') main2 = true;
+    if (event.t === 'attack') attacks.push(event.attacker.def.name);
+  }, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [id('Vorse Raider'), id('Saggi the Dark Clown')], opponentMonsters: [id('Panther Warrior'), id('Goblin Attack Force')], traps: [], extra: [],
+  }, 0);
+  assert.ok(main2);
+  assert.equal(attacks.filter(name => name === 'Panther Warrior').length, 1);
+  assert.ok(duel.players[1].gy.some(card => card.def.name === 'Goblin Attack Force'));
+});
