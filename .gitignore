@@ -32,3 +32,6 @@ game-data/
 
 .vercel
 .env*
+
+# Generated Project Ignis data for the OCGCore browser runtime
+/assets/ocgcore/

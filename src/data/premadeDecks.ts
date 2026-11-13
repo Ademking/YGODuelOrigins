@@ -1,6 +1,6 @@
 import type { Difficulty } from '../engine/ai';
 import type { DeckList } from '../engine/duel';
-import { CARDS } from './cards';
+import { CARDS } from '../ocgcore/catalog';
 
 interface Recipe {
   id: string;

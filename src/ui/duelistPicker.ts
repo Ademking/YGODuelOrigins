@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { OPPONENTS, type Opponent } from '../data/decks';
-import { CARDS } from '../data/cards';
+import { CARDS } from '../ocgcore/catalog';
 import { BACK } from './cardArt';
 import { setCardTexture } from './cardLoader';
 import { portraitKey } from './portraits';

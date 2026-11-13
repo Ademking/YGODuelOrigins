@@ -43,12 +43,4 @@ export const getCard = (id: string): CardDef => {
 export const isExtraDeckCard = (card: CardDef) => card.mtype === 'fusion';
 export const copyLimit = (card: CardDef) => card.limit ?? 3;
 
-export function typeLine(card: CardDef): string {
-  if (card.kind === 'monster') {
-    const sub = card.ability ?? (card.mtype === 'normal' ? '' : card.mtype!);
-    const subtype = sub ? `/${sub[0].toUpperCase()}${sub.slice(1)}` : '';
-    return `[${card.race}${subtype}]`;
-  }
-  const subtype = card.stype === 'normal' ? '' : ` (${card.stype === 'quick' ? 'Quick-Play' : card.stype![0].toUpperCase() + card.stype!.slice(1)})`;
-  return `${card.kind === 'spell' ? 'Spell' : 'Trap'} Card${subtype}`;
-}
+export { typeLine } from '../ocgcore/catalog';

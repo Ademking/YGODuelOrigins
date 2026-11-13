@@ -14,6 +14,12 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 </div>
 
+## OCGCore browser branch
+
+Duel Setup and CPU versus CPU open the OCGCore WebAssembly duel scene. Project Ignis Lua handles card effects and legal actions in the browser. Decks retain their existing saved IDs and are mapped to Project Ignis passcodes on duel entry. Duels use the core's GOAT rules flags with Duel Origins' existing deck pool. Card text and rulings come from the pinned Project Ignis revisions, so historical errata can differ from the original simulator.
+
+This branch uses a board and action list for core decisions. The original duel animations, debug setup and card drag interactions are pending migration. The legacy engine remains in the source tree for its existing tests.
+
 ## Trailer
 
 <p align="center">
@@ -45,7 +51,7 @@ A Goat preset would use the April 2005 Forbidden and Limited List, the Goat card
 
 ## Getting started
 
-Requirements: [Node.js](https://nodejs.org/) 18 or newer and an internet connection (card images load at runtime).
+Requirements: [Node.js](https://nodejs.org/) 22.13 or newer, Git, and an internet connection. The first dev or production build fetches the pinned [CardScripts](https://github.com/ProjectIgnis/CardScripts) and [BabelCDB](https://github.com/ProjectIgnis/BabelCDB) revisions and generates a compressed browser bundle. No database server is needed. Card images load at runtime.
 
 ```bash
 npm install
@@ -62,6 +68,7 @@ Open the URL Vite prints (port 5173 by default).
 | `npm run build` | Type-check and build the game into `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run check` | Run the engine self-test |
+| `npm run test:ocgcore` | Run the OCGCore Lua and premade deck integration tests |
 | `npm test` | Run the unit and integration tests |
 | `npm run fuzz` | Run randomized duel simulations |
 | `npm run coverage` | Regenerate the per-card effect report in `coverage/effects.json` |
@@ -108,3 +115,5 @@ Questions, bug reports, and duel partners are welcome on the [Discord server](ht
 ## Disclaimer
 
 This is a fan project for learning and play. It is not affiliated with or endorsed by Konami, Shueisha, or the Yu-Gi-Oh! trading card game. Yu-Gi-Oh! and all card names, artwork, and related trademarks belong to their respective owners.
+
+OCGCore integration was inspired by [RyannDaGreat/YuGiOh](https://github.com/RyannDaGreat/YuGiOh). Dependency and card-data sources are [ocgcore-wasm](https://github.com/n1xx1/ocgcore-wasm), [EDOPro core](https://github.com/edo9300/ygopro-core), and the two pinned Project Ignis repositories in `scripts/prepare-ocgcore.mjs`. The generated bundle includes the CardScripts license.

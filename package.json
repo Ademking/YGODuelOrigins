@@ -12,9 +12,15 @@
     "verify:original": "node scripts/verify-original.mjs",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "fuzz": "tsx tests/fuzz.ts",
-    "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts"
+    "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts",
+    "prepare:ocgcore": "node scripts/prepare-ocgcore.mjs",
+    "predev": "npm run prepare:ocgcore",
+    "prebuild": "npm run prepare:ocgcore",
+    "test:ocgcore": "npm run prepare:ocgcore && node --import tsx --test tests/integration/ocgcore.test.ts",
+    "pretest": "npm run prepare:ocgcore"
   },
   "dependencies": {
+    "ocgcore-wasm": "0.1.6",
     "phaser": "^3.90.0"
   },
   "devDependencies": {

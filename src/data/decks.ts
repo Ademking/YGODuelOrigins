@@ -1,6 +1,6 @@
 import type { DeckList } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
-import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from './cards';
+import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from '../ocgcore/catalog';
 import { PREMADE, PREVIOUS_PREMADE } from './premadeDecks';
 
 export interface Opponent { id: string; name: string; title: string; art: string; ace: string; style: string; deck: DeckList; suggested: Difficulty }

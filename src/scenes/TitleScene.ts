@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BACK, CARD_K } from '../ui/cardArt';
-import { CARDS } from '../data/cards';
+import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
 import { button, caption, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';

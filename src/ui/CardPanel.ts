@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
-import { typeLine } from '../data/cards';
+import { typeLine } from '../ocgcore/catalog';
 import { ATTR_COLOR, BACK, CH, CW } from './cardArt';
 import { setCardTexture } from './cardLoader';
 import { COL, FONT_B, FONT_H, panel, ScrollBar } from './theme';

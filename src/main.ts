@@ -2,9 +2,8 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SetupScene } from './scenes/SetupScene';
-import { DuelScene } from './scenes/DuelScene';
+import { OcgDuelScene } from './scenes/OcgDuelScene';
 import { DeckEditorScene } from './scenes/DeckEditorScene';
-import { DebugScene } from './scenes/DebugScene';
 import { WatchScene } from './scenes/WatchScene';
 import { H, RES, W } from './ui/theme';
 
@@ -26,7 +25,7 @@ const game = new Phaser.Game({
   disableContextMenu: true,
   // ?st runs the loop on timers instead of rAF (useful in background/headless tabs)
   fps: { forceSetTimeOut: options.has('st'), target: 60 },
-  scene: [BootScene, TitleScene, SetupScene, DuelScene, DeckEditorScene, DebugScene, WatchScene],
+  scene: [BootScene, TitleScene, SetupScene, OcgDuelScene, DeckEditorScene, WatchScene],
 });
 
 // Dev-only handle for debugging in the browser console.
