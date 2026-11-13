@@ -365,7 +365,8 @@ export class OcgDuel {
         const options = [...actions.keys()];
         const selection = await ask(message.type === M.SELECT_CHAIN
           ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true,
-            optionalWindow: message.spe_count === 0 && !this.chain.size && this.tp === side && (this.phase === 'M1' || this.phase === 'M2') }
+            optionalWindow: message.spe_count === 0 && !this.chain.size && this.tp === side
+              && (this.phase === 'DP' || this.phase === 'SP' || this.phase === 'M1' || this.phase === 'M2') }
           : { t: 'main', actions: options, phase: this.phase });
         if (selection === SURRENDER) return;
         if (selection === null && message.type === M.SELECT_CHAIN) return { type: R.SELECT_CHAIN, index: null };
