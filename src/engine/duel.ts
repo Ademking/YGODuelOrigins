@@ -103,8 +103,8 @@ export type Action =
 export type Purpose = 'good' | 'bad' | 'cost';
 export type Prompt =
   | { t: 'main'; actions: Action[]; phase: Phase }
-  | { t: 'chain'; actions: Action[]; ev: Ev; text: string; core?: boolean }
-  | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean; cancel?: boolean }
+  | { t: 'chain'; actions: Action[]; ev: Ev; text: string; core?: boolean; optionalWindow?: boolean }
+  | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean; cancel?: boolean; showCardFaces?: boolean; marked?: Card[]; finish?: boolean }
   | { t: 'yesno'; text: string; card?: Card; kind: 'trigger' | 'upkeep' | 'choice'; ai?: boolean; eff?: Effect; ev?: Ev }
   | { t: 'option'; text: string; options: string[]; ai?: number }
   | { t: 'announce'; text: string; cards: { name: string; code: number }[] }

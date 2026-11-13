@@ -1066,7 +1066,7 @@ export class DuelScene extends Phaser.Scene {
     this.hlWant.clear();
     if (this.fieldSelection) {
       for (const card of this.fieldSelection.prompt.cards) {
-        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) ? 0xffffff : COL.gold);
+        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) || this.fieldSelection.prompt.marked?.includes(card) ? 0xffffff : COL.gold);
       }
       return;
     }
@@ -1278,7 +1278,9 @@ export class DuelScene extends Phaser.Scene {
   private actionMenu(c: Card, acts: Action[]) {
     this.closeMenu();
     const attacks = acts.filter((a) => a.a === 'attack');
-    const items: { label: string; run: () => void }[] = acts.filter((a) => a.a !== 'attack').map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
+    const items: { label: string; run: () => void }[] = acts.filter((a) => a.a !== 'attack')
+      .sort((a, b) => Number(b.a === 'act') - Number(a.a === 'act'))
+      .map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
     if (attacks.length === 1) items.unshift({ label: this.label(attacks[0]), run: () => this.choose(attacks[0]) });
     else if (attacks.length > 1) items.unshift({ label: 'Attack…', run: () => this.startTargeting(c, attacks) });
     const s = this.sprites.get(c.uid)!;
@@ -1416,7 +1418,8 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private shouldAutoPass(p: Extract<Prompt, { t: 'chain' }>): boolean {
-    if (this.chainMode === 'always' || p.core) return false;
+    if (this.chainMode === 'always') return false;
+    if (p.core) return p.optionalWindow === true;
     const ev = p.ev;
     const specific = p.actions.some((a) => { const e = a.a === 'act' ? a.card.def.effects?.[a.eff] : undefined; return !!(e && (e.on || e.when || e.phase)); });
     if (specific) return false;
@@ -1531,7 +1534,11 @@ export class DuelScene extends Phaser.Scene {
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
     const confirm = single ? null : button(this, CX, 110, 160, 32, 'Confirm', () => this.choose([...chosen]), { size: 12, primary: true });
-    if (confirm) { confirm.setEnabled(false); layer.add(confirm); }
+    if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
+    if (prompt.finish || prompt.cancel) {
+      layer.add(button(this, single ? CX : CX + 155, 110, 120, 32, prompt.finish ? 'Confirm' : 'Cancel',
+        () => this.choose(null), { size: 12 }));
+    }
     this.fieldSelection = { prompt, chosen, layer, confirm };
     this.refreshHighlights();
   }
@@ -1560,7 +1567,7 @@ export class DuelScene extends Phaser.Scene {
       slice.forEach((c, i) => {
         const x = CX + (i - (slice.length - 1) / 2) * 98, y = y0 + 176;
         // your own off-field cards (deck, hand, Fusion Deck) are always shown face-up to you when choosing
-        const vis = !!p.reveal || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
+        const vis = !!p.reveal || !!p.showCardFaces || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
         const img = this.add.image(x, y, vis ? faceKey(this.textures, c.def.id) : BACK).setScale(0.42 * CARD_K).setInteractive({ useHandCursor: true });
         if (vis) setCardTexture(img, c.def.id);
         const sel = chosen.has(c);
@@ -1582,7 +1589,7 @@ export class DuelScene extends Phaser.Scene {
         if (page < pages - 1) grid.add(button(this, x0 + w - 34, y0 + 176, 34, 48, '›', () => { page++; render(); }, { size: 24 }));
       }
       if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
-      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click a card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})${p.validate ? ' · total Levels must meet the requirement' : ''}`);
+      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click one card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})`);
       ok.setVisible(!single).setEnabled(valid());
     };
     render();

@@ -363,7 +363,8 @@ export class OcgDuel {
       if (actions.size && (message.type !== M.SELECT_CHAIN || !message.forced)) {
         const options = [...actions.keys()];
         const selection = await ask(message.type === M.SELECT_CHAIN
-          ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true }
+          ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true,
+            optionalWindow: message.spe_count === 0 && !this.chain.size && this.tp === side && (this.phase === 'M1' || this.phase === 'M2') }
           : { t: 'main', actions: options, phase: this.phase });
         if (selection === SURRENDER) return;
         if (selection === null && message.type === M.SELECT_CHAIN) return { type: R.SELECT_CHAIN, index: null };
@@ -387,7 +388,7 @@ export class OcgDuel {
       const created: Card[] = [];
       const cards = message.selects.map(loc => {
         const current = this.lookup(loc);
-        if (current && current.def.id) return current;
+        if (current && (this.onField(current) || loc.code === 0 || current.def.name === this.definition(loc.code).name)) return current;
         const card = this.card(this.side(loc.controller), zoneOf(loc) ?? 'hand', this.definition(loc.code));
         created.push(card);
         return card;
@@ -395,12 +396,27 @@ export class OcgDuel {
       const spec = prompt.selection;
       const indices = (picked: Card[]) => picked.map(card => cards.indexOf(card));
       try {
-        const picked = await ask({ t: 'select', text: prompt.title, cards, min: 0, max: cards.length, purpose: 'good',
-          reveal: true, cancel: message.type !== M.SELECT_SUM && message.can_cancel, validate: picked => spec.valid(indices(picked)) });
+        const field = cards.length > 0 && cards.every(card => !created.includes(card) && this.onField(card));
+        const picked = await ask({ t: 'select', text: prompt.title, cards,
+          min: message.type === M.SELECT_TRIBUTE ? 1 : message.min,
+          max: message.type === M.SELECT_SUM && message.max === 0 ? cards.length : message.max,
+          purpose: 'good', selectionKind: field ? 'target' : undefined,
+          showCardFaces: true, cancel: message.type !== M.SELECT_SUM && message.can_cancel,
+          validate: message.type === M.SELECT_CARD ? undefined : picked => spec.valid(indices(picked)) });
         if (picked === SURRENDER) return;
         if (picked === null) return prompt.choices[0]?.response;
         return spec.response(indices(picked as Card[]));
       } finally { for (const card of created) this.ids.delete(card.uid); }
+    }
+    if (message.type === M.SELECT_UNSELECT_CARD) {
+      const cards = [...message.select_cards, ...message.unselect_cards].map(loc => this.lookup(loc));
+      if (cards.length && cards.every((card): card is Card => !!card && this.onField(card))) {
+        const picked = await ask({ t: 'select', text: prompt.title, cards, min: 1, max: 1, purpose: 'good',
+          selectionKind: 'target', marked: cards.slice(message.select_cards.length),
+          finish: message.can_finish, cancel: message.can_cancel && !message.can_finish });
+        if (picked === SURRENDER) return;
+        return { type: R.SELECT_UNSELECT_CARD, index: picked === null ? null : cards.indexOf((picked as Card[])[0]) };
+      }
     }
     if (message.type === M.SELECT_POSITION && prompt.choices.every(c => c.response.type === R.SELECT_POSITION && (c.response.position === 1 || c.response.position === 4))) {
       const card = this.card(0, 'hand', this.definition(message.code));
