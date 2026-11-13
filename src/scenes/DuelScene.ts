@@ -12,6 +12,7 @@ import { CardPanel } from '../ui/CardPanel';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
 import { burst, flash, motes, ring } from '../ui/fx';
 import { sfx } from '../ui/sfx';
+import { volumeControls } from '../ui/settings';
 import { actionIndicator } from '../ui/actionIndicator';
 import { attackTargetLabel } from '../ui/attackTarget';
 import { extraDeckActions } from '../ui/pileActions';
@@ -1703,20 +1704,8 @@ export class DuelScene extends Phaser.Scene {
     layer.add(this.playfieldBlocker(0x000000, 0.55));
     layer.add(panel(this, CX - 170, CY - 110, 340, 220));
     layer.add(htxt(this, CX, CY - 76, 'Volume', 22).setOrigin(0.5));
-    const input = document.createElement('input');
-    input.type = 'range';
-    input.min = '0';
-    input.max = '100';
-    input.value = String(Math.round(sfx.volume * 100));
-    input.style.width = '245px';
-    input.setAttribute('aria-label', 'Game volume');
-    input.addEventListener('input', () => {
-      sfx.setVolume(Number(input.value) / 100);
-      if (sfx.muted && sfx.volume > 0) sfx.setMuted(false);
-    });
-    const slider = this.add.dom(CX, CY - 10, input).setDepth(981);
-    layer.once('destroy', () => slider.destroy());
-    layer.add(button(this, CX, CY + 64, 172, 42, 'Back', () => { this.closeMenu(); this.showMenu(); }, { size: 15 }));
+    volumeControls(this, layer, CX, CY - 32, 256);
+    layer.add(button(this, CX, CY + 77, 144, 32, 'Back', () => { this.closeMenu(); this.showMenu(); }, { size: 14 }));
     this.overlay = layer;
   }
 

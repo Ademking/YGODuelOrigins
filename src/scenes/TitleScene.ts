@@ -3,7 +3,7 @@ import { BACK, CARD_K } from '../ui/cardArt';
 import { CARDS } from '../data/cards';
 import { setCardTexture } from '../ui/cardLoader';
 import { button, caption, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
-import { sfx } from '../ui/sfx';
+import { settingsRows, volumeControls } from '../ui/settings';
 import { gravityWellShader } from '../ui/gravityWell';
 
 const open = (url: string) => () => { window.open(url, '_blank', 'noopener'); };
@@ -97,12 +97,22 @@ export class TitleScene extends Phaser.Scene {
       button(this, 640, 346 + index * 60, 320, 48, label, run, { size: 17, primary: index === 0 });
     });
     button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
-    const snd = button(this, 1196, 688, 130, 32, sfx.muted ? 'Sound: Off' : 'Sound: On', () => {
-      sfx.setMuted(!sfx.muted);
-      snd.setLabel(sfx.muted ? 'Sound: Off' : 'Sound: On');
-    }, { size: 13 });
+    button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });
     caption(this, 24, 683, `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`, COL.dim, 9);
     document.dispatchEvent(new Event('duel-origins:ready'));
+  }
+
+  private showSettings() {
+    const layer = this.add.container(0, 0).setDepth(110);
+    const close = () => layer.destroy();
+    layer.add(this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive());
+    layer.add(panel(this, 420, 125, 440, 470, 0.98, 10));
+    layer.add(htxt(this, 640, 161, 'Settings', 24).setOrigin(0.5));
+    volumeControls(this, layer, 640, 225);
+    settingsRows(this, layer, 640, 340);
+    layer.add(button(this, 640, 554, 160, 40, 'Close', close, { size: 14 }));
+    this.input.keyboard?.once('keydown-ESC', close);
+    layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
   }
 
   private showChangelog() {

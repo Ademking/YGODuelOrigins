@@ -50,6 +50,39 @@
     .ad-log .hurt { color: #ff8a9a; font-weight: bold; }
     .ad-log .lost { color: #ffb070; }
     .ad-log .heal { color: #7dffa6; font-weight: bold; }
+    .ad-volume {
+      appearance: none;
+      -webkit-appearance: none;
+      height: 36px;
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      touch-action: none;
+      --volume: 100%;
+    }
+    .ad-volume:focus-visible { outline: 2px solid #d8b25e; outline-offset: 3px; border-radius: 4px; }
+    .ad-volume::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
+    }
+    .ad-volume::-moz-range-track {
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
+    }
+    .ad-volume::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -5px;
+      border: 2px solid #fff1c9;
+      border-radius: 4px;
+      background: #d8b25e;
+    }
+    .ad-volume::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid #fff1c9; border-radius: 4px; background: #d8b25e; }
     input.ad-input::placeholder { color: #9a93ae; }
     input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
   </style>
