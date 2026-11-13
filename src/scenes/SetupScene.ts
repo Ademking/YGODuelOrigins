@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { loadDecks, OPPONENTS, selectedDeck, setSelectedDeck, validateDeck } from '../data/decks';
+import { loadDecks, OPPONENTS, selectedDeck, setSelectedDeck, validateDeck, type Opponent } from '../data/decks';
 import { getCard } from '../data/cards';
 import type { DeckList } from '../engine/duel';
 import { BACK } from '../ui/cardArt';
@@ -29,13 +29,19 @@ export class SetupScene extends Phaser.Scene {
     htxt(this, 180, 45, 'Duel Setup', 24).setOrigin(0, 0.5);
     htxt(this, 640, 236, 'VS', 34).setOrigin(0.5);
 
-    // opponent: the last one played ("random" is remembered too), else the first duelist
+    const custom: Omit<Opponent, 'deck'> = {
+      id: 'custom-deck', name: 'Custom Deck', title: 'Custom CPU opponent',
+      art: '', ace: '', style: '', suggested: 'normal',
+    };
+    const customIndex = OPPONENTS.length;
     const saved = store.get('arcana-duel.opp');
-    let opponentIndex = saved === 'random' ? RANDOM : Math.max(0, OPPONENTS.findIndex((opponent) => opponent.id === saved));
+    let opponentIndex = saved === custom.id ? customIndex : saved === 'random' ? RANDOM
+      : Math.max(0, OPPONENTS.findIndex((opponent) => opponent.id === saved));
     const picker = duelistPicker(this, 330, 80, 'CPU opponent', opponentIndex, (index) => {
       opponentIndex = index;
-      store.set('arcana-duel.opp', OPPONENTS[index]?.id ?? 'random');
-    });
+      store.set('arcana-duel.opp', index === customIndex ? custom.id : OPPONENTS[index]?.id ?? 'random');
+      refresh();
+    }, custom);
 
     // your deck, laid out like the picker beside it
     const decks = loadDecks();
@@ -57,21 +63,22 @@ export class SetupScene extends Phaser.Scene {
     button(this, cx - 92, 520, 172, 40, 'Edit Deck', () => edit(false), { size: 13 });
     button(this, cx + 92, 520, 172, 40, '+ New Deck', () => edit(true), { size: 13 });
 
-    const cpuDecks = ['', ...names.filter((name) => !validateDeck(decks[name]).length)];
-    const cpuLabels = ['Opponent preset', ...cpuDecks.slice(1)];
-    let cpuIndex = Math.max(0, cpuDecks.indexOf(store.get('arcana-duel.cpu-deck') ?? ''));
-    const cpuLabel = () => `CPU deck: ${cpuLabels[cpuIndex]} ▾`;
-    const cpuSelect = button(this, 330, 621, 320, 38, cpuLabel(), () => {
-      chooseFromList(this, 'CPU deck', cpuLabels, cpuIndex, (index) => {
+    const cpuDecks = names.filter((name) => !validateDeck(decks[name]).length);
+    let cpuIndex = cpuDecks.indexOf(store.get('arcana-duel.cpu-deck') ?? '');
+    const cpuLabel = () => cpuIndex >= 0 ? `${cpuDecks[cpuIndex]} ▾`
+      : cpuDecks.length ? 'Choose CPU Deck ▾' : 'No valid saved decks';
+    const cpuSelect = button(this, 330, 451, 320, 34, cpuLabel(), () => {
+      chooseFromList(this, 'CPU deck', cpuDecks, cpuIndex, (index) => {
         cpuIndex = index;
         store.set('arcana-duel.cpu-deck', cpuDecks[index]);
-        cpuSelect.setLabel(cpuLabel()).setSelected(index !== 0);
+        cpuSelect.setLabel(cpuLabel()).setSelected(true);
+        refresh();
       });
-    }, { size: 13 }).setSelected(cpuIndex !== 0);
+    }, { size: 13 }).setSelected(cpuIndex >= 0);
 
     const lpOptions = [4000, 8000] as const;
     let startingLP: 4000 | 8000 = store.get('arcana-duel.starting-lp') === '4000' ? 4000 : 8000;
-    const lifePoints = button(this, 950, 621, 320, 38, `Starting LP: ${startingLP.toLocaleString('en-US')} ▾`, () => {
+    const lifePoints = button(this, 640, 615, 280, 38, `Starting LP: ${startingLP.toLocaleString('en-US')} ▾`, () => {
       chooseFromList(this, 'Starting Life Points', ['4,000 LP', '8,000 LP'], lpOptions.indexOf(startingLP), (index) => {
         startingLP = lpOptions[index];
         store.set('arcana-duel.starting-lp', String(startingLP));
@@ -81,11 +88,12 @@ export class SetupScene extends Phaser.Scene {
 
     const start = button(this, 640, 670, 280, 50, 'Begin Duel', () => {
       const deckName = names[deckIndex];
-      const opponent = OPPONENTS[opponentIndex === RANDOM ? randomDuelist() : opponentIndex];
-      if (!deckName || !opponent || validateDeck(decks[deckName]).length) return;
-      const cpuDeck = cpuIndex === 0 ? undefined : decks[cpuDecks[cpuIndex]];
-      const opp = cpuDeck ? { ...opponent, deck: cpuDeck } : opponent;
-      const data: DuelInit = { deck: decks[deckName], deckName, opp, level: opponent.suggested, startingLP };
+      const cpuDeck = cpuIndex >= 0 ? decks[cpuDecks[cpuIndex]] : undefined;
+      const opp = opponentIndex === customIndex
+        ? cpuDeck && { ...custom, deck: cpuDeck }
+        : OPPONENTS[opponentIndex === RANDOM ? randomDuelist() : opponentIndex];
+      if (!deckName || !opp || validateDeck(decks[deckName]).length) return;
+      const data: DuelInit = { deck: decks[deckName], deckName, opp, level: opp.suggested, startingLP };
       setSelectedDeck(deckName);
       this.scene.start('Duel', data);
     }, { size: 20, primary: true });
@@ -102,7 +110,9 @@ export class SetupScene extends Phaser.Scene {
       deckCount.setText(deck ? `${deck.main.length} main cards  /  ${deck.extra.length} fusion cards` : 'Create a deck to begin');
       const errors = deck ? validateDeck(deck) : ['Create a deck to begin.'];
       deckStatus.setColor(errors.length ? '#ff8a8a' : '#9fe0a8').setText(errors[0] ?? 'Ready to duel');
-      start.setEnabled(!!deck && !errors.length && OPPONENTS.length > 0);
+      const isCustom = opponentIndex === customIndex;
+      cpuSelect.setVisible(isCustom).setEnabled(isCustom && cpuDecks.length > 0);
+      start.setEnabled(!!deck && !errors.length && (isCustom ? cpuIndex >= 0 : OPPONENTS.length > 0));
     };
     const selectDeck = (index: number) => {
       if (!names.length || index < 0 || index >= names.length) return;

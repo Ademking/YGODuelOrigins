@@ -27,7 +27,7 @@ function die(scene: Phaser.Scene, x: number, y: number, size: number) {
 }
 
 /** Put a duelist's portrait (or, lacking one, their ace card) on `image`, `height` px tall. */
-function show(image: Phaser.GameObjects.Image, duelist: Opponent, height: number) {
+function show(image: Phaser.GameObjects.Image, duelist: Pick<Opponent, 'id' | 'ace'>, height: number) {
   const portrait = portraitKey(duelist.id);
   const ace = CARDS.find((card) => card.name === duelist.ace);
   if (portrait) return image.setData('cardId', null).setTexture(portrait).setDisplaySize(height * 118 / 141, height);
@@ -40,7 +40,8 @@ function show(image: Phaser.GameObjects.Image, duelist: Opponent, height: number
  * holding the Random die followed by every duelist's face. `selected` is the starting index (RANDOM for the die);
  * `onChange` hears every change. Returns `step` so the owner can bind keys to it.
  */
-export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, label: string, selected: number, onChange: (index: number) => void) {
+export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, label: string, selected: number, onChange: (index: number) => void, extra?: Omit<Opponent, 'deck'>) {
+  const roster = extra ? [...OPPONENTS, extra] : OPPONENTS;
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   const anyone = () => OPPONENTS[Math.floor(Math.random() * OPPONENTS.length)];
   panel(scene, cx - 260, top, 520, 506, 0.9, 10);
@@ -56,10 +57,10 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   const tileAt = (n: number) => ({ x: cx + (n % PER_ROW - (PER_ROW - 1) / 2) * 40, y: top + 414 + Math.floor(n / PER_ROW) * 52 });
   const marker = scene.add.graphics();
   const choose = (index: number) => { selected = index; refresh(); onChange(index); };
-  const faces = Array.from({ length: OPPONENTS.length + 1 }, (_, n) => {
+  const faces = Array.from({ length: roster.length + 1 }, (_, n) => {
     const { x, y } = tileAt(n), index = n - 1;
     const tile = scene.add.rectangle(x, y, 38, 48, 0x14121f).setInteractive({ useHandCursor: true });
-    const face = index === RANDOM ? die(scene, x, y, 24) : show(scene.add.image(x, y, BACK), OPPONENTS[index], 44);
+    const face = index === RANDOM ? die(scene, x, y, 24) : show(scene.add.image(x, y, BACK), roster[index], 44);
     tile.on('pointerover', () => face.setAlpha(1));
     tile.on('pointerout', () => face.setAlpha(selected === index ? 1 : 0.5));
     tile.on('pointerup', () => { sfx.click(); choose(index); });
@@ -67,8 +68,8 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   });
 
   const refresh = () => {
-    const duelist = OPPONENTS[selected];
-    position.setText(duelist ? `${selected + 1} / ${OPPONENTS.length}` : '');
+    const duelist = roster[selected];
+    position.setText(duelist ? `${selected + 1} / ${roster.length}` : '');
     // Random: a question mark over a faint portrait (which keeps changing, see the timer below)
     mystery.setVisible(!duelist);
     show(avatar, duelist ?? anyone(), 215).setAlpha(duelist ? 1 : 0.25);
@@ -83,7 +84,7 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   if (!reduced) scene.time.addEvent({ delay: 150, loop: true, callback: () => { if (selected === RANDOM) show(avatar, anyone(), 215); } });
   /** Move through Random and then every duelist. */
   const step = (direction: number) => {
-    const count = OPPONENTS.length + 1;
+    const count = roster.length + 1;
     choose(((selected + 1 + direction + count) % count) - 1);
   };
   button(scene, cx - 150, top + 156, 40, 48, '‹', () => step(-1), { size: 22 });
