@@ -13,7 +13,7 @@ const touchDevice = window.matchMedia('(pointer: coarse)').matches;
 export const RES = Phaser.Math.Clamp(
   Math.ceil(((window.screen?.width ?? W) * (window.devicePixelRatio || 1)) / W * 2) / 2,
   touchDevice ? 1 : 1.5,
-  touchDevice ? 1.5 : 2,
+  touchDevice ? 1 : 2,
 );
 
 /** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */

@@ -137,3 +137,30 @@ test('Destiny Hero Malicious activates from the Graveyard and summons a copy', a
   assert.equal(malicious.zone, 'banished');
   assert.equal(t.d.monsters(0)[0]?.def.name, 'Destiny Hero - Malicious');
 });
+
+test('Overdragon can attack directly once or attack monsters up to its material count', async () => {
+  const name = 'Chimeratech Overdragon';
+  const direct = setup({ m: [name] });
+  const dragon = direct.find(0, name);
+  dragon.mark.matCount = 3;
+  direct.d.phase = 'BP';
+  assert.deepEqual(direct.d.attackTargets(dragon), [null]);
+  await direct.d['attack'](dragon, null);
+  assert.equal(direct.d.canAttack(dragon), false);
+  const lateMonster = direct.P1.deck.pop()!;
+  direct.d.placeMonster(lateMonster, 1, true, 'def');
+  assert.deepEqual(direct.d.attackTargets(dragon), []);
+
+  const monsters = setup({ m: [name] }, { m: [{ name: 'Spirit Reaper', pos: 'def' }] });
+  const attacker = monsters.find(0, name);
+  const reaper = monsters.find(1, 'Spirit Reaper');
+  attacker.mark.matCount = 2;
+  monsters.d.phase = 'BP';
+  await monsters.d['attack'](attacker, reaper);
+  assert.equal(monsters.d.canAttack(attacker), true);
+  assert.deepEqual(monsters.d.attackTargets(attacker), [reaper]);
+  await monsters.d['attack'](attacker, reaper);
+  assert.equal(monsters.d.canAttack(attacker), false);
+  await monsters.d.move(reaper, 'gy');
+  assert.deepEqual(monsters.d.attackTargets(attacker), []);
+});

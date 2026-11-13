@@ -5,9 +5,8 @@ import type { Side, Zone } from '../engine/types';
 import type { Opponent } from '../data/decks';
 import { BACK, CARD_K, CH, CW, cardKey, faceKey } from '../ui/cardArt';
 import { cardImagePasscode } from '../data/cardImages';
-import { getCard, TOKENS } from '../data/cards';
+import { getCard } from '../data/cards';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
-import { LoadingScreen } from '../ui/loading';
 import { CardPanel } from '../ui/CardPanel';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
 import { burst, flash, motes, ring } from '../ui/fx';
@@ -115,7 +114,7 @@ export class DuelScene extends Phaser.Scene {
   private phaseBtns = {} as Record<Phase, Button>;
   private tiles: Phaser.GameObjects.Graphics[] = [];
   private shadowG!: Phaser.GameObjects.Graphics;
-  private zoneIcons: Phaser.GameObjects.Mesh[][] = [[], []];
+  private zoneIcons: (Phaser.GameObjects.Mesh | Phaser.GameObjects.Image)[][] = [[], []];
   private askingSurrender = false;
   /** Cards an effect (attack, flip) is moving right now: layout must not yank them away mid-animation. */
   private busy = new Set<Phaser.GameObjects.Image>();
@@ -233,14 +232,10 @@ export class DuelScene extends Phaser.Scene {
       else if (this.logLayer) this.toggleLogs();
       else this.closeMenu();
     });
-    // Only the cards these two decks can show are fetched before the first draw. Token art follows in the background.
+    // Prefetch both decks while the duel starts; the CDN cannot block play.
     const ids = [d.deck, d.opp.deck].flatMap((x) => [...x.main, ...x.extra]).concat(d.debug ? Object.values(d.debug).flat() : []);
-    const screen = new LoadingScreen(this);
-    screen.progress(0);
-    void loadCards(this.textures, ids, (n, total) => { if (screen.active) screen.progress(n / total); }).then(async () => {
-      if (screen.active) await screen.close();
-      if (this.dead || duel !== this.duel) return;
-      void loadCards(this.textures, Object.values(TOKENS).map((t) => t.id)).then(() => { if (!this.dead && duel === this.duel) this.layout(); });
+    void loadCards(this.textures, ids);
+    void (async () => {
       if (d.debug) prepareDebugDuel(duel, d.debug);
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
@@ -252,9 +247,8 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       await duel.run(!!d.debug, first ?? undefined);
-    }).catch((error: unknown) => {
+    })().catch((error: unknown) => {
       if (this.dead || duel !== this.duel) return;
-      if (screen.active) screen.destroy();
       const detail = error instanceof Error ? error.message : String(error);
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
       this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
@@ -512,6 +506,14 @@ export class DuelScene extends Phaser.Scene {
     const halfHeight = zone === 'fzone' ? 0.247 : cell.hw * 0.97;
     const quad = this.quad(cell.u - halfWidth, cell.u + halfWidth, cell.w - halfHeight, cell.w + halfHeight);
     const corners = side === this.me ? quad : [quad[2], quad[3], quad[0], quad[1]];
+    if (this.game.renderer.type === Phaser.CANVAS) {
+      const center = proj(cell.u, cell.w);
+      const icon = this.add.image(center.x, center.y, key).setDepth(-49).setAlpha(0.65)
+        .setDisplaySize(2 * halfWidth * UNIT_X * depth(cell.w), 2 * halfHeight * UNIT_Y * depth(cell.w))
+        .setAngle(side === this.me ? 0 : 180);
+      this.zoneIcons[side].push(icon);
+      return;
+    }
     const mesh = this.add.mesh(0, 0, key).setDepth(-49).setAlpha(0.65);
     this.zoneIcons[side].push(mesh);
     mesh.hideCCW = false;
@@ -624,12 +626,24 @@ export class DuelScene extends Phaser.Scene {
     for (const [uid, img] of this.sprites) {
       const m = this.skins.get(uid);
       const c = this.duel.byUid(uid);
-      if (!m || !c) continue;
-      this.syncHologram(c, img);
+      if (!c || !img.visible) {
+        m?.setVisible(false);
+        this.holograms.get(uid)?.setVisible(false);
+        continue;
+      }
+      if (!m) continue;
+      if (this.hologramsEnabled || this.holograms.has(uid)) this.syncHologram(c, img);
       if (m.texture.key !== img.texture.key) m.setTexture(img.texture.key);
-      m.setDepth(img.depth).setAlpha(img.alpha).setVisible(img.visible && !this.holograms.get(uid)?.visible);
-      const q = this.cardQuad({ x: img.x, y: img.y, angle: img.angle, sx: img.scaleX, sy: img.scaleY }, img.width, img.height, 0, this.onBoard(c) && this.dragging !== img);
+      m.setDepth(img.depth).setAlpha(img.alpha).setVisible(!this.holograms.get(uid)?.visible);
+      if (!m.visible || img.alpha === 0) continue;
+      const field = this.onBoard(c) && this.dragging !== img;
       const tint = img.tintTopLeft;
+      const last = m.getData('cardTransform') as number[] | undefined;
+      if (last && last[0] === img.x && last[1] === img.y && last[2] === img.angle
+        && last[3] === img.scaleX && last[4] === img.scaleY && last[5] === img.width
+        && last[6] === img.height && last[7] === tint && last[8] === Number(field)) continue;
+      m.setData('cardTransform', [img.x, img.y, img.angle, img.scaleX, img.scaleY, img.width, img.height, tint, Number(field)]);
+      const q = this.cardQuad({ x: img.x, y: img.y, angle: img.angle, sx: img.scaleX, sy: img.scaleY }, img.width, img.height, 0, field);
       // two triangles; Phaser stores one vertex per index, so map each back to its corner
       m.vertices.forEach((vx, i) => { const p = q[QUAD_IDX[i]]; vx.vx = p.x; vx.vy = p.y; vx.color = tint; });
     }
@@ -902,7 +916,7 @@ export class DuelScene extends Phaser.Scene {
         this.clickCard(c);
       });
       this.sprites.set(c.uid, s);
-      this.skins.set(c.uid, this.makeSkin(s));
+      if (this.game.renderer.type === Phaser.WEBGL) this.skins.set(c.uid, this.makeSkin(s));
     }
     return s;
   }
@@ -993,8 +1007,11 @@ export class DuelScene extends Phaser.Scene {
   private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number) {
     const s = this.sprite(c);
     if (this.busy.has(s)) return; // its effect calls layout again when it finishes
-    const key = face ? faceKey(this.textures, c.def.id) : BACK;
-    if (s.texture.key !== key) s.setTexture(key);
+    if (face && s.getData('cardId') !== c.def.id) setCardTexture(s, c.def.id);
+    else if (!face) {
+      s.setData('cardId', null);
+      if (s.texture.key !== BACK) s.setTexture(BACK);
+    }
     s.setDepth(depth);
     // remember where the card is heading so highlights line up even mid-tween
     s.setData('to', { x, y, angle, scale });
@@ -2372,9 +2389,8 @@ export class DuelScene extends Phaser.Scene {
     const from = this.lpShown[side];
     this.lpShown[side] = lp;
     const counter = { v: from };
-    await new Promise<void>((r) => this.tweens.add({
-      targets: counter, v: lp, duration: 600 * this.spd, onUpdate: () => this.drawLP(side, counter.v), onComplete: () => { this.drawLP(side, lp); r(); },
-    }));
+    await this.tw({ targets: counter, v: lp, duration: 600 * this.spd, onUpdate: () => this.drawLP(side, counter.v) });
+    if (!this.dead) this.drawLP(side, lp);
   }
 
   private async shuffleFx(side: Side) {

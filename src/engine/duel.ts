@@ -1898,11 +1898,17 @@ export class Duel {
     return this.attackTargets(c).length > 0;
   }
 
-  attackTargets(c: Card): (Card | null)[] {
+  private permitsAttackMode(c: Card, target: Card | null, replay = false) {
+    if (!this.hasRule(c, 'monsterMultiAttack')) return true;
+    if (target === null) return c.attacks <= (replay ? 1 : 0);
+    return c.data.hitDirect !== this.turn || (replay && c.attacks === 1);
+  }
+
+  attackTargets(c: Card, replay = false): (Card | null)[] {
     const mons = this.monsters(opp(c.ctrl));
     const lk = this.locks();
-    const allowed = (t: Card | null) => !lk.some((l) => l.lock.target?.(this, l.src, c, t)) && !(this.attacksAll(c) && (t === null || this.hits(c).includes(t.uid))) && !(c.data.noDirectTurn === this.turn && t === null);
-    if (lk.some((l) => l.lock.forceDirect?.(this, l.src, c))) return [null];
+    const allowed = (t: Card | null) => this.permitsAttackMode(c, t, replay) && !lk.some((l) => l.lock.target?.(this, l.src, c, t)) && !(this.attacksAll(c) && (t === null || this.hits(c).includes(t.uid))) && !(c.data.noDirectTurn === this.turn && t === null);
+    if (lk.some((l) => l.lock.forceDirect?.(this, l.src, c))) return this.permitsAttackMode(c, null, replay) ? [null] : [];
     const out: (Card | null)[] = mons.filter(allowed);
     if ((!mons.length || this.hasRule(c, 'direct')) && !this.hasRule(c, 'noDirect') && allowed(null)) out.push(null);
     return out;
@@ -1965,12 +1971,17 @@ export class Duel {
       const redirected = target !== tgt;
       const gone = target && (target.zone !== 'mzone');
       if (gone || (!redirected && this.monsters(defSide).length !== before)) {
-        const choice = await this.ask<Card | null | false>(att.ctrl, { t: 'replay', attacker: att, targets: this.attackTargets(att) });
+        const choice = await this.ask<Card | null | false>(att.ctrl, { t: 'replay', attacker: att, targets: this.attackTargets(att, true) });
         if (choice === false) { this.log(`${att.def.name} does not attack again.`); return; }
         target = choice;
         ev.target = target;
         this.log(`Replay: ${att.def.name} attacks ${target ? (target.faceUp ? target.def.name : 'a face-down monster') : 'directly'}.`);
         await this.emit({ t: 'attack', attacker: att, target });
+      }
+      if (!this.permitsAttackMode(att, target, true)) return;
+      if (this.hasRule(att, 'monsterMultiAttack')) {
+        if (!target) att.data.hitDirect = this.turn;
+        else if (att.attacks === 1 && att.data.hitDirect === this.turn) delete att.data.hitDirect;
       }
       await this.damageStep(att, target);
       for (const fn of ev.after ?? []) { await fn(); await this.cleanup(); }

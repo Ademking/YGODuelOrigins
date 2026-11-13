@@ -8,9 +8,13 @@ import { DebugScene } from './scenes/DebugScene';
 import { WatchScene } from './scenes/WatchScene';
 import { H, RES, W } from './ui/theme';
 
+const options = new URLSearchParams(location.search);
 const game = new Phaser.Game({
-  type: Phaser.AUTO,
+  type: options.has('compat') ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
+  callbacks: { postBoot: (game) => {
+    game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
+  } },
   // rendered at RES× and zoomed back by each scene's camera (see fitCamera) so nothing is upscaled
   width: W * RES,
   height: H * RES,
@@ -21,7 +25,7 @@ const game = new Phaser.Game({
   input: { mouse: { preventDefaultWheel: false } },
   disableContextMenu: true,
   // ?st runs the loop on timers instead of rAF (useful in background/headless tabs)
-  fps: { forceSetTimeOut: new URLSearchParams(location.search).has('st'), target: 60 },
+  fps: { forceSetTimeOut: options.has('st'), target: 60 },
   scene: [BootScene, TitleScene, SetupScene, DuelScene, DeckEditorScene, DebugScene, WatchScene],
 });
 

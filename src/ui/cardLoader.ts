@@ -49,6 +49,8 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
                 textures.addCanvas(key, canvas);
               }
             }
+          } catch (error) {
+            console.warn('Could not prepare card artwork', id, error);
           } finally { done(); }
         };
         img.onerror = done;

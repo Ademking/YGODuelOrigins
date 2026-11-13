@@ -104,14 +104,30 @@
       status.hidden = false;
       status.textContent = 'The game could not start. Reload the page to retry. If the problem persists, check browser graphics support.';
     };
-    const timeout = setTimeout(fail, 18000);
+    const offerCompatibility = () => {
+      if (new URLSearchParams(location.search).has('compat')) return;
+      const url = new URL(location.href);
+      url.searchParams.set('compat', '1');
+      const link = document.createElement('a');
+      link.href = url.href;
+      link.textContent = 'Start in compatibility mode';
+      link.style.color = '#f0d08a';
+      status.append(document.createElement('br'), link);
+    };
+    const startupFailed = () => { if (!ready) { fail(); offerCompatibility(); } };
+    const timeout = setTimeout(startupFailed, 18000);
     document.addEventListener('duel-origins:ready', () => {
       ready = true;
       clearTimeout(timeout);
       status.hidden = true;
     }, { once: true });
-    document.addEventListener('duel-origins:boot-error', fail, { once: true });
-    import('/src/main.ts').catch(fail);
+    document.addEventListener('duel-origins:boot-error', startupFailed, { once: true });
+    document.addEventListener('duel-origins:graphics-error', () => {
+      status.hidden = false;
+      status.textContent = 'The browser lost the graphics connection. Reload to start a new duel.';
+      offerCompatibility();
+    });
+    import('/src/main.ts').catch(startupFailed);
   </script>
 </body>
 </html>
