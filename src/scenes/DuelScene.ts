@@ -76,7 +76,7 @@ const PLATE = { x: 20, w: LEFT_W - 16, h: 72, yFoe: 8, yMe: 640, lpX: 88 };
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
 function logLineHtml(line: string, actors: string[]): string {
   const esc = (s: string) => s.replace(/[&<>]/g, (ch) => (ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'));
-  if (/^\W+Turn \d+/.test(line)) return `<div class="turn">${esc(line.replace(/^\W+|\W+$/g, ''))}</div>`;
+  if (/^\W*Turn \d+/.test(line)) return `<div class="turn">${esc(line.replace(/^\W+|\W+$/g, ''))}</div>`;
   const kind = / not |cannot| no /.test(line) ? 'note'
     : /damage|pays \d+|loses \d+/.test(line) ? 'hurt'
       : /gains \d+ LP|recovers/.test(line) ? 'heal'
@@ -179,7 +179,7 @@ export class DuelScene extends Phaser.Scene {
     this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
     try {
       this.chainMode = (localStorage.getItem('arcana-duel.chain') as 'auto' | 'always') ?? 'auto';
-      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.5 : 1;
+      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.4 : 0.7;
       const reduced = localStorage.getItem('arcana-duel.reduced-effects');
       if (reduced !== null) this.reducedEffects = reduced === '1';
     } catch { /* ignore */ }
@@ -208,7 +208,7 @@ export class DuelScene extends Phaser.Scene {
       [d.deck, d.opp.deck], [d.watch?.name ?? 'You', d.opp.name],
       d.watch ? null : (prompt, current) => this.handlePrompt(prompt, current),
       (event) => duel === this.duel ? this.onDuelEvent(event) : undefined,
-      d.startingLP, 550 * this.spd, 550 * this.spd,
+      d.startingLP, 200 * this.spd, 200 * this.spd,
       () => { if (duel === this.duel) this.layout(); },
     );
     this.events.once('shutdown', () => duel.stop());
@@ -965,7 +965,7 @@ export class DuelScene extends Phaser.Scene {
       pile(P.deck, 'deck', false);
       pile(P.extra, 'extra', false);
       pile(P.gy, 'gy', true);
-      pile(P.banished, 'banished', true);
+      pile(d.banishedFor(s), 'banished', true);
       const n = P.hand.length;
       const opponentScale = Math.min(OPP_HAND_SCALE, Math.max(1, 420 - Math.max(0, n - 1) * 4) / (Math.max(n, 1) * CW));
       const sp = mine ? Math.min(92, 600 / Math.max(n, 1)) : CW * opponentScale + 4;
@@ -1054,7 +1054,7 @@ export class DuelScene extends Phaser.Scene {
     for (const t of this.counts) {
       const [s, z] = (t.getData('k') as string).split(':');
       const P = this.duel.players[Number(s) as Side];
-      const n = { deck: P.deck.length, extra: P.extra.length, gy: P.gy.length, banished: P.banished.length }[z as 'deck'] ?? 0;
+      const n = { deck: P.deck.length, extra: P.extra.length, gy: P.gy.length, banished: this.duel.banishedFor(Number(s) as Side).length }[z as 'deck'] ?? 0;
       t.setText(String(n)).setVisible(n > 0);
     }
   }
@@ -1378,7 +1378,7 @@ export class DuelScene extends Phaser.Scene {
         case 'chain': {
           const opts = p.actions.filter((a): a is Extract<Action, { a: 'act' }> => a.a === 'act');
           sfx.chain();
-          this.showDialog('Chain?', `${p.text}\nActivate a card in response?`, [
+          this.showDialog('Chain?', p.text ? `${p.text}\nActivate a card in response?` : 'Activate a card in response?', [
             ...opts.map((a) => ({ label: `Activate ${a.card.def.name}`, run: () => this.choose(a), hover: a.card })),
             { label: 'No', run: () => this.choose(null) },
           ]);
@@ -1613,7 +1613,7 @@ export class DuelScene extends Phaser.Scene {
   private openPile(s: Side, z: Zone) {
     if (this.overlay) return;
     const P = this.duel.players[s];
-    const cards = ({ gy: P.gy, banished: P.banished, extra: P.extra, deck: [] } as Record<string, Card[]>)[z] ?? [];
+    const cards = ({ gy: P.gy, banished: this.duel.banishedFor(s), extra: P.extra, deck: [] } as Record<string, Card[]>)[z] ?? [];
     if (z === 'extra' && s !== this.me) return;
     if (this.dialog && !this.minimizedDialog) return;
     if (!cards.length) return;
@@ -1685,10 +1685,10 @@ export class DuelScene extends Phaser.Scene {
         try { localStorage.setItem('arcana-duel.chain', this.chainMode); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
       }],
-      [`Speed: ${this.spd < 1 ? 'Fast' : 'Normal'}`, () => {
-        this.spd = this.spd < 1 ? 1 : 0.5;
-        this.duel.delay = this.duel.nearDelay = 550 * this.spd;
-        try { localStorage.setItem('arcana-duel.fast', this.spd < 1 ? '1' : '0'); } catch { /* ignore */ }
+      [`Speed: ${this.spd < 0.7 ? 'Fast' : 'Normal'}`, () => {
+        this.spd = this.spd < 0.7 ? 0.7 : 0.4;
+        this.duel.delay = this.duel.nearDelay = 200 * this.spd;
+        try { localStorage.setItem('arcana-duel.fast', this.spd < 0.7 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
       }],
       ['Volume', () => this.showVolume()],
@@ -1799,7 +1799,7 @@ export class DuelScene extends Phaser.Scene {
       case 'draw': {
         sfx.draw();
         this.layout();
-        await wait(this, 160 * s);
+        await wait(this, 240 * s);
         return;
       }
       case 'move': case 'stat': case 'pos':

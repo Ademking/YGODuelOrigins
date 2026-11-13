@@ -51,7 +51,7 @@ export class OcgDuel {
   private destroyed = new Set<number>();
   constructor(private decks: [DeckList, DeckList], names: [string, string], private ask: Ask | null,
     private emit: (event: UIEvent) => Promise<void> | void, readonly startingLP = 8000,
-    public delay = 550, public nearDelay = 550, private refresh = () => {}) {
+    public delay = 200, public nearDelay = 200, private refresh = () => {}) {
     const player = (side: Side): Player => {
       const n = side;
       return {
@@ -65,6 +65,9 @@ export class OcgDuel {
 
   private side(player: number) { return player === 0 ? this.engineFirst : opp(this.engineFirst); }
   name(side: Side) { return this.players[side].name; }
+  banishedFor(side: Side) {
+    return [...this.players[0].banished, ...this.players[1].banished].filter(card => card.owner === side);
+  }
   byUid(uid: number) { return this.ids.get(uid); }
   onField(c: Card) { return c.zone === 'mzone' || c.zone === 'szone' || c.zone === 'fzone'; }
   fieldCards(side: Side) { const p = this.players[side]; return [...p.m, ...p.s, p.f].filter((c): c is Card => c !== null); }
@@ -135,17 +138,19 @@ export class OcgDuel {
       case M.NEW_PHASE:
         if (phases[message.phase] && this.phase !== phases[message.phase]) {
           this.phase = phases[message.phase]!;
+          this.log(({ DP: 'Draw Phase', SP: 'Standby Phase', M1: 'Main Phase 1', BP: 'Battle Phase', M2: 'Main Phase 2', EP: 'End Phase' })[this.phase] + '.');
           event = { t: 'phase', phase: this.phase };
         }
         break;
       case M.DRAW: {
         const side = this.side(message.player);
         const p = this.players[side];
+        if (message.drawn.length) this.log(`${this.name(side)} draws ${message.drawn.length} card${message.drawn.length === 1 ? '' : 's'}.`);
         for (const draw of message.drawn) {
           const card = p.deck.pop() ?? this.card(side, 'deck');
           Object.assign(card, { zone: 'hand', slot: p.hand.length, faceUp: !!(draw.position & 5), def: this.definition(side === 0 ? draw.code : 0) });
           p.hand.push(card);
-          if (this.turn) await this.emit({ t: 'draw', card, player: side });
+          await this.emit({ t: 'draw', card, player: side });
         }
         break;
       }
@@ -158,6 +163,10 @@ export class OcgDuel {
         delete card.equipTo;
         if (to) this.put(card, message.to, message.card);
         else this.ids.delete(card.uid);
+        if (to === 'banished' || to === 'gy') {
+          const name = card.def.id ? card.def.name : 'A face-down card';
+          this.log(`${name} ${to === 'banished' ? 'was banished' : 'was sent to the Graveyard'}.`);
+        }
         if (from && to) event = { t: 'move', card, from, to };
         break;
       }
@@ -174,9 +183,13 @@ export class OcgDuel {
       case M.SET: case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
         const card = this.lookup(message);
         if (!card) break;
-        if (message.type === M.SET) event = { t: 'set', card };
+        if (message.type === M.SET) {
+          this.log(`${this.name(card.ctrl)} sets a card.`);
+          event = { t: 'set', card };
+        }
         else {
           const how = message.type === M.SUMMONING ? 'normal' : message.type === M.FLIPSUMMONING ? 'flip' : card.def.mtype === 'fusion' ? 'fusion' : card.def.mtype === 'ritual' ? 'ritual' : 'special';
+          this.log(`${this.name(card.ctrl)} ${how === 'normal' ? 'Normal' : how === 'flip' ? 'Flip' : 'Special'} Summons ${card.def.name}.`);
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
           if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: [] });
           event = { t: 'summon', card, how };
@@ -210,7 +223,11 @@ export class OcgDuel {
         this.choosingAttack = false;
         this.attackTarget = undefined;
         const attacker = this.lookup(message.card);
-        if (attacker) event = { t: 'attack', attacker, target: message.target ? this.lookup(message.target) ?? null : null };
+        if (attacker) {
+          const target = message.target ? this.lookup(message.target) ?? null : null;
+          this.log(`${attacker.def.name} attacks ${target ? target.faceUp ? target.def.name : 'a face-down monster' : 'directly'}.`);
+          event = { t: 'attack', attacker, target };
+        }
         break;
       }
       case M.EQUIP: {
@@ -223,7 +240,10 @@ export class OcgDuel {
         const previous = this.players[side].lp;
         const lp = message.type === M.LPUPDATE ? message.lp : Math.max(0, previous + message.amount * (message.type === M.RECOVER ? 1 : -1));
         this.players[side].lp = lp;
-        if (lp !== previous) event = { t: 'lp', player: side, delta: lp - previous, lp };
+        if (lp !== previous) {
+          this.log(`${this.name(side)} ${lp > previous ? 'gains' : 'loses'} ${Math.abs(lp - previous)} LP.`);
+          event = { t: 'lp', player: side, delta: lp - previous, lp };
+        }
         break;
       }
       case M.CONFIRM_CARDS: case M.CONFIRM_DECKTOP: {
@@ -268,6 +288,7 @@ export class OcgDuel {
           const visible = zone === 'gy' || !!(position & 5) || row.isPublic || side === 0 && zone !== 'banished';
           card.def = this.definition(visible ? row.code ?? 0 : 0);
           Object.assign(card, { slot: sequence, faceUp: !!(position & 5) || row.isPublic === true, pos: position & 12 ? 'def' : 'atk' });
+          if (row.owner === 0 || row.owner === 1) card.owner = this.side(row.owner);
           card.data.atk = row.attack;
           card.data.def = row.defense;
           if (!current) this.put(card, { ...loc, position }, visible ? row.code ?? 0 : 0);
@@ -285,6 +306,14 @@ export class OcgDuel {
     const side = this.side(message.player);
     const prompt = decision(message, code => this.definition(code).name);
     if (message.type === M.SELECT_CHAIN && !message.forced && !message.selects.length) return { type: R.SELECT_CHAIN, index: null };
+    if (message.type === M.SELECT_PLACE) {
+      const index = this.slot === undefined ? -1 : prompt.selection!.labels.findIndex(
+        label => label.startsWith('Your ·') && label.endsWith(' ' + (this.slot! + 1)),
+      );
+      this.slot = undefined;
+      if (index >= 0 && prompt.selection!.valid([index])) return prompt.selection!.response([index]);
+      return cpuChoice(prompt);
+    }
     if (side !== 0 || !this.ask) {
       await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
       return this.stopped ? undefined : cpuChoice(prompt);
@@ -334,7 +363,7 @@ export class OcgDuel {
       if (actions.size && (message.type !== M.SELECT_CHAIN || !message.forced)) {
         const options = [...actions.keys()];
         const selection = await ask(message.type === M.SELECT_CHAIN
-          ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: 'OCGCore response window', core: true }
+          ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true }
           : { t: 'main', actions: options, phase: this.phase });
         if (selection === SURRENDER) return;
         if (selection === null && message.type === M.SELECT_CHAIN) return { type: R.SELECT_CHAIN, index: null };
@@ -346,11 +375,6 @@ export class OcgDuel {
         if (match) return match.response;
         throw new Error('The selected action is no longer available.');
       }
-    }
-    if (message.type === M.SELECT_PLACE && prompt.selection && this.slot !== undefined) {
-      const index = prompt.selection.labels.findIndex(label => label.startsWith('Your ·') && label.endsWith(' ' + (this.slot! + 1)));
-      this.slot = undefined;
-      if (index >= 0 && prompt.selection.valid([index])) return prompt.selection.response([index]);
     }
     this.slot = undefined;
     if (message.type === M.SELECT_CARD && this.choosingAttack && prompt.selection) {

@@ -88,7 +88,7 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
     field: () => core.duelQueryField(handle),
     cards: (controller: 0 | 1, location: OcgLocation) => core.duelQueryLocation(handle, {
       controller, location,
-      flags: (OcgQueryFlags.CODE | OcgQueryFlags.POSITION | OcgQueryFlags.ATTACK | OcgQueryFlags.DEFENSE | OcgQueryFlags.IS_PUBLIC) as OcgQueryFlags,
+      flags: (OcgQueryFlags.CODE | OcgQueryFlags.POSITION | OcgQueryFlags.ATTACK | OcgQueryFlags.DEFENSE | OcgQueryFlags.IS_PUBLIC | OcgQueryFlags.OWNER) as OcgQueryFlags,
     }),
     close() {
       if (closed) return;
