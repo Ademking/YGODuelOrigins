@@ -323,6 +323,7 @@ export const MONSTERS_2: Record<string, Def> = {
   },
   'Chimeratech Overdragon': {
     mats: [{ name: 'Cyber Dragon' }, { race: 'Machine', more: true, text: '1 or more Machine-Type monsters' }],
+    rules: ['noDirect'],
     statFn: (d, c) => ({ atk: 800 * (c.mark.matCount ?? 0) - d.base(c, 'atk'), def: 800 * (c.mark.matCount ?? 0) - d.base(c, 'def') }),
     extraAttacks: (_d, c) => Math.max(0, (c.mark.matCount ?? 1) - 1),
     effects: [trig('specialSummoned', run(async ({ d, p, card }) => { for (const c of d.fieldCards(p).filter((x) => x !== card)) await d.move(c, 'gy', { by: p }); }), { cond: (_d, c) => c.data.how === 'fusion' })],

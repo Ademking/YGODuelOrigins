@@ -21,7 +21,7 @@ export const CARD_MAP: Record<string, CardDef> = Object.fromEntries(CARDS.map(ca
 /** Monster Tokens created by card effects; never part of a Deck. */
 export const TOKENS: Record<string, CardDef> = Object.fromEntries(YGO_CATALOG.filter(c => c.kind === 'monster' && / Token$/.test(c.name)).map(c => [c.name, {
   id: `ygo_${c.code}`, name: c.name, kind: 'monster', art: '', text: c.desc, mtype: 'normal', attr: c.attribute as CardDef['attr'], race: c.race as CardDef['race'],
-  lv: c.level, atk: c.atk, def: c.def, token: true, rules: c.name === 'Sheep Token' || c.name === 'Kuriboh Token' ? ['noTribute'] : undefined,
+  lv: c.level, atk: c.atk, def: c.def, token: true, rules: c.name === 'Sheep Token' || c.name === 'Kuriboh Token' ? ['noTributeSummon'] : undefined,
 } satisfies CardDef]));
 for (const t of SOURCE_TOKENS) TOKENS[t.name] ??= t;
 if (TOKENS['Ojama Token']) TOKENS['Ojama Token'] = {

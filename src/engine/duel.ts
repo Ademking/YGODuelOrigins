@@ -701,8 +701,9 @@ export class Duel {
     return !c.def.rules?.includes('noTribute') && !this.locks().some((l) => l.lock.tribute?.(this, l.src, c));
   }
   tributePool(p: Side): Card[] {
-    const own = this.monsters(p).filter((c) => this.tributeOk(c));
-    const soul = this.activeTemps().filter((t) => t.tag === 'soulExchange' && t.p === p).map((t) => this.byUid(t.data)).filter((c): c is Card => !!c && c.zone === 'mzone' && c.ctrl !== p && this.tributeOk(c));
+    const ok = (c: Card) => this.tributeOk(c) && !c.def.rules?.includes('noTributeSummon');
+    const own = this.monsters(p).filter(ok);
+    const soul = this.activeTemps().filter((t) => t.tag === 'soulExchange' && t.p === p).map((t) => this.byUid(t.data)).filter((c): c is Card => !!c && c.zone === 'mzone' && c.ctrl !== p && ok(c));
     return [...own, ...soul];
   }
   tribWeight(t: Card, c: Card) { return !c.def.fixedTributes && t.def.doubleTribute && !this.negated(t) && t.def.doubleTribute(this, c) ? 2 : 1; }
