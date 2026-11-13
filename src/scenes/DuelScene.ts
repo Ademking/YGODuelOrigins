@@ -178,7 +178,7 @@ export class DuelScene extends Phaser.Scene {
     this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
     try {
       this.chainMode = (localStorage.getItem('arcana-duel.chain') as 'auto' | 'always') ?? 'auto';
-      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.4 : 0.7;
+      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.4 : 1;
       const reduced = localStorage.getItem('arcana-duel.reduced-effects');
       if (reduced !== null) this.reducedEffects = reduced === '1';
     } catch { /* ignore */ }
@@ -1061,7 +1061,7 @@ export class DuelScene extends Phaser.Scene {
     this.hlWant.clear();
     if (this.fieldSelection) {
       for (const card of this.fieldSelection.prompt.cards) {
-        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) || this.fieldSelection.prompt.marked?.includes(card) ? 0xffffff : COL.gold);
+        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) || this.fieldSelection.prompt.marked?.includes(card) ? 0x53ffad : 0xffcf48);
       }
       return;
     }
@@ -1083,9 +1083,9 @@ export class DuelScene extends Phaser.Scene {
     const want = new Map(this.hlWant);
     const hv = this.hoverAny;
     if (hv && this.sprites.has(hv.uid) && !this.dialog && !this.overlay) {
-      want.set(hv.uid, HOVER_GLOW);
+      if (!this.fieldSelection) want.set(hv.uid, HOVER_GLOW);
       const target = hv.zone === 'szone' && hv.faceUp ? this.duel.equippedTo(hv) : undefined;
-      if (target?.faceUp && this.sprites.has(target.uid)) want.set(target.uid, EQUIP_TARGET_GLOW);
+      if (!this.fieldSelection && target?.faceUp && this.sprites.has(target.uid)) want.set(target.uid, EQUIP_TARGET_GLOW);
     }
     for (const [uid, color] of want) {
       const img = this.sprites.get(uid);
@@ -1096,6 +1096,12 @@ export class DuelScene extends Phaser.Scene {
       const t = { x: img.x, y: img.y, angle: img.angle, sx: img.scaleX, sy: img.scaleY };
       const field = this.onBoard(c) && this.dragging !== img;
       const q = (pad: number) => this.cardQuad(t, img.width, img.height, pad, field);
+      if (this.fieldSelection) {
+        g.setVisible(true).setDepth(Math.max(img.depth, this.holograms.get(uid)?.depth ?? 0) + 2).setAlpha(1);
+        g.lineStyle(8, 0x11101a, 0.95).strokePoints(q(7), true);
+        g.lineStyle(4, color, 1).strokePoints(q(7), true);
+        continue;
+      }
       const hovered = color === HOVER_GLOW;
       g.setVisible(true).setDepth(img.depth - 0.5).setAlpha(hovered || color === EQUIP_TARGET_GLOW ? 1 : this.hlPulse.a);
       if (this.holograms.get(uid)?.visible) {
@@ -1524,10 +1530,11 @@ export class DuelScene extends Phaser.Scene {
     layer.add(title);
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
-    const confirm = single ? null : button(this, CX, 110, 160, 32, 'Confirm', () => this.choose([...chosen]), { size: 12, primary: true });
+    const hasSecondary = prompt.finish || prompt.cancel;
+    const confirm = single ? null : button(this, hasSecondary ? CX - 66 : CX, 110, 160, 32, 'Confirm', () => this.choose([...chosen]), { size: 12, primary: true });
     if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
     if (prompt.finish || prompt.cancel) {
-      layer.add(button(this, single ? CX : CX + 155, 110, 120, 32, prompt.finish ? 'Confirm' : 'Cancel',
+      layer.add(button(this, single ? CX : CX + 86, 110, 120, 32, prompt.finish ? 'Confirm' : 'Cancel',
         () => this.choose(null), { size: 12 }));
     }
     this.fieldSelection = { prompt, chosen, layer, confirm };
@@ -1688,7 +1695,7 @@ export class DuelScene extends Phaser.Scene {
         this.closeMenu(); this.showMenu();
       }],
       [`Speed: ${this.spd < 0.7 ? 'Fast' : 'Normal'}`, () => {
-        this.spd = this.spd < 0.7 ? 0.7 : 0.4;
+        this.spd = this.spd < 0.7 ? 1 : 0.4;
         this.duel.delay = this.duel.nearDelay = 200 * this.spd;
         try { localStorage.setItem('arcana-duel.fast', this.spd < 0.7 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();

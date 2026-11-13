@@ -7,8 +7,51 @@ import { OPPONENTS } from '../../src/data/decks';
 import { cardCatalog, effectDescription, type Bundle } from '../../src/ocgcore/data';
 import { cpuChoice, decision } from '../../src/ocgcore/choices';
 import { openDuel } from '../../src/ocgcore/session';
+import { CARDS } from '../../src/ocgcore/catalog';
 
 const readBundle = (): Bundle => JSON.parse(gunzipSync(readFileSync('assets/ocgcore/data.json.gz')).toString('utf8'));
+
+test('Mirror Force destroys an attacking monster and emits effect destruction', async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+  const destroyed: string[] = [];
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (destroyed.length) return SURRENDER;
+    if (prompt.t === 'main') return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'chain') return prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Mirror Force') ?? null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => { if (event.t === 'destroy' && event.by === 'effect') destroyed.push(event.card.def.name); }, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [], opponentMonsters: [id('Battle Ox')], traps: [id('Mirror Force')], extra: [],
+  }, 0);
+  assert.deepEqual(destroyed, ['Battle Ox']);
+  assert.ok(duel.players[1].gy.some(card => card.def.name === 'Battle Ox'));
+});
+
+test('CPU goes to Main Phase 2 when its only attack would lose', async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+  let main2 = false;
+  const attacks: string[] = [];
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (main2) return SURRENDER;
+    if (prompt.t === 'main') return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => {
+    if (event.t === 'phase' && event.phase === 'M2') main2 = true;
+    if (event.t === 'attack') attacks.push(event.attacker.def.name);
+  }, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [id('Blue-Eyes White Dragon')], opponentMonsters: [id('Battle Ox')], traps: [], extra: [],
+  }, 0);
+  assert.ok(main2);
+  assert.deepEqual(attacks, []);
+});
 
 test('OCGCore choices show coin calls and card effect descriptions in response order', () => {
   const bundle = readBundle();

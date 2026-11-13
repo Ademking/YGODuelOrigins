@@ -1,4 +1,4 @@
-import { OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
+import { OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
 import type { Action, Card, DeckList, Phase, Player, Prompt, UIEvent } from '../engine/duel';
 import type { CardDef, Side, Zone } from '../engine/types';
 import type { DebugSetup } from '../engine/debug';
@@ -13,6 +13,8 @@ import { cpuChoice, decision, type Choice } from './choices';
 export const SURRENDER = '__surrender__';
 export const opp = (side: Side): Side => side === 0 ? 1 : 0;
 const hidden: CardDef = { id: '', name: 'Face-down card', kind: 'monster', mtype: 'normal', art: '', text: '' };
+const REASON_DESTROY = 0x1;
+const REASON_BATTLE = 0x20;
 const displayCards = new Map(CARDS.map(card => [Number(cardImagePasscode(card.id)), card]));
 const phases: Partial<Record<number, Phase>> = {
   [P.DRAW]: 'DP', [P.STANDBY]: 'SP', [P.MAIN1]: 'M1', [P.BATTLE_START]: 'BP', [P.BATTLE_STEP]: 'BP', [P.MAIN2]: 'M2', [P.END]: 'EP',
@@ -96,7 +98,7 @@ export class OcgDuel {
     const type = Number(row.type);
     return { id: `ocg_${code}`, name: row.name, text: row.desc, art: '', kind: type & 1 ? 'monster' : type & 2 ? 'spell' : 'trap',
       mtype: type & 64 ? 'fusion' : type & 128 ? 'ritual' : type & 32 ? 'effect' : 'normal',
-      stype: type & 0x80000 ? 'field' : 'normal', atk: Number(row.atk), def: Number(row.def), lv: Number(row.level) & 255 };
+      stype: type & 0x80000 ? 'field' : type & 0x10000 ? 'quick' : 'normal', atk: Number(row.atk), def: Number(row.def), lv: Number(row.level) & 255 };
   }
   private pile(side: Side, zone: Exclude<Zone, 'fzone'>): (Card | null)[] {
     const player = this.players[side];
@@ -132,6 +134,7 @@ export class OcgDuel {
     switch (message.type) {
       case M.NEW_TURN:
         this.tp = this.side(message.player);
+        this.phase = 'DP';
         event = { t: 'turn', player: this.tp, turn: ++this.turn };
         this.log(`Turn ${this.turn} · ${this.name(this.tp)}`);
         break;
@@ -158,7 +161,11 @@ export class OcgDuel {
         const from = zoneOf(message.from);
         const to = zoneOf(message.to);
         const card = this.lookup(message.from) ?? this.card(this.side(message.to.controller), to ?? 'deck');
-        if (this.destroyed.delete(card.uid) && this.onField(card)) await this.emit({ t: 'destroy', card, by: 'battle' });
+        const battleDestroyed = this.destroyed.delete(card.uid);
+        const reason = from && to && from !== to && this.onField(card) ? this.session?.moveReason(message.to, message.card) ?? 0 : 0;
+        if (this.onField(card) && (battleDestroyed || (reason & REASON_DESTROY))) {
+          await this.emit({ t: 'destroy', card, by: battleDestroyed || (reason & REASON_BATTLE) ? 'battle' : 'effect' });
+        }
         this.remove(message.from);
         delete card.equipTo;
         if (to) this.put(card, message.to, message.card);
@@ -316,6 +323,37 @@ export class OcgDuel {
       return cpuChoice(prompt);
     }
     if (side !== 0 || !this.ask) {
+      if (message.type === M.SELECT_BATTLECMD) {
+        const opponent = this.players[opp(side)];
+        const defenders = opponent.m.filter((card): card is Card => card !== null);
+        const attacks = message.attacks.flatMap((loc, index) => {
+          const attacker = this.lookup(loc);
+          if (!attacker) return [];
+          const atk = this.atk(attacker);
+          const options: { index: number; target: Card | null; score: number }[] = [];
+          if (loc.can_direct && atk > 0) options.push({ index, target: null, score: atk >= opponent.lp ? 1e6 : 1000 + atk });
+          for (const target of defenders) {
+            const score = this.battleScore(atk, target);
+            if (score > 0) options.push({ index, target, score });
+          }
+          return options;
+        }).sort((a, b) => b.score - a.score);
+        const attack = attacks[0];
+        if (attack) {
+          await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
+          if (this.stopped) return;
+          this.attackTarget = attack.target;
+          this.choosingAttack = true;
+          return { type: R.SELECT_BATTLECMD, action: B.SELECT_BATTLE, index: attack.index };
+        }
+        if (message.to_m2 || message.to_ep) return { type: R.SELECT_BATTLECMD, action: message.to_m2 ? B.TO_M2 : B.TO_EP, index: null };
+      }
+      if (message.type === M.SELECT_CARD && this.choosingAttack && prompt.selection) {
+        this.choosingAttack = false;
+        const preferred = message.selects.findIndex(loc => this.lookup(loc) === this.attackTarget);
+        this.attackTarget = undefined;
+        if (preferred >= 0 && prompt.selection.valid([preferred])) return prompt.selection.response([preferred]);
+      }
       await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
       return this.stopped ? undefined : cpuChoice(prompt);
     }
@@ -365,8 +403,12 @@ export class OcgDuel {
         const options = [...actions.keys()];
         const selection = await ask(message.type === M.SELECT_CHAIN
           ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true,
-            optionalWindow: message.spe_count === 0 && !this.chain.size && this.tp === side
-              && (this.phase === 'DP' || this.phase === 'SP' || this.phase === 'M1' || this.phase === 'M2') }
+            optionalWindow: !this.chain.size && this.tp === side && (
+              message.spe_count === 0 && ['DP', 'SP', 'M1', 'M2'].includes(this.phase)
+              || (this.phase === 'DP' || this.phase === 'SP')
+                && ((message.hint_timing | message.hint_timing_other) & ~(T.DRAW_PHASE | T.STANDBY_PHASE | T.DRAW)) === 0
+                && message.selects.every(card => card.location === L.HAND && this.definition(card.code).stype === 'quick')
+            ) }
           : { t: 'main', actions: options, phase: this.phase });
         if (selection === SURRENDER) return;
         if (selection === null && message.type === M.SELECT_CHAIN) return { type: R.SELECT_CHAIN, index: null };
@@ -382,7 +424,7 @@ export class OcgDuel {
     this.slot = undefined;
     if (message.type === M.SELECT_CARD && this.choosingAttack && prompt.selection) {
       this.choosingAttack = false;
-      const index = message.selects.findIndex(loc => this.lookup(loc) === this.attackTarget);
+          const index = message.selects.findIndex(loc => this.lookup(loc) === this.attackTarget);
       this.attackTarget = undefined;
       if (index >= 0 && prompt.selection.valid([index])) return prompt.selection.response([index]);
     }
@@ -456,6 +498,13 @@ export class OcgDuel {
     if (prompt.choices.length === 1) return prompt.choices[0].response;
     const index = await ask({ t: 'option', text: prompt.title, options: prompt.choices.map(choice => choice.label) });
     return index === SURRENDER ? undefined : prompt.choices[index as number]?.response;
+  }
+
+  private battleScore(atk: number, target: Card) {
+    if (!target.faceUp) return atk >= 1500 ? atk - 1400 : 0;
+    const opposing = target.pos === 'atk' ? this.atk(target) : this.defv(target);
+    if (opposing < 0 || atk < opposing || atk === opposing && (target.pos === 'def' || atk === 0)) return 0;
+    return atk === opposing ? 300 : 2000 + opposing + (target.pos === 'atk' ? atk - opposing : 0);
   }
 
   async run(core: OcgCoreSync, bundle: Bundle, debug?: DebugSetup, first: Side = Math.random() < 0.5 ? 0 : 1) {

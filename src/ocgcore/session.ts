@@ -87,6 +87,11 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
       pending = false;
     },
     field: () => core.duelQueryField(handle),
+    moveReason: (loc: { controller: number; location: OcgLocation; sequence: number }, code: number) => {
+      const card = core.duelQuery(handle, { controller: loc.controller as 0 | 1, location: loc.location,
+        sequence: loc.sequence, overlaySequence: 0, flags: (OcgQueryFlags.CODE | OcgQueryFlags.REASON) as OcgQueryFlags });
+      return card?.code === code ? card?.reason ?? 0 : 0;
+    },
     cards: (controller: 0 | 1, location: OcgLocation) => core.duelQueryLocation(handle, {
       controller, location,
       flags: (OcgQueryFlags.CODE | OcgQueryFlags.POSITION | OcgQueryFlags.ATTACK | OcgQueryFlags.DEFENSE | OcgQueryFlags.IS_PUBLIC | OcgQueryFlags.OWNER) as OcgQueryFlags,
