@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --project ./tsconfig.build.json && vite build",
+    "build": "node scripts/build.mjs",
     "preview": "vite preview",
     "check": "tsx src/engine/selftest.ts",
     "import:ygo": "tsx scripts/import-ygo.ts",
@@ -15,7 +15,6 @@
     "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts",
     "prepare:ocgcore": "node scripts/prepare-ocgcore.mjs",
     "predev": "npm run prepare:ocgcore",
-    "prebuild": "npm run prepare:ocgcore",
     "test:ocgcore": "npm run prepare:ocgcore && node --import tsx --test tests/integration/ocgcore.test.ts",
     "pretest": "npm run prepare:ocgcore"
   },
