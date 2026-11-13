@@ -17,10 +17,15 @@ const { DatabaseSync } = await import('node:sqlite').catch(error => {
   throw new Error('OCGCore card data requires Node.js 24.x with node:sqlite enabled.', { cause: error });
 });
 
+// Keep deployment Git settings from redirecting dependency checkouts into the app.
+const gitEnv = { ...process.env };
+const repoGitVars = execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' });
+for (const name of repoGitVars.trim().split(/\s+/)) delete gitEnv[name];
+
 function checkout(name, revision, supplied) {
   const dir = supplied ? resolve(supplied) : resolve(cache, name);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: gitEnv });
   if (!supplied && !existsSync(resolve(dir, '.git'))) git('init', '-q');
   let head;
   try { head = git('rev-parse', '--verify', '--quiet', 'HEAD').trim(); } catch {}
