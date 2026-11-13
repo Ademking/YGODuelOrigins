@@ -1254,7 +1254,7 @@ export class Duel {
   fusionOptions(p: Side, exclude?: Card, o: FusionOpts = {}): Card[] {
     const pool = this.fusionPool(p, exclude, o);
     const needsZone = this.freeSlot(p, 'm') < 0;
-    return this.players[p].extra.filter((f) => f.def.mats && (o.f?.(f) ?? !f.def.text.includes('"Dark Fusion"')) && !f.def.noSpecial && this.canSummon(p, f, 'fusion') && this.satisfiable(f.def.mats, pool, false, needsZone ? p : undefined));
+    return this.players[p].extra.filter((f) => f.def.mats && !f.def.noFusionSpell && (o.f?.(f) ?? !f.def.text.includes('"Dark Fusion"')) && !f.def.noSpecial && this.canSummon(p, f, 'fusion') && this.satisfiable(f.def.mats, pool, false, needsZone ? p : undefined));
   }
   private fusionPool(p: Side, exclude?: Card, o: FusionOpts = {}) {
     if (o.pool) return o.pool(p).filter((c) => c.def.kind === 'monster' && c !== exclude);

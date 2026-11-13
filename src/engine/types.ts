@@ -228,6 +228,7 @@ export interface CardDef {
   ruleIf?: Partial<Record<Rule, (d: Duel, c: Card) => boolean>>;
   equip?: EquipSpec;
   mats?: Mat[];
+  noFusionSpell?: boolean; // cannot be Fusion Summoned by a card effect (e.g. Contact Fusion monsters)
   ritualOf?: string;
   ssProc?: { req?: ReqSpec[]; cost?: Op[]; cond?: (d: Duel, p: Side, c: Card) => boolean; from?: Zone[] };
   noNormal?: boolean;

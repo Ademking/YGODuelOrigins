@@ -239,6 +239,7 @@ export function contact(names: string[], dest: 'deck' | 'banished' = 'deck', zon
   const find = (d: Duel, p: Side, n: string) => d.find({ side: 'self', zone: zones, fn: (_d, c) => c.def.name === n || c.def.alias === n }, p);
   return {
     noNormal: true,
+    noFusionSpell: true,
     ssProc: {
       from: ['extra'],
       cond: (d, p) => names.every((n) => find(d, p, n).length > 0),

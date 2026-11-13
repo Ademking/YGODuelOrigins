@@ -471,7 +471,7 @@ export const SPELLS_3: Record<string, Def> = {
   'Power Bond': spell(run(async ({ d, p, card }) => {
     const f = await fuse(d, p, card, { f: (x) => x.def.race === 'Machine' });
     if (!f || f.zone !== 'mzone') return;
-    const atk = f.def.atk ?? 0;
+    const atk = d.base(f, 'atk') + (f.def.statFn && !d.negated(f) ? f.def.statFn(d, f)?.atk ?? 0 : 0);
     d.addMod(f, atk, 0, -1);
     d.schedule({ at: 'EP', turn: d.turn, fn: () => d.damage(p, atk) });
   }, 1800, (d, p, card) => canFuse(d, p, card, { f: (x) => x.def.race === 'Machine' }))),
