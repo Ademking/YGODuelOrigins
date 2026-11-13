@@ -1,10 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, renameSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-
-const cache = resolve('node_modules/.cache/duel-origins-ocgcore');
 const assets = resolve('assets/ocgcore');
 const scriptsRevision = '9a5738639924bbbf3b86c4599f3f7e70ea8711a6';
 const databaseRevision = '172462f1e7405c7544cc256471d3310df6e6b7c3';
@@ -22,34 +21,45 @@ const gitEnv = { ...process.env };
 const repoGitVars = execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' });
 for (const name of repoGitVars.trim().split(/\s+/)) delete gitEnv[name];
 
-function checkout(name, revision, supplied) {
-  const dir = supplied ? resolve(supplied) : resolve(cache, name);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: gitEnv });
-  if (!supplied && !existsSync(resolve(dir, '.git'))) git('init', '-q');
-  let head;
-  try { head = git('rev-parse', '--verify', '--quiet', 'HEAD').trim(); } catch {}
-  if (head !== revision) {
-    if (supplied) throw new Error(`${dir} must be at ${revision}`);
-    git('fetch', '-q', '--depth=1', `https://github.com/ProjectIgnis/${name}.git`, revision);
-    git('checkout', '-q', '--detach', 'FETCH_HEAD');
+function checkout(workspace, name, revision, supplied) {
+  if (supplied) {
+    const dir = resolve(supplied);
+    const head = execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8', env: gitEnv,
+    }).trim();
+    if (head !== revision) throw new Error(`${dir} must be at ${revision}`);
+    return dir;
   }
+
+  const dir = resolve(workspace, name);
+  mkdirSync(dir);
+  execFileSync('git', ['init', '-q', '--template=', dir], { cwd: workspace, env: gitEnv });
+  const git = (...args) => execFileSync('git', [
+    '--git-dir', resolve(dir, '.git'), '--work-tree', dir, ...args,
+  ], { cwd: dir, env: gitEnv });
+  git('fetch', '-q', '--depth=1', `https://github.com/ProjectIgnis/${name}.git`, revision);
+  git('checkout', '-q', '--detach', 'FETCH_HEAD');
   return dir;
 }
 
-const lua = checkout('CardScripts', scriptsRevision, process.env.OCG_SCRIPTS_DIR);
-const database = checkout('BabelCDB', databaseRevision, process.env.OCG_DATABASE_DIR);
-const db = new DatabaseSync(resolve(database, 'cards.cdb'), { readOnly: true });
-const query = db.prepare('SELECT datas.*, texts.name, texts.desc FROM datas JOIN texts USING(id)');
-query.setReadBigInts(true);
-const cards = query.all();
-db.close();
-const scripts = {};
-for (const folder of [lua, resolve(lua, 'official')]) {
-  for (const name of readdirSync(folder).filter(name => name.endsWith('.lua'))) scripts[name] = readFileSync(resolve(folder, name), 'utf8');
+const workspace = mkdtempSync(resolve(tmpdir(), 'duel-origins-ocgcore-'));
+try {
+  const lua = checkout(workspace, 'CardScripts', scriptsRevision, process.env.OCG_SCRIPTS_DIR);
+  const database = checkout(workspace, 'BabelCDB', databaseRevision, process.env.OCG_DATABASE_DIR);
+  const db = new DatabaseSync(resolve(database, 'cards.cdb'), { readOnly: true });
+  const query = db.prepare('SELECT datas.*, texts.name, texts.desc FROM datas JOIN texts USING(id)');
+  query.setReadBigInts(true);
+  const cards = query.all();
+  db.close();
+  const scripts = {};
+  for (const folder of [lua, resolve(lua, 'official')]) {
+    for (const name of readdirSync(folder).filter(name => name.endsWith('.lua'))) scripts[name] = readFileSync(resolve(folder, name), 'utf8');
+  }
+  mkdirSync(assets, { recursive: true });
+  writeFileSync(output + '.tmp', gzipSync(JSON.stringify({ cards, scripts }, (_key, value) => typeof value === 'bigint' ? value.toString() : value)));
+  renameSync(output + '.tmp', output);
+  writeFileSync(resolve(assets, 'CardScripts-COPYING'), readFileSync(resolve(lua, 'COPYING')));
+  writeFileSync(resolve(assets, 'revision'), version);
+} finally {
+  rmSync(workspace, { recursive: true, force: true });
 }
-mkdirSync(assets, { recursive: true });
-writeFileSync(output + '.tmp', gzipSync(JSON.stringify({ cards, scripts }, (_key, value) => typeof value === 'bigint' ? value.toString() : value)));
-renameSync(output + '.tmp', output);
-writeFileSync(resolve(assets, 'CardScripts-COPYING'), readFileSync(resolve(lua, 'COPYING')));
-writeFileSync(resolve(assets, 'revision'), version);
