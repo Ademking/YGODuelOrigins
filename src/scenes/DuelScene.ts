@@ -119,7 +119,7 @@ export class DuelScene extends Phaser.Scene {
   /** Cards an effect (attack, flip) is moving right now: layout must not yank them away mid-animation. */
   private busy = new Set<Phaser.GameObjects.Image>();
   private fieldMatName: FieldMatName | null = null;
-  private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number } | null = null;
+  private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics; opacity: number } | null = null;
   private skins = new Map<number, Phaser.GameObjects.Mesh>();
   private holograms = new Map<number, Phaser.GameObjects.Image>();
   private hologramRequests = new Set<string>();
@@ -652,33 +652,32 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private showFieldMat(name: FieldMatName, art: boolean) {
-    let object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle;
+    const top = rowY(-EDGE_W);
+    const bottom = rowY(EDGE_W);
+    const width = 2 * EDGE_U * UNIT_X * depth(EDGE_W);
+    const height = bottom - top;
+    const centerY = (top + bottom) / 2;
+    const topWidth = depth(-EDGE_W) / depth(EDGE_W);
+    let object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics;
     if (art) {
-      const reduced = this.reducedMotion;
-      const source = new Phaser.Display.BaseShader(`field-mat-${name}`, fieldMatShader(name, reduced), undefined, { opacity: { type: '1f', value: 0 } });
-      const shader = this.add.shader(source, 640, 360, 1, 1);
+      const source = new Phaser.Display.BaseShader(
+        `field-mat-${name}`, fieldMatShader(name, this.reducedMotion, topWidth), undefined, { opacity: { type: '1f', value: 0 } },
+      );
+      const shader = this.add.shader(source, CX, centerY, width, height);
       const artKey = fieldArtKey(name);
       if (artKey) shader.setChannel0(artKey);
       object = shader;
     } else {
-      object = this.add.rectangle(640, 360, 1, 1, Number.parseInt(FIELD_MATS[name].accent.slice(1), 16)).setAlpha(0);
+      const color = Number.parseInt(FIELD_MATS[name].accent.slice(1), 16);
+      object = this.add.graphics().fillStyle(color, 0.45).fillPoints(this.quad(-EDGE_U, EDGE_U, -EDGE_W, EDGE_W), true).setAlpha(0);
     }
-    object.setDepth(-99);
-    const resize = () => {
-      const width = this.scale.baseSize.width / this.cameras.main.zoom;
-      const height = this.scale.baseSize.height / this.cameras.main.zoom;
-      if (object instanceof Phaser.GameObjects.Shader) object.setSize(width, height).updateDisplayOrigin();
-      else object.setDisplaySize(width, height);
-    };
-    resize();
-    this.scale.on('resize', resize);
-    object.once('destroy', () => this.scale.off('resize', resize));
+    object.setDepth(-51);
     const current = { object, opacity: 0 };
     this.fieldMat = current;
     this.tweens.add({ targets: current, opacity: 1, duration: 650, ease: 'Sine.InOut', onUpdate: () => this.setFieldMatOpacity(current) });
   }
 
-  private setFieldMatOpacity(mat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number }) {
+  private setFieldMatOpacity(mat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics; opacity: number }) {
     if (!mat.object.active) return;
     if (mat.object instanceof Phaser.GameObjects.Shader) mat.object.setUniform('opacity.value', mat.opacity);
     else mat.object.setAlpha(mat.opacity);
@@ -795,7 +794,7 @@ export class DuelScene extends Phaser.Scene {
       this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
       // portrait well
       const px = PLATE.x + 34, py = y + PLATE.h / 2;
-      g.fillStyle(0x05040b, 1).fillRect(px - 24, py - 29, 48, 58);
+      g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
       const watched = s === this.me ? this.init0.watch : undefined;
       if (s === this.me && !watched) {
         // your side shows the art of your deck's strongest monster
@@ -811,9 +810,9 @@ export class DuelScene extends Phaser.Scene {
         if (portrait) this.add.image(px, py, portrait).setDisplaySize(46, 55);
         else this.add.text(px, py, duelist.art, { fontSize: '22px' }).setOrigin(0.5);
       }
-      this.add.graphics().lineStyle(1, COL.goldDim, 1).strokeRect(px - 23.5, py - 28.5, 47, 57);
-      const name = this.add.text(PLATE.lpX, y + 9, (s === this.me ? watched?.name ?? 'You' : this.init0.opp.name).toUpperCase(),
-        { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.dim }).setLetterSpacing(1);
+      this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? watched?.name ?? 'You' : this.init0.opp.name),
+        { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
       const room = PLATE.x + PLATE.w - 12 - PLATE.lpX;
       if (name.width > room) name.setScale(room / name.width);
       this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
@@ -840,15 +839,16 @@ export class DuelScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', resize));
   }
 
-  /** Life Points: the number, and a bar of eight segments worth 1000 LP each. */
+  /** Life Points: the number, and a bar with eight segments relative to the starting LP. */
   private drawLP(s: Side, lp: number) {
     const y = (s === this.me ? PLATE.yMe : PLATE.yFoe) + 57;
     const x0 = PLATE.lpX, bw = PLATE.x + PLATE.w - 12 - x0, gap = 2, seg = (bw - gap * 7) / 8;
-    const frac = Phaser.Math.Clamp(lp / (this.init0.startingLP ?? 8000), 0, 1);
+    const startingLP = this.init0.startingLP ?? 8000;
+    const frac = Phaser.Math.Clamp(lp / startingLP, 0, 1);
     const col = frac > 0.25 ? COL.gold : COL.red; // red only as a low-life warning, the same for both players
     const g = this.lpBar[s].clear();
     for (let i = 0; i < 8; i++) {
-      const sx = x0 + i * (seg + gap), fill = Phaser.Math.Clamp(lp / 1000 - i, 0, 1);
+      const sx = x0 + i * (seg + gap), fill = Phaser.Math.Clamp(frac * 8 - i, 0, 1);
       g.fillStyle(0x231f38, 1).fillRect(sx, y, seg, 5);
       if (fill > 0) g.fillStyle(col, 1).fillRect(sx, y, seg * fill, 5);
     }
@@ -1507,15 +1507,16 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.45));
-    const perPage = 7;
-    const w = 760, h = 330, x0 = CX - w / 2, y0 = CY - h / 2;
+    const perPage = 6;
+    const w = 768, h = 350, x0 = CX - w / 2, y0 = CY - h / 2;
     layer.add(panel(this, x0, y0, w, h));
-    layer.add(htxt(this, CX, y0 + 24, p.text, 18).setOrigin(0.5));
-    const info = txt(this, CX, y0 + 48, '', 14, COL.dim).setOrigin(0.5);
+    const title = htxt(this, CX, y0 + 34, p.text, 17, COL.text, { align: 'center', wordWrap: { width: w - 70 } }).setOrigin(0.5);
+    layer.add(title);
+    const info = txt(this, CX, y0 + 66, '', 12, COL.goldTxt).setOrigin(0.5);
     layer.add(info);
     const chosen = new Set<Card>();
     const single = p.min === 1 && p.max === 1 && !p.validate;
-    const ok = button(this, CX, y0 + h - 30, 200, 38, 'Confirm', () => this.choose([...chosen]), { primary: true });
+    const ok = button(this, CX, y0 + h - 30, 200, 38, p.reveal ? 'Continue' : 'Confirm', () => this.choose([...chosen]), { primary: true });
     const grid = this.add.container(0, 0);
     layer.add([grid, ok]);
     let page = 0;
@@ -1525,14 +1526,16 @@ export class DuelScene extends Phaser.Scene {
       grid.removeAll(true);
       const slice = p.cards.slice(page * perPage, page * perPage + perPage);
       slice.forEach((c, i) => {
-        const x = CX + (i - (slice.length - 1) / 2) * 98, y = y0 + 150;
+        const x = CX + (i - (slice.length - 1) / 2) * 98, y = y0 + 176;
         // your own off-field cards (deck, hand, Fusion Deck) are always shown face-up to you when choosing
         const vis = !!p.reveal || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
         const img = this.add.image(x, y, vis ? faceKey(this.textures, c.def.id) : BACK).setScale(0.42 * CARD_K).setInteractive({ useHandCursor: true });
         if (vis) setCardTexture(img, c.def.id);
         const sel = chosen.has(c);
-        // no frame or captions: a chosen card is lifted and tinted instead
-        if (sel) img.setY(y - 12).setTint(0xfff1c4);
+        const frame = this.add.graphics();
+        frame.fillStyle(COL.panel2, 1).fillPoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
+        frame.lineStyle(sel ? 2 : 1, sel ? COL.gold : COL.line, 1).strokePoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
+        grid.add(frame);
         img.on('pointerover', () => this.cardPanel.show(c.def, { hidden: !vis }));
         img.on('pointerup', () => {
           if (single) return this.choose([c]);
@@ -1543,10 +1546,11 @@ export class DuelScene extends Phaser.Scene {
         grid.add(img);
       });
       if (pages > 1) {
-        if (page > 0) grid.add(button(this, x0 + 30, y0 + 150, 40, 60, '‹', () => { page--; render(); }, { size: 24 }));
-        if (page < pages - 1) grid.add(button(this, x0 + w - 30, y0 + 150, 40, 60, '›', () => { page++; render(); }, { size: 24 }));
+        if (page > 0) grid.add(button(this, x0 + 34, y0 + 176, 34, 48, '‹', () => { page--; render(); }, { size: 24 }));
+        if (page < pages - 1) grid.add(button(this, x0 + w - 34, y0 + 176, 34, 48, '›', () => { page++; render(); }, { size: 24 }));
       }
-      info.setText(single ? 'Click a card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})${p.validate ? ' · total Levels must meet the requirement' : ''}`);
+      if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
+      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click a card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})${p.validate ? ' · total Levels must meet the requirement' : ''}`);
       ok.setVisible(!single).setEnabled(valid());
     };
     render();
@@ -1559,7 +1563,8 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.45));
     layer.add(panel(this, CX - 220, CY - 150, 440, 300));
-    layer.add(htxt(this, CX, CY - 124, `Summon ${c.def.name} in…`, 18).setOrigin(0.5));
+    layer.add(htxt(this, CX, CY - 123, 'Summon position', 19).setOrigin(0.5));
+    layer.add(txt(this, CX, CY - 90, c.def.name, 13, COL.goldTxt, { wordWrap: { width: 400 }, align: 'center' }).setOrigin(0.5));
     const mk = (x: number, angle: number, label: string, v: 'atk' | 'def') => {
       const img = this.add.image(x, CY, faceKey(this.textures, c.def.id)).setScale(0.4 * CARD_K).setAngle(angle).setInteractive({ useHandCursor: true });
       img.on('pointerup', () => this.choose(v));

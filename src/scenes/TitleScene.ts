@@ -101,32 +101,41 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showChangelog() {
-    const dialog = document.querySelector<HTMLDialogElement>('#changelog');
-    if (dialog && !dialog.open) {
-      const version = dialog.querySelector('#changelog-version');
-      if (version) version.textContent = `Version ${__APP_VERSION__}`;
-      dialog.showModal();
-    }
+    this.showInfo('Changelog', [
+      [`Version ${__APP_VERSION__}`, COL.goldTxt],
+      ['Fixed Flip Effects under Banisher of the Light, Contact Fusion reveals, Spellbinding Circle, and other card interactions.', COL.text],
+      ['Improved CPU decisions for Equip Spells, Shrink, Lava Golem, and attacks on face-down cards.', COL.text],
+      ['Added saved CPU decks, selectable starting Life Points, volume control, and deck editor shortcuts.', COL.text],
+      ['Added the Orichalcos preset, reduced effects, and startup error feedback.', COL.text],
+    ]);
   }
 
   private showAbout() {
+    this.showInfo('About', ABOUT, [['Join Discord', openDiscord], ['GitHub', openGithub]]);
+  }
+
+  private showInfo(title: string, paragraphs: [string, string][], actions: [string, () => void][] = []) {
     const layer = this.add.container(0, 0).setDepth(100);
     const block = this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.8).setInteractive(); // covers any window shape
     block.on('pointerup', () => layer.destroy());
     layer.add(block);
     // the paragraphs are laid out first so the panel can be sized to them
     const x = 280, width = 720;
-    const lines = ABOUT.map(([text, color]) => txt(this, x, 0, text, 13, color, { wordWrap: { width }, lineSpacing: 6 }));
+    const lines = paragraphs.map(([text, color]) => txt(this, x, 0, text, 13, color, { wordWrap: { width }, lineSpacing: 6 }));
     const height = lines.reduce((sum, line) => sum + line.height + 18, 0);
     const top = 360 - (height + 150) / 2;
     layer.add(this.add.zone(240, top, 800, height + 150).setOrigin(0).setInteractive()); // clicks inside do not close it
     layer.add(panel(this, 240, top, 800, height + 150, 0.98));
-    layer.add(htxt(this, 640, top + 38, 'About', 26).setOrigin(0.5));
+    layer.add(htxt(this, 640, top + 38, title, 26).setOrigin(0.5));
     let y = top + 78;
     for (const line of lines) { line.setY(y); y += line.height + 18; }
     layer.add(lines);
-    layer.add(button(this, 450, y + 24, 180, 42, 'Join Discord', openDiscord, { size: 14, primary: true }));
-    layer.add(button(this, 640, y + 24, 180, 42, 'GitHub', openGithub, { size: 14 }));
-    layer.add(button(this, 830, y + 24, 180, 42, 'Close', () => layer.destroy(), { size: 14 }));
+    const close = () => layer.destroy();
+    const buttons: [string, () => void][] = [...actions, ['Close', close]];
+    buttons.forEach(([label, run], i) => {
+      layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 190, y + 24, 180, 42, label, run, { size: 14, primary: i === 0 }));
+    });
+    this.input.keyboard?.once('keydown-ESC', close);
+    layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
   }
 }

@@ -152,7 +152,7 @@ export function loadFieldArt(textures: Phaser.Textures.TextureManager, name: Fie
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 512;
         const ctx = canvas.getContext('2d')!;
-        // The crop is small and JPEG-compressed, and the mat stretches it across the whole screen, so it is blurred
+        // The crop is small and JPEG-compressed, and the mat stretches it across the board, so it is blurred
         // once here: it reads as an out-of-focus backdrop instead of blocky pixels. Drawn slightly oversized so the
         // blur does not fade the edges. ponytail: ctx.filter; a browser without it (Safari < 18) shows the art unblurred.
         ctx.filter = 'blur(3px)';
@@ -175,9 +175,9 @@ const FX: Record<Fx, string> = {
   drift: '',
 };
 
-export function fieldMatShader(name: FieldMatName, reducedMotion: boolean): string {
+export function fieldMatShader(name: FieldMatName, reducedMotion: boolean, topWidth = 1): string {
   const mat = FIELD_MATS[name];
-  if ('scene' in mat) return proceduralShader(mat.scene, reducedMotion);
+  if ('scene' in mat) return proceduralShader(mat.scene, reducedMotion, topWidth);
   const { fx } = mat;
   return `
     precision mediump float;
@@ -188,6 +188,9 @@ export function fieldMatShader(name: FieldMatName, reducedMotion: boolean): stri
     varying vec2 fragCoord;
     void main() {
       vec2 uv = vec2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
+      float rowWidth = mix(${topWidth.toFixed(6)}, 1.0, uv.y);
+      uv.x = 0.5 + (uv.x - 0.5) / rowWidth;
+      if (uv.x < 0.0 || uv.x > 1.0) discard;
       float t = time * ${reducedMotion ? '0.0' : '0.22'};
       float aspect = resolution.x / resolution.y;
       // Fit the square art to the wide screen (ponytail: up to ~1.4x horizontal stretch so more of the art shows), then a slow Ken Burns zoom and pan.
@@ -208,7 +211,7 @@ export function fieldMatShader(name: FieldMatName, reducedMotion: boolean): stri
   `;
 }
 
-function proceduralShader(scene: string, reducedMotion: boolean): string {
+function proceduralShader(scene: string, reducedMotion: boolean, topWidth: number): string {
   return `
     #ifdef GL_FRAGMENT_PRECISION_HIGH
     precision highp float;
@@ -235,8 +238,11 @@ function proceduralShader(scene: string, reducedMotion: boolean): string {
     }
     void main() {
       vec2 uv = vec2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
-      vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
+      float rowWidth = mix(${topWidth.toFixed(6)}, 1.0, uv.y);
+      uv.x = 0.5 + (uv.x - 0.5) / rowWidth;
+      if (uv.x < 0.0 || uv.x > 1.0) discard;
       float t = time * ${reducedMotion ? '0.0' : '0.22'};
+      vec2 p = (uv - 0.5) * vec2(resolution.x / resolution.y, 1.0);
       vec3 col = vec3(0.0);
       ${scene}
       // Same dim + vignette idea as the art mats so cards stay readable.

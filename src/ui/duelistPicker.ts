@@ -9,7 +9,7 @@ import { sfx } from './sfx';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
-const PER_ROW = 11;
+const PER_ROW = 12;
 
 /** A random duelist's index, avoiding `not` when there is a choice. */
 export function randomDuelist(not = RANDOM) {
@@ -53,13 +53,13 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   const style = txt(scene, cx, top + 344, '', 12, COL.dim, { align: 'center', wordWrap: { width: 440 } }).setOrigin(0.5, 0);
 
   // Strip: the die for Random, then every duelist. Clicking a face selects it.
-  const tileAt = (n: number) => ({ x: cx - 220 + (n % PER_ROW) * 44, y: top + 414 + Math.floor(n / PER_ROW) * 52 });
+  const tileAt = (n: number) => ({ x: cx + (n % PER_ROW - (PER_ROW - 1) / 2) * 40, y: top + 414 + Math.floor(n / PER_ROW) * 52 });
   const marker = scene.add.graphics();
   const choose = (index: number) => { selected = index; refresh(); onChange(index); };
   const faces = Array.from({ length: OPPONENTS.length + 1 }, (_, n) => {
     const { x, y } = tileAt(n), index = n - 1;
-    const tile = scene.add.rectangle(x, y, 40, 48, 0x14121f).setInteractive({ useHandCursor: true });
-    const face = index === RANDOM ? die(scene, x, y, 24) : show(scene.add.image(x, y, BACK), OPPONENTS[index], 46);
+    const tile = scene.add.rectangle(x, y, 38, 48, 0x14121f).setInteractive({ useHandCursor: true });
+    const face = index === RANDOM ? die(scene, x, y, 24) : show(scene.add.image(x, y, BACK), OPPONENTS[index], 44);
     tile.on('pointerover', () => face.setAlpha(1));
     tile.on('pointerout', () => face.setAlpha(selected === index ? 1 : 0.5));
     tile.on('pointerup', () => { sfx.click(); choose(index); });
@@ -78,7 +78,7 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
     style.setText(duelist?.style ?? '');
     faces.forEach((face, n) => face.setAlpha(n - 1 === selected ? 1 : 0.5));
     const at = tileAt(selected + 1);
-    marker.clear().lineStyle(2, COL.gold, 1).strokeRect(at.x - 21, at.y - 25, 42, 50);
+    marker.clear().lineStyle(2, COL.gold, 1).strokeRect(at.x - 19, at.y - 25, 38, 50);
   };
   if (!reduced) scene.time.addEvent({ delay: 150, loop: true, callback: () => { if (selected === RANDOM) show(avatar, anyone(), 215); } });
   /** Move through Random and then every duelist. */

@@ -5,7 +5,7 @@ import type { DeckList } from '../engine/duel';
 import { BACK } from '../ui/cardArt';
 import { setCardTexture } from '../ui/cardLoader';
 import { duelistPicker, RANDOM, randomDuelist } from '../ui/duelistPicker';
-import { button, caption, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
+import { button, caption, chooseFromList, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
 import type { DuelInit } from './DuelScene';
 
 const store = {
@@ -26,13 +26,13 @@ export class SetupScene extends Phaser.Scene {
     fitCamera(this);
     sceneBackground(this);
     button(this, 98, 46, 112, 36, '‹  Back', () => this.scene.start('Title'), { size: 13 });
-    htxt(this, 180, 45, 'Choose your challenger', 24).setOrigin(0, 0.5);
+    htxt(this, 180, 45, 'Duel Setup', 24).setOrigin(0, 0.5);
     htxt(this, 640, 236, 'VS', 34).setOrigin(0.5);
 
     // opponent: the last one played ("random" is remembered too), else the first duelist
     const saved = store.get('arcana-duel.opp');
     let opponentIndex = saved === 'random' ? RANDOM : Math.max(0, OPPONENTS.findIndex((opponent) => opponent.id === saved));
-    const picker = duelistPicker(this, 330, 80, 'Opponent', opponentIndex, (index) => {
+    const picker = duelistPicker(this, 330, 80, 'CPU opponent', opponentIndex, (index) => {
       opponentIndex = index;
       store.set('arcana-duel.opp', OPPONENTS[index]?.id ?? 'random');
     });
@@ -43,7 +43,7 @@ export class SetupScene extends Phaser.Scene {
     let deckIndex = Math.max(0, names.indexOf(selectedDeck()));
     const cx = 950;
     panel(this, cx - 260, 80, 520, 506, 0.9, 10);
-    caption(this, cx - 236, 100, 'Your deck', COL.goldTxt, 10);
+    caption(this, cx - 236, 100, 'Player deck', COL.goldTxt, 10);
     const position = txt(this, cx + 236, 106, '', 11, COL.dim).setOrigin(1, 0.5);
     this.add.rectangle(cx + 4, 242, 147, 215, 0x000000, 0.5);
     const deckArt = this.add.image(cx, 236, BACK).setDisplaySize(147, 215);
@@ -57,30 +57,33 @@ export class SetupScene extends Phaser.Scene {
     button(this, cx - 92, 520, 172, 40, 'Edit Deck', () => edit(false), { size: 13 });
     button(this, cx + 92, 520, 172, 40, '+ New Deck', () => edit(true), { size: 13 });
 
+    const cpuDecks = ['', ...names.filter((name) => !validateDeck(decks[name]).length)];
+    const cpuLabels = ['Opponent preset', ...cpuDecks.slice(1)];
+    let cpuIndex = Math.max(0, cpuDecks.indexOf(store.get('arcana-duel.cpu-deck') ?? ''));
+    const cpuLabel = () => `CPU deck: ${cpuLabels[cpuIndex]} ▾`;
+    const cpuSelect = button(this, 330, 621, 320, 38, cpuLabel(), () => {
+      chooseFromList(this, 'CPU deck', cpuLabels, cpuIndex, (index) => {
+        cpuIndex = index;
+        store.set('arcana-duel.cpu-deck', cpuDecks[index]);
+        cpuSelect.setLabel(cpuLabel()).setSelected(index !== 0);
+      });
+    }, { size: 13 }).setSelected(cpuIndex !== 0);
+
+    const lpOptions = [4000, 8000] as const;
     let startingLP: 4000 | 8000 = store.get('arcana-duel.starting-lp') === '4000' ? 4000 : 8000;
-    const lifePoints = button(this, 395, 642, 136, 40, `${startingLP} LP`, () => {
-      startingLP = startingLP === 4000 ? 8000 : 4000;
-      store.set('arcana-duel.starting-lp', String(startingLP));
-      lifePoints.setLabel(`${startingLP} LP`);
+    const lifePoints = button(this, 950, 621, 320, 38, `Starting LP: ${startingLP.toLocaleString('en-US')} ▾`, () => {
+      chooseFromList(this, 'Starting Life Points', ['4,000 LP', '8,000 LP'], lpOptions.indexOf(startingLP), (index) => {
+        startingLP = lpOptions[index];
+        store.set('arcana-duel.starting-lp', String(startingLP));
+        lifePoints.setLabel(`Starting LP: ${startingLP.toLocaleString('en-US')} ▾`);
+      });
     }, { size: 13 });
 
-    const cpuDecks = names.filter((name) => !validateDeck(decks[name]).length);
-    const cpuSelect = document.createElement('select');
-    cpuSelect.className = 'ad-input';
-    cpuSelect.style.width = '205px';
-    cpuSelect.setAttribute('aria-label', 'CPU deck');
-    cpuSelect.add(new Option('CPU preset deck', ''));
-    cpuDecks.forEach((name) => cpuSelect.add(new Option(name, name)));
-    cpuSelect.value = store.get('arcana-duel.cpu-deck') ?? '';
-    if (cpuSelect.selectedIndex < 0) cpuSelect.selectedIndex = 0;
-    cpuSelect.addEventListener('change', () => store.set('arcana-duel.cpu-deck', cpuSelect.value));
-    this.add.dom(935, 642, cpuSelect);
-
-    const start = button(this, 640, 642, 340, 54, 'Begin Duel', () => {
+    const start = button(this, 640, 670, 280, 50, 'Begin Duel', () => {
       const deckName = names[deckIndex];
       const opponent = OPPONENTS[opponentIndex === RANDOM ? randomDuelist() : opponentIndex];
       if (!deckName || !opponent || validateDeck(decks[deckName]).length) return;
-      const cpuDeck = cpuSelect.value ? decks[cpuSelect.value] : undefined;
+      const cpuDeck = cpuIndex === 0 ? undefined : decks[cpuDecks[cpuIndex]];
       const opp = cpuDeck ? { ...opponent, deck: cpuDeck } : opponent;
       const data: DuelInit = { deck: decks[deckName], deckName, opp, level: opponent.suggested, startingLP };
       setSelectedDeck(deckName);
@@ -101,14 +104,20 @@ export class SetupScene extends Phaser.Scene {
       deckStatus.setColor(errors.length ? '#ff8a8a' : '#9fe0a8').setText(errors[0] ?? 'Ready to duel');
       start.setEnabled(!!deck && !errors.length && OPPONENTS.length > 0);
     };
-    const changeDeck = (direction: number) => {
-      if (!names.length) return;
-      deckIndex = (deckIndex + direction + names.length) % names.length;
+    const selectDeck = (index: number) => {
+      if (!names.length || index < 0 || index >= names.length) return;
+      deckIndex = index;
       setSelectedDeck(names[deckIndex]);
       refresh();
     };
+    const changeDeck = (direction: number) => {
+      if (names.length) selectDeck((deckIndex + direction + names.length) % names.length);
+    };
     button(this, cx - 150, 236, 40, 48, '‹', () => changeDeck(-1), { size: 22 });
     button(this, cx + 150, 236, 40, 48, '›', () => changeDeck(1), { size: 22 });
+    button(this, cx, 472, 208, 34, 'Choose Player Deck ▾', () => {
+      chooseFromList(this, 'Player deck', names, deckIndex, selectDeck);
+    }, { size: 12 }).setEnabled(names.length > 0);
 
     // arrow keys step through the opponents
     const previous = () => picker.step(-1);

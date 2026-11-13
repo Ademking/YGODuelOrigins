@@ -392,3 +392,38 @@ export function modal(scene: Phaser.Scene, o: { title: string; text?: string; in
     }
   });
 }
+
+/** A paged picker using the same panels and controls as the game's other dialogs. */
+export function chooseFromList(scene: Phaser.Scene, title: string, options: readonly string[], selected: number, onChoose: (index: number) => void) {
+  const layer = scene.add.container(0, 0).setDepth(4000);
+  const close = () => layer.destroy();
+  const backdrop = scene.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
+  backdrop.on('pointerup', close);
+  layer.add(backdrop);
+  layer.add(scene.add.zone(320, 130, 640, 460).setOrigin(0).setInteractive());
+  layer.add(panel(scene, 320, 130, 640, 460, 0.98, 10));
+  layer.add(htxt(scene, 640, 166, title, 22).setOrigin(0.5));
+  const entries = scene.add.container(0, 0);
+  layer.add(entries);
+  const pageSize = 12;
+  const lastPage = Math.max(0, Math.ceil(options.length / pageSize) - 1);
+  let page = Math.max(0, Math.floor(selected / pageSize));
+  const render = () => {
+    entries.removeAll(true);
+    options.slice(page * pageSize, (page + 1) * pageSize).forEach((label, i) => {
+      const index = page * pageSize + i;
+      entries.add(button(scene, 484 + (i % 2) * 312, 218 + Math.floor(i / 2) * 49, 290, 39, label, () => {
+        close();
+        onChoose(index);
+      }, { size: 14 }).setSelected(index === selected));
+    });
+    if (lastPage) {
+      entries.add(button(scene, 404, 552, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, 876, 552, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+    }
+  };
+  layer.add(button(scene, 640, 552, 160, 36, 'Close', close, { size: 14 }));
+  scene.input.keyboard?.once('keydown-ESC', close);
+  layer.once('destroy', () => scene.input.keyboard?.off('keydown-ESC', close));
+  render();
+}

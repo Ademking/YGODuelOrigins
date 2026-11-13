@@ -6,7 +6,7 @@ import type { Attr, CardDef, Race } from '../engine/types';
 import { CARD_K, faceKey } from '../ui/cardArt';
 import { loadCard, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
-import { button, caption, COL, FONT_N, htxt, modal, panel, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
+import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
@@ -112,17 +112,15 @@ export class DeckEditorScene extends Phaser.Scene {
       this.cycleBtns.push(b);
     });
 
-    const races = document.createElement('select');
-    races.className = 'ad-input';
-    races.style.cssText = 'width: 82px; height: 26px; padding: 2px; font-size: 11px;';
-    races.setAttribute('aria-label', 'Monster type');
-    RACES.forEach((race, index) => races.add(new Option(index === 0 ? 'All types' : race, String(index))));
-    races.addEventListener('change', () => {
-      this.filter.race = races.selectedIndex;
-      this.page = 0;
-      this.renderPool();
-    });
-    this.add.dom(1049, 120, races);
+    const raceLabels = RACES.map((race) => race === 'Any' ? 'All types' : race);
+    const raceFilter = button(this, 1049, 120, 80, 26, 'Type: Any ▾', () => {
+      chooseFromList(this, 'Monster type', raceLabels, this.filter.race, (index) => {
+        this.filter.race = index;
+        raceFilter.setLabel(index === 0 ? 'Type: Any ▾' : `${RACES[index]} ▾`).setSelected(index !== 0);
+        this.page = 0;
+        this.renderPool();
+      });
+    }, { size: 12 });
     this.deckLayer = this.add.container(0, 0);
     this.poolLayer = this.add.container(0, 0);
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
