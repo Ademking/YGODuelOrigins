@@ -4,11 +4,30 @@ import { gunzipSync } from 'node:zlib';
 import { test } from 'node:test';
 import createCore, { OcgMessageType, OcgResponseType, SelectIdleCMDAction } from 'ocgcore-wasm';
 import { OPPONENTS } from '../../src/data/decks';
-import { cardCatalog, type Bundle } from '../../src/ocgcore/data';
+import { cardCatalog, effectDescription, type Bundle } from '../../src/ocgcore/data';
 import { cpuChoice, decision } from '../../src/ocgcore/choices';
 import { openDuel } from '../../src/ocgcore/session';
 
 const readBundle = (): Bundle => JSON.parse(gunzipSync(readFileSync('assets/ocgcore/data.json.gz')).toString('utf8'));
+
+test('OCGCore choices show coin calls and card effect descriptions in response order', () => {
+  const bundle = readBundle();
+  const { rows } = cardCatalog(bundle);
+  const describe = (id: bigint) => effectDescription(id, rows, bundle.systemStrings);
+  const choose = (options: bigint[]) => decision({ type: OcgMessageType.SELECT_OPTION, player: 0, options }, String, describe);
+  const coin = choose([60n, 61n]);
+  assert.equal(coin.title, 'Call the coin toss');
+  assert.deepEqual(coin.choices.map(choice => choice.label), ['Heads', 'Tails']);
+  const card = [...rows.values()].find(row => row.str1?.trim() && row.str2?.trim() && row.str1 !== row.str2);
+  assert.ok(card);
+  const id = BigInt(card.id) << 20n;
+  const effects = choose([id | 1n, id]);
+  assert.deepEqual(effects.choices.map(choice => choice.label), [card.str2!.trim(), card.str1!.trim()]);
+  assert.deepEqual(effects.choices.map(choice => choice.response), [
+    { type: OcgResponseType.SELECT_OPTION, index: 0 },
+    { type: OcgResponseType.SELECT_OPTION, index: 1 },
+  ]);
+});
 
 test('OCGCore uses classic opening draws and resolves a Lua Spell', async () => {
   const bundle = readBundle();

@@ -12,7 +12,7 @@ export interface Decision {
   announce?: (code: number) => OcgResponse;
 }
 
-export function decision(message: OcgMessage, name: (code: number) => string): Decision {
+export function decision(message: OcgMessage, name: (code: number) => string, describe?: (id: bigint) => string | undefined): Decision {
   const result: Decision = { title: 'Choose an action', choices: [] };
   const add = (label: string, response: OcgResponse, score = 0) => result.choices.push({ label, response, score });
   switch (message.type) {
@@ -70,15 +70,19 @@ export function decision(message: OcgMessage, name: (code: number) => string): D
       }
       break;
     case M.SELECT_EFFECTYN: case M.SELECT_YESNO: {
-      result.title = message.type === M.SELECT_EFFECTYN ? `Use effect · ${name(message.code)}` : 'Confirm this action?';
+      result.title = describe?.(message.description) ??
+        (message.type === M.SELECT_EFFECTYN ? `Use effect · ${name(message.code)}` : 'Confirm this action?');
       const type = message.type === M.SELECT_EFFECTYN ? R.SELECT_EFFECTYN : R.SELECT_YESNO;
       add('Yes', { type, yes: true }, 1);
       add('No', { type, yes: false });
       break;
     }
     case M.SELECT_OPTION:
-      result.title = 'Choose an effect option';
-      message.options.forEach((_option, index) => add(`Option ${index + 1}`, { type: R.SELECT_OPTION, index }));
+      result.title = message.options.includes(60n) && message.options.includes(61n) ? 'Call the coin toss' : 'Choose an effect';
+      message.options.forEach((option, index) => {
+        const label = describe?.(option) ?? (option === 60n ? 'Heads' : option === 61n ? 'Tails' : `Option ${index + 1} (description unavailable)`);
+        add(label, { type: R.SELECT_OPTION, index });
+      });
       break;
     case M.SELECT_PLACE: case M.SELECT_DISFIELD: {
       result.title = message.type === M.SELECT_PLACE ? 'Choose a zone' : 'Choose zones to disable';

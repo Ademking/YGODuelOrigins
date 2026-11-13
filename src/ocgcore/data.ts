@@ -5,8 +5,17 @@ import { getCard } from './catalog';
 export interface DatabaseRow {
   id: string; alias: string; setcode: string; type: string; level: string;
   attribute: string; race: string; atk: string; def: string; name: string; desc: string;
+  [key: `str${number}`]: string | null | undefined;
 }
-export interface Bundle { cards: DatabaseRow[]; scripts: Record<string, string> }
+export interface Bundle { cards: DatabaseRow[]; scripts: Record<string, string>; systemStrings?: Record<string, string> }
+
+export function effectDescription(id: bigint, rows: ReadonlyMap<number, DatabaseRow>, systemStrings?: Bundle['systemStrings']) {
+  if (id < 0x100000n) return systemStrings?.[String(id)];
+  // Project Ignis aux.Stringid packs the card passcode above the low 20 bits.
+  const card = rows.get(Number(id >> 20n));
+  const index = Number(id & 0xfffffn) + 1;
+  return card?.[`str${index}`]?.trim() || undefined;
+}
 export function cardData(row: DatabaseRow): OcgCardData {
   const setcodes: number[] = [];
   let sets = BigInt.asUintN(64, BigInt(row.setcode));

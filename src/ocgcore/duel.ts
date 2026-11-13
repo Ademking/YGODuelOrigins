@@ -304,7 +304,7 @@ export class OcgDuel {
 
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
     const side = this.side(message.player);
-    const prompt = decision(message, code => this.definition(code).name);
+    const prompt = decision(message, code => this.definition(code).name, this.session?.describe);
     if (message.type === M.SELECT_CHAIN && !message.forced && !message.selects.length) return { type: R.SELECT_CHAIN, index: null };
     if (message.type === M.SELECT_PLACE) {
       const index = this.slot === undefined ? -1 : prompt.selection!.labels.findIndex(
@@ -335,7 +335,7 @@ export class OcgDuel {
               case I.SELECT_POS_CHANGE: action = { a: card.faceUp ? 'pos' : 'flip', card }; break;
               case I.SELECT_MONSTER_SET: action = { a: 'mset', card, tributes: 0 }; break;
               case I.SELECT_SPELL_SET: action = { a: 'sset', card }; break;
-              case I.SELECT_ACTIVATE: action = { a: 'act', card, eff: r.index! }; break;
+              case I.SELECT_ACTIVATE: action = { a: 'act', card, eff: r.index!, description: this.session?.describe(message.activates[r.index!].description) }; break;
             }
           } else if (r.action === I.TO_BP || r.action === I.TO_EP) action = { a: 'phase', to: r.action === I.TO_BP ? 'BP' : 'EP' };
         }
@@ -343,7 +343,7 @@ export class OcgDuel {
           if (r.index === null) action = { a: 'phase', to: r.action === B.TO_M2 ? 'M2' : 'EP' };
           else if (r.action === B.SELECT_CHAIN) {
             const card = this.lookup(message.chains[r.index]);
-            if (card) action = { a: 'act', card, eff: r.index };
+            if (card) action = { a: 'act', card, eff: r.index, description: this.session?.describe(message.chains[r.index].description) };
           } else {
             const card = this.lookup(message.attacks[r.index]);
             if (card) {
@@ -356,7 +356,7 @@ export class OcgDuel {
         }
         if (message.type === M.SELECT_CHAIN && r.type === R.SELECT_CHAIN && r.index !== null) {
           const card = this.lookup(message.selects[r.index]);
-          if (card) action = { a: 'act', card, eff: r.index };
+          if (card) action = { a: 'act', card, eff: r.index, description: this.session?.describe(message.selects[r.index].description) };
         }
         if (action) actions.set(action, choice);
       }

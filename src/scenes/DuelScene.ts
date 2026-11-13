@@ -925,8 +925,10 @@ export class DuelScene extends Phaser.Scene {
   /** A choice between labelled options (Types, Attributes, coin calls…), laid out in a grid. */
   private showOptions(text: string, options: string[]) {
     this.closeDialog();
-    const cols = options.length > 6 ? 4 : 1;
-    const bw = cols > 1 ? 180 : 360, bh = 34, rows = Math.ceil(options.length / cols);
+    const long = options.some(option => option.length > 42);
+    const cols = options.length > 6 ? (long ? 2 : 4) : 1;
+    const bw = long ? (cols > 1 ? 330 : 530) : cols > 1 ? 180 : 360;
+    const bh = long ? 64 : 34, rows = Math.ceil(options.length / cols);
     const w = cols * (bw + 10) + 40, h = 90 + rows * (bh + 6);
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.35));
@@ -937,7 +939,7 @@ export class DuelScene extends Phaser.Scene {
     layer.add(title);
     options.forEach((o, i) => {
       const x = x0 + 20 + (i % cols) * (bw + 10) + bw / 2, y = y0 + 64 + Math.floor(i / cols) * (bh + 6) + bh / 2;
-      layer.add(button(this, x, y, bw, bh, o, () => this.choose(i), { size: 12 }));
+      layer.add(button(this, x, y, bw, bh, o, () => this.choose(i), { size: 12, wrap: long }));
     });
     this.dialog = layer;
   }
@@ -1266,7 +1268,7 @@ export class DuelScene extends Phaser.Scene {
       case 'sset': return 'Set';
       case 'act': {
         const e = a.card.def.effects?.[a.eff];
-        return e?.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
+        return a.description ?? e?.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
       }
       case 'attack': return a.target ? 'Attack' : 'Direct Attack';
       case 'phase': return a.to;

@@ -107,12 +107,13 @@ export interface Button extends Phaser.GameObjects.Container {
  */
 export function button(
   scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
-  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean } = {},
+  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean; wrap?: boolean } = {},
 ): Button {
   const c = scene.add.container(x, y) as Button;
   const g = scene.add.graphics();
   const t = scene.add.text(0, 0, label, {
     fontFamily: FONT_H, fontSize: `${opts.size ?? 15}px`, color: COL.text, fontStyle: 'bold', align: 'center',
+    wordWrap: opts.wrap ? { width: w - 24, useAdvancedWrap: true } : undefined,
   }).setOrigin(0.5);
   c.add([g, t]);
   let hover = false, selected = false;

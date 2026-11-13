@@ -95,7 +95,7 @@ export interface Trig { card: Card; idx: number; p: Side; ev: Ev; other?: Card }
 export type Action =
   | { a: 'summon' | 'mset'; card: Card; tributes: number; slot?: number; extra?: boolean; lp?: number; alt?: boolean; substitute?: Card }
   | { a: 'flip' | 'pos' | 'ss' | 'gemini'; card: Card; slot?: number }
-  | { a: 'act'; card: Card; eff: number; slot?: number }
+  | { a: 'act'; card: Card; eff: number; slot?: number; description?: string }
   | { a: 'sset'; card: Card; slot?: number }
   | { a: 'attack'; card: Card; target: Card | null }
   | { a: 'phase'; to: 'BP' | 'M2' | 'EP' };

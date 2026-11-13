@@ -3,7 +3,7 @@ import {
   type OcgCoreSync, type OcgMessage, type OcgResponse,
 } from 'ocgcore-wasm';
 import type { DebugSetup } from '../engine/debug';
-import { cardCatalog, cardData, type Bundle } from './data';
+import { cardCatalog, cardData, effectDescription, type Bundle } from './data';
 
 export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], number[]], extra: [number[], number[]],
   startingLP: number, seed: [bigint, bigint, bigint, bigint], debug?: DebugSetup & { codeFor: (id: string) => number }) {
@@ -59,6 +59,7 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
   let pending = false;
   return {
     rows,
+    describe: (id: bigint) => effectDescription(id, rows, bundle.systemStrings),
     advance() {
       if (closed || pending) throw new Error('OCGCore duel is closed or waiting for input.');
       const messages: OcgMessage[] = [];
