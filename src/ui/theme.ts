@@ -153,8 +153,8 @@ export function button(
 export const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) => scene.time.delayedCall(Math.max(0, ms), () => r()));
 
 /** Shadow-realm arena: slow indigo smoke with drifting brass embers. Shared by every scene. */
-export function sceneBackground(scene: Phaser.Scene) {
-  if (scene.game.renderer.type === Phaser.WEBGL) {
+export function sceneBackground(scene: Phaser.Scene, animated = true) {
+  if (animated && scene.game.renderer.type === Phaser.WEBGL) {
     const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0.0' : '1.0';
     const fragment = `
       #ifdef GL_FRAGMENT_PRECISION_HIGH

@@ -118,8 +118,10 @@ export class DuelScene extends Phaser.Scene {
   private askingSurrender = false;
   /** Cards an effect (attack, flip) is moving right now: layout must not yank them away mid-animation. */
   private busy = new Set<Phaser.GameObjects.Image>();
+  private defaultBackdrop!: ReturnType<typeof duelBackground>;
+  private fieldBackdrop!: ReturnType<typeof duelBackground>;
   private fieldMatName: FieldMatName | null = null;
-  private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics; opacity: number } | null = null;
+  private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number } | null = null;
   private skins = new Map<number, Phaser.GameObjects.Mesh>();
   private holograms = new Map<number, Phaser.GameObjects.Image>();
   private hologramRequests = new Set<string>();
@@ -195,7 +197,8 @@ export class DuelScene extends Phaser.Scene {
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
     }
     const d = this.init0;
-    duelBackground(this);
+    this.fieldBackdrop = duelBackground(this, false).setVisible(false);
+    this.defaultBackdrop = duelBackground(this);
     this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
     this.drawBoard();
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
@@ -637,6 +640,8 @@ export class DuelScene extends Phaser.Scene {
     const name = activeFieldMat(this.duel.players.map((player) => player.f));
     if (name === this.fieldMatName) return;
     this.fieldMatName = name;
+    this.defaultBackdrop.setVisible(!name);
+    this.fieldBackdrop.setVisible(!!name);
     const previous = this.fieldMat;
     this.fieldMat = null;
     if (previous) {
@@ -645,39 +650,47 @@ export class DuelScene extends Phaser.Scene {
         onUpdate: () => this.setFieldMatOpacity(previous), onComplete: () => previous.object.destroy() });
     }
     if (!name) return;
+    const duel = this.duel;
     const webgl = this.game.renderer.type === Phaser.WEBGL;
     void (webgl ? loadFieldArt(this.textures, name) : Promise.resolve(false)).then((art) => {
-      if (this.fieldMatName === name && this.sys.isActive()) this.showFieldMat(name, art);
+      if (this.duel === duel && this.fieldMatName === name && this.sys.isActive()) this.showFieldMat(name, art);
     });
   }
 
   private showFieldMat(name: FieldMatName, art: boolean) {
-    const top = rowY(-EDGE_W);
-    const bottom = rowY(EDGE_W);
-    const width = 2 * EDGE_U * UNIT_X * depth(EDGE_W);
-    const height = bottom - top;
-    const centerY = (top + bottom) / 2;
-    const topWidth = depth(-EDGE_W) / depth(EDGE_W);
-    let object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics;
+    let object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle;
     if (art) {
       const source = new Phaser.Display.BaseShader(
-        `field-mat-${name}`, fieldMatShader(name, this.reducedMotion, topWidth), undefined, { opacity: { type: '1f', value: 0 } },
+        `field-mat-${name}`, fieldMatShader(name, this.reducedMotion), undefined, { opacity: { type: '1f', value: 0 } },
       );
-      const shader = this.add.shader(source, CX, centerY, width, height);
+      const shader = this.add.shader(source, 0, 0, 1, 1);
       const artKey = fieldArtKey(name);
       if (artKey) shader.setChannel0(artKey);
       object = shader;
     } else {
       const color = Number.parseInt(FIELD_MATS[name].accent.slice(1), 16);
-      object = this.add.graphics().fillStyle(color, 0.45).fillPoints(this.quad(-EDGE_U, EDGE_U, -EDGE_W, EDGE_W), true).setAlpha(0);
+      object = this.add.rectangle(0, 0, 1, 1, color, 0.45).setAlpha(0);
     }
-    object.setDepth(-51);
+    object.setDepth(-99);
+    const resize = () => {
+      const zoom = this.cameras.main.zoom;
+      const viewportWidth = this.scale.baseSize.width / zoom;
+      const height = this.scale.baseSize.height / zoom;
+      const left = 640 - viewportWidth / 2 + LEFT_W;
+      const width = Math.max(1, viewportWidth - LEFT_W);
+      object.setPosition(left + width / 2, H / 2);
+      if (object instanceof Phaser.GameObjects.Shader) object.setSize(width, height).updateDisplayOrigin();
+      else object.setDisplaySize(width, height);
+    };
+    resize();
+    this.scale.on('resize', resize);
+    object.once('destroy', () => this.scale.off('resize', resize));
     const current = { object, opacity: 0 };
     this.fieldMat = current;
     this.tweens.add({ targets: current, opacity: 1, duration: 650, ease: 'Sine.InOut', onUpdate: () => this.setFieldMatOpacity(current) });
   }
 
-  private setFieldMatOpacity(mat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Graphics; opacity: number }) {
+  private setFieldMatOpacity(mat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number }) {
     if (!mat.object.active) return;
     if (mat.object instanceof Phaser.GameObjects.Shader) mat.object.setUniform('opacity.value', mat.opacity);
     else mat.object.setAlpha(mat.opacity);
