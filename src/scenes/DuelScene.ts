@@ -10,6 +10,7 @@ import { loadRuntime } from '../ocgcore/runtime';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
+import { cardStat } from '../ui/cardStat';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
 import { burst, flash, motes, ring } from '../ui/fx';
 import { sfx } from '../ui/sfx';
@@ -141,7 +142,6 @@ export class DuelScene extends Phaser.Scene {
   private dead = false;
   private ended = false;
   private hoverCard: Card | null = null;
-  private pinnedCard: Card | null = null;
   private minimizedDialog: Phaser.GameObjects.Container | null = null;
 
   constructor() { super('Duel'); }
@@ -173,7 +173,6 @@ export class DuelScene extends Phaser.Scene {
     this.targeting = null;
     this.fieldSelection = null;
     this.overlay = this.dialog = this.logLayer = this.minimizedDialog = null;
-    this.pinnedCard = null;
     this.dragging = null;
     this.dead = this.ended = false;
     this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
@@ -219,7 +218,6 @@ export class DuelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.overlay) this.closeMenu();
       else if (this.minimizedDialog) this.minimizePrompt(false);
-      else if (this.pinnedCard) this.pinnedCard = null;
       else if (this.targeting) this.cancelTargeting();
       else if (this.logLayer) this.toggleLogs();
       else this.closeMenu();
@@ -899,10 +897,7 @@ export class DuelScene extends Phaser.Scene {
         if (this.dragMoved) return;
         if (ptr.rightButtonReleased()) {
           if (this.targeting) this.cancelTargeting();
-          else if (this.canSee(c)) {
-            this.pinnedCard = this.pinnedCard === c ? null : c;
-            this.hover(c);
-          }
+          else if (this.canSee(c)) this.hover(c);
           return;
         }
         this.clickCard(c);
@@ -1031,13 +1026,13 @@ export class DuelScene extends Phaser.Scene {
         const ys = this.cardQuad({ x: p.x, y: p.y, angle: 0, sx: sc, sy: sc }, CW, CH, 0, true).map((q) => q.y);
         const style = { fontFamily: FONT_N, fontSize: '11px', fontStyle: 'bold' };
         const statColor = (value: number, original: number | undefined, active: boolean) => {
-          if (original !== undefined && value > original) return active ? '#7dffb0' : '#54b57d';
-          if (original !== undefined && value < original) return active ? '#ff8aa0' : '#ca7483';
+          if (value >= 0 && original !== undefined && original >= 0 && value > original) return active ? '#7dffb0' : '#54b57d';
+          if (value >= 0 && original !== undefined && original >= 0 && value < original) return active ? '#ff8aa0' : '#ca7483';
           return active ? '#fff6e0' : '#8f8aa3';
         };
-        const atk = this.add.text(0, 3, String(a), { ...style, color: statColor(a, c.def.atk, c.pos === 'atk') });
+        const atk = this.add.text(0, 3, cardStat(a), { ...style, color: statColor(a, c.def.atk, c.pos === 'atk') });
         const separator = this.add.text(0, 3, ' / ', { ...style, color: '#7c6638' });
-        const def = this.add.text(0, 3, String(df), { ...style, color: statColor(df, c.def.def, c.pos === 'def') });
+        const def = this.add.text(0, 3, cardStat(df), { ...style, color: statColor(df, c.def.def, c.pos === 'def') });
         const width = atk.width + separator.width + def.width + 14;
         const height = Math.max(atk.height, separator.height, def.height) + 5;
         atk.x = 7;
@@ -1117,7 +1112,6 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private hover(c: Card) {
-    if (this.pinnedCard && this.pinnedCard !== c) return;
     const vis = this.canSee(c);
     const notes: string[] = [];
     if (this.duel.onField(c) && vis) {
@@ -1251,10 +1245,7 @@ export class DuelScene extends Phaser.Scene {
     const acts = this.actionsByCard.get(c.uid);
     if (acts?.length && this.pending?.p.t === 'main' && !this.dialog) return this.actionMenu(c, acts);
     if (['gy', 'banished'].includes(c.zone)) this.openPile(c.owner, c.zone);
-    else if (this.canSee(c)) {
-      this.pinnedCard = this.pinnedCard === c ? null : c;
-      this.hover(c);
-    }
+    else if (this.canSee(c)) this.hover(c);
   }
 
   private label(a: Action): string {
@@ -1613,8 +1604,10 @@ export class DuelScene extends Phaser.Scene {
       layer.add(img);
       layer.add(button(this, x, CY + 100, 170, 36, label, () => this.choose(v), { size: 14 }));
     };
-    mk(CX - 100, 0, `Attack (${c.def.atk})`, 'atk');
-    mk(CX + 100, 90, `Defense (${c.def.def})`, 'def');
+    const positionLabel = (label: string, value: number | undefined) =>
+      c.def.kind === 'monster' ? `${label} (${cardStat(c.def.variableStats ? undefined : value)})` : label;
+    mk(CX - 100, 0, positionLabel('Attack', c.def.atk), 'atk');
+    mk(CX + 100, 90, positionLabel('Defense', c.def.def), 'def');
     this.cardPanel.show(c.def);
     this.dialog = layer;
   }
@@ -2195,7 +2188,7 @@ export class DuelScene extends Phaser.Scene {
     s.setScale(sx, s.scaleY);
     this.busy.delete(s);
     this.layout();
-    this.hover(c);
+    this.hover(this.hoverAny ?? c);
     await wait(this, 220 * this.spd);
   }
 
@@ -2206,7 +2199,8 @@ export class DuelScene extends Phaser.Scene {
       await wait(this, 240 * this.spd);
       this.evolveFx(c);
     }
-    this.cardPanel.show(c.def);
+    if (this.hoverAny) this.hover(this.hoverAny);
+    else this.cardPanel.show(c.def);
     const big = this.add.image(CX, Y.phase, faceKey(this.textures, c.def.id)).setScale(0.2 * CARD_K).setAlpha(0).setDepth(820);
     const tint = c.def.kind === 'trap' ? 0xff60b0 : c.def.kind === 'spell' ? 0x40ffd0 : 0xffb040;
     flash(this, CX, Y.phase, tint, 150, 600 * this.spd, 819);

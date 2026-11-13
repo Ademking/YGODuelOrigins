@@ -3,6 +3,7 @@ import type { CardDef } from '../engine/types';
 import { typeLine } from '../ocgcore/catalog';
 import { ATTR_COLOR, BACK, CH, CW } from './cardArt';
 import { setCardTexture } from './cardLoader';
+import { cardStat } from './cardStat';
 import { COL, FONT_B, FONT_H, panel, ScrollBar } from './theme';
 
 export interface PanelInfo { atk?: number; def?: number; notes?: string[]; hidden?: boolean }
@@ -150,8 +151,8 @@ export class CardPanel {
     if (def.kind === 'monster') {
       const a = info.atk ?? def.atk!, d = info.def ?? def.def!;
       const col = (v: number, b: number) => (v > b ? '#7dffa6' : v < b ? '#ff8a8a' : COL.text);
-      const shownAtk = def.variableStats && info.atk === undefined ? '?' : a;
-      const shownDef = def.variableStats && info.def === undefined ? '?' : d;
+      const shownAtk = cardStat(def.variableStats && info.atk === undefined ? undefined : a);
+      const shownDef = cardStat(def.variableStats && info.def === undefined ? undefined : d);
       this.stats.setScale(1).setText(`ATK ${shownAtk}  /  DEF ${shownDef}`).setVisible(true);
       if (this.stats.width > this.w - 28) this.stats.setScale((this.w - 28) / this.stats.width);
       this.stats.setColor(a !== def.atk || d !== def.def ? col(a + d, def.atk! + def.def!) : COL.text);

@@ -289,8 +289,9 @@ export class OcgDuel {
           card.def = this.definition(visible ? row.code ?? 0 : 0);
           Object.assign(card, { slot: sequence, faceUp: !!(position & 5) || row.isPublic === true, pos: position & 12 ? 'def' : 'atk' });
           if (row.owner === 0 || row.owner === 1) card.owner = this.side(row.owner);
-          card.data.atk = row.attack;
-          card.data.def = row.defense;
+          // The WASM decoder exposes signed query values as unsigned integers.
+          card.data.atk = row.attack === undefined ? undefined : row.attack | 0;
+          card.data.def = row.defense === undefined ? undefined : row.defense | 0;
           if (!current) this.put(card, { ...loc, position }, visible ? row.code ?? 0 : 0);
           card.faceUp ||= row.isPublic === true;
         }
