@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { DatabaseSync } from 'node:sqlite';
+
 
 const cache = resolve('node_modules/.cache/duel-origins-ocgcore');
 const assets = resolve('assets/ocgcore');
@@ -12,13 +12,18 @@ const version = `2-${scriptsRevision}-${databaseRevision}`;
 const output = resolve(assets, 'data.json.gz');
 if (existsSync(resolve(assets, 'revision')) && existsSync(output) && readFileSync(resolve(assets, 'revision'), 'utf8') === version) process.exit(0);
 
+console.log(`Preparing OCGCore card data with Node ${process.version}`);
+const { DatabaseSync } = await import('node:sqlite').catch(error => {
+  throw new Error('OCGCore card data requires Node.js 24.x with node:sqlite enabled.', { cause: error });
+});
+
 function checkout(name, revision, supplied) {
   const dir = supplied ? resolve(supplied) : resolve(cache, name);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const git = (...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
   if (!supplied && !existsSync(resolve(dir, '.git'))) git('init', '-q');
   let head;
-  try { head = git('rev-parse', '--verify', 'HEAD').trim(); } catch {}
+  try { head = git('rev-parse', '--verify', '--quiet', 'HEAD').trim(); } catch {}
   if (head !== revision) {
     if (supplied) throw new Error(`${dir} must be at ${revision}`);
     git('fetch', '-q', '--depth=1', `https://github.com/ProjectIgnis/${name}.git`, revision);

@@ -51,7 +51,7 @@ A Goat preset would use the April 2005 Forbidden and Limited List, the Goat card
 
 ## Getting started
 
-Requirements: [Node.js](https://nodejs.org/) 22.13 or newer, Git, and an internet connection. The first dev or production build fetches the pinned [CardScripts](https://github.com/ProjectIgnis/CardScripts) and [BabelCDB](https://github.com/ProjectIgnis/BabelCDB) revisions and generates a compressed browser bundle. No database server is needed. Card images load at runtime.
+Requirements: [Node.js](https://nodejs.org/) 24.x, Git, and an internet connection. The first dev or production build fetches the pinned [CardScripts](https://github.com/ProjectIgnis/CardScripts) and [BabelCDB](https://github.com/ProjectIgnis/BabelCDB) revisions and generates a compressed browser bundle. No database server is needed. Card images load at runtime.
 
 ```bash
 npm install
