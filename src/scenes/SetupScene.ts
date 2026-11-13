@@ -67,7 +67,7 @@ export class SetupScene extends Phaser.Scene {
     let cpuIndex = cpuDecks.indexOf(store.get('arcana-duel.cpu-deck') ?? '');
     const cpuLabel = () => cpuIndex >= 0 ? `${cpuDecks[cpuIndex]} ▾`
       : cpuDecks.length ? 'Choose CPU Deck ▾' : 'No valid saved decks';
-    const cpuSelect = button(this, 330, 451, 320, 34, cpuLabel(), () => {
+    const cpuSelect = button(this, 330, 442, 320, 34, cpuLabel(), () => {
       chooseFromList(this, 'CPU deck', cpuDecks, cpuIndex, (index) => {
         cpuIndex = index;
         store.set('arcana-duel.cpu-deck', cpuDecks[index]);

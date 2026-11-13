@@ -86,11 +86,16 @@ export class TitleScene extends Phaser.Scene {
     }
     this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
 
-    button(this, 640, 346, 320, 56, 'Duel', () => this.scene.start('Setup'), { size: 22, primary: true });
-    button(this, 640, 414, 320, 48, 'Deck Editor', () => this.scene.start('DeckEditor'), { size: 17 });
-    button(this, 640, 472, 320, 48, 'Replay', () => this.scene.start('Watch'), { size: 17 });
-    button(this, 640, 530, 320, 48, 'About', () => this.showAbout(), { size: 17 });
-    button(this, 640, 584, 320, 42, 'Changelog', () => this.showChangelog(), { size: 15 });
+    const menu: [string, () => void][] = [
+      ['Duel', () => this.scene.start('Setup')],
+      ['Deck Editor', () => this.scene.start('DeckEditor')],
+      ['Replay', () => this.scene.start('Watch')],
+      ['About', () => this.showAbout()],
+      ['Changelog', () => this.showChangelog()],
+    ];
+    menu.forEach(([label, run], index) => {
+      button(this, 640, 346 + index * 60, 320, 48, label, run, { size: 17, primary: index === 0 });
+    });
     button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
     const snd = button(this, 1196, 688, 130, 32, sfx.muted ? 'Sound: Off' : 'Sound: On', () => {
       sfx.setMuted(!sfx.muted);
