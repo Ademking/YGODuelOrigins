@@ -59,6 +59,6 @@ const CARD_IMAGE_IDS: Record<string, number> = {
 };
 
 export function cardImagePasscode(id: string): string | null {
-  const passcode = PROVENANCE[id]?.passcode || CATALOG_PASSCODES.get(id) || CARD_IMAGE_IDS[id];
+  const passcode = (id.startsWith('ocg_') ? id.slice(4) : undefined) || PROVENANCE[id]?.passcode || CATALOG_PASSCODES.get(id) || CARD_IMAGE_IDS[id];
   return passcode ? String(Number(passcode)) : null;
 }

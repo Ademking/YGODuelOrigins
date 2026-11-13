@@ -2,12 +2,13 @@ import {
   OcgDuelMode, OcgLocation, OcgMessageType, OcgPosition, OcgProcessResult, OcgQueryFlags,
   type OcgCoreSync, type OcgMessage, type OcgResponse,
 } from 'ocgcore-wasm';
+import type { DebugSetup } from '../engine/debug';
 import { cardCatalog, cardData, type Bundle } from './data';
 
 export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], number[]], extra: [number[], number[]],
-  startingLP: number, seed: [bigint, bigint, bigint, bigint]) {
+  startingLP: number, seed: [bigint, bigint, bigint, bigint], debug?: DebugSetup & { codeFor: (id: string) => number }) {
   const { rows } = cardCatalog(bundle);
-  const team = { startingLP, startingDrawCount: 5, drawCountPerTurn: 1 };
+  const team = { startingLP, startingDrawCount: debug ? 0 : 5, drawCountPerTurn: 1 };
   const errors: string[] = [];
   const handle = core.createDuel({
     flags: OcgDuelMode.MODE_GOAT, seed, team1: team, team2: team,
@@ -34,6 +35,18 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
           team: player, duelist: 0, controller: player, code, location,
           sequence: 0, position: OcgPosition.FACEDOWN_DEFENSE,
         });
+      }
+    }
+    if (debug) {
+      for (const [controller, location, position, ids] of [
+        [0, OcgLocation.HAND, OcgPosition.FACEDOWN_DEFENSE, debug.hand],
+        [0, OcgLocation.MZONE, OcgPosition.FACEUP_ATTACK, debug.monsters],
+        [1, OcgLocation.MZONE, OcgPosition.FACEUP_ATTACK, debug.opponentMonsters],
+        [0, OcgLocation.SZONE, OcgPosition.FACEDOWN_DEFENSE, debug.traps],
+        [0, OcgLocation.EXTRA, OcgPosition.FACEDOWN_DEFENSE, debug.extra],
+      ] as const) {
+        ids.forEach((id, sequence) => core.duelNewCard(handle, { team: controller, duelist: 0, controller,
+          code: debug.codeFor(id), location, sequence, position }));
       }
     }
     core.startDuel(handle);

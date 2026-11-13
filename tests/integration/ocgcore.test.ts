@@ -61,3 +61,33 @@ test('every premade opponent completes an OCGCore CPU duel', async () => {
     } finally { duel.close(); }
   }
 });
+
+test('the original board adapter receives turns, draws and legal Phaser actions', async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const bundle = readBundle();
+  const core = await createCore({ sync: true });
+  const yugi = OPPONENTS[0].deck;
+  const kaiba = OPPONENTS[1].deck;
+  const events: string[] = [];
+  let turns = 0;
+  const duel = new OcgDuel([yugi, kaiba], ['You', 'Kaiba'], async prompt => {
+    if (prompt.t === 'main') {
+      turns++;
+      const action = prompt.actions.find(a => a.a === 'summon') ?? prompt.actions.find(a => a.a === 'sset');
+      if (turns === 1 && action && 'card' in action) return { ...action, slot: 2 };
+      if (turns >= 2) return SURRENDER;
+      return prompt.actions.find(a => a.a === 'phase');
+    }
+    if (prompt.t === 'chain') return null;
+    if (prompt.t === 'option') return 0;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => { events.push(event.t); }, 4000, 0, 0);
+  await duel.run(core, bundle, undefined, 0);
+  assert.ok(turns >= 2);
+  assert.ok(events.includes('turn'));
+  assert.ok(events.includes('draw'));
+  assert.ok(events.includes('end'));
+  assert.equal(duel.players[0].lp, 4000);
+  assert.equal(duel.players[1].hand.length, 5);
+  assert.ok(duel.players[1].hand.every(card => card.def.id === ''));
+});

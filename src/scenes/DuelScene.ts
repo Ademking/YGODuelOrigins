@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
-import { Duel, SURRENDER, opp, type Action, type Card, type Controller, type DeckList, type Phase, type Prompt, type UIEvent } from '../engine/duel';
-import { AIController, type Difficulty } from '../engine/ai';
+import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
+import type { Difficulty } from '../engine/ai';
 import type { Side, Zone } from '../engine/types';
 import type { Opponent } from '../data/decks';
 import { BACK, CARD_K, CH, CW, cardKey, faceKey } from '../ui/cardArt';
 import { cardImagePasscode } from '../data/cardImages';
-import { getCard } from '../data/cards';
+import { getCard } from '../ocgcore/catalog';
+import { loadRuntime } from '../ocgcore/runtime';
+import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
@@ -20,7 +22,7 @@ import { evolveColor, evolveShader } from '../ui/evolveEffect';
 import { fusionVortexShader } from '../ui/fusionVortex';
 import { ritualCircleShader } from '../ui/ritualCircle';
 import { activeFieldMat, FIELD_MATS, fieldArtKey, fieldMatShader, loadFieldArt, type FieldMatName } from '../ui/fieldMat';
-import { prepareDebugDuel, type DebugSetup } from '../engine/debug';
+import type { DebugSetup } from '../engine/debug';
 import { RPS_CHOICES, rpsResult, type RpsChoice } from '../engine/rockPaperScissors';
 import { portraitKey } from '../ui/portraits';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
@@ -84,19 +86,12 @@ function logLineHtml(line: string, actors: string[]): string {
   return `<div class="${kind}">${actor ? `<b>${esc(actor)}</b>${esc(line.slice(actor.length))}` : esc(line)}</div>`;
 }
 
-class HumanController implements Controller {
-  constructor(private scene: DuelScene) {}
-  ask(p: Prompt, duel: Duel): Promise<unknown> { return this.scene.handlePrompt(p, duel); }
-}
-
 type Pending = { p: Prompt; resolve: (v: unknown) => void };
 
 export class DuelScene extends Phaser.Scene {
-  private duel!: Duel;
+  private duel!: OcgDuel;
   private init0!: DuelInit;
   private me: Side = 0;
-  private ai!: AIController;
-  private nearAi: AIController | null = null; // plays the near side when spectating
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private statTexts = new Map<number, Phaser.GameObjects.Container>();
   private durationBadges = new Map<number, { container: Phaser.GameObjects.Container; label: Phaser.GameObjects.Text }>();
@@ -209,17 +204,14 @@ export class DuelScene extends Phaser.Scene {
     this.hlPulse = { a: 1 };
     this.tweens.add({ targets: this.hlPulse, a: 0.55, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    this.ai = new AIController(d.level, 550 * this.spd);
-    this.nearAi = d.watch ? new AIController(d.watch.suggested, 550 * this.spd) : null;
-    // The scene object is reused on restart, so events from a previous (surrendered) duel must be ignored.
-    const duel: Duel = new Duel(
-      [d.deck, d.opp.deck],
-      [d.watch?.name ?? 'You', d.opp.name],
-      [this.nearAi ?? new HumanController(this), this.ai],
-      (e) => (duel === this.duel ? this.onDuelEvent(e) : undefined),
-      Math.random,
-      d.startingLP,
+    const duel: OcgDuel = new OcgDuel(
+      [d.deck, d.opp.deck], [d.watch?.name ?? 'You', d.opp.name],
+      d.watch ? null : (prompt, current) => this.handlePrompt(prompt, current),
+      (event) => duel === this.duel ? this.onDuelEvent(event) : undefined,
+      d.startingLP, 550 * this.spd, 550 * this.spd,
+      () => { if (duel === this.duel) this.layout(); },
     );
+    this.events.once('shutdown', () => duel.stop());
     this.duel = duel;
     this.layout(true);
     this.input.dragDistanceThreshold = 8;
@@ -236,7 +228,6 @@ export class DuelScene extends Phaser.Scene {
     const ids = [d.deck, d.opp.deck].flatMap((x) => [...x.main, ...x.extra]).concat(d.debug ? Object.values(d.debug).flat() : []);
     void loadCards(this.textures, ids);
     void (async () => {
-      if (d.debug) prepareDebugDuel(duel, d.debug);
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
       const first = d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
@@ -246,7 +237,8 @@ export class DuelScene extends Phaser.Scene {
         this.showEnd(opp(this.me), 'You surrendered');
         return;
       }
-      await duel.run(!!d.debug, first ?? undefined);
+      const [core, bundle] = await loadRuntime();
+      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined);
     })().catch((error: unknown) => {
       if (this.dead || duel !== this.duel) return;
       const detail = error instanceof Error ? error.message : String(error);
@@ -255,7 +247,7 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
-  private async chooseFirstPlayer(duel: Duel): Promise<Side | null> {
+  private async chooseFirstPlayer(duel: OcgDuel): Promise<Side | null> {
     const ask = async (player?: RpsChoice, opponent?: RpsChoice) => {
       const result = await this.askRps(duel, player, opponent);
       return result === SURRENDER || this.dead || duel !== this.duel ? null : Number(result);
@@ -283,7 +275,7 @@ export class DuelScene extends Phaser.Scene {
    * Rock, Paper, Scissors. With no arguments the three hands are offered; with both picks it plays the showdown:
    * the fists pump three times, both hands open at once, and the winner is lit.
    */
-  private askRps(duel: Duel, player?: RpsChoice, opponent?: RpsChoice): Promise<unknown> {
+  private askRps(duel: OcgDuel, player?: RpsChoice, opponent?: RpsChoice): Promise<unknown> {
     if (this.dead || duel !== this.duel) return Promise.resolve(SURRENDER);
     return new Promise((resolve) => {
       const result = player && opponent ? rpsResult(player, opponent) : null;
@@ -1273,8 +1265,8 @@ export class DuelScene extends Phaser.Scene {
       case 'gemini': return 'Gemini Summon';
       case 'sset': return 'Set';
       case 'act': {
-        const e = a.card.def.effects![a.eff];
-        return e.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
+        const e = a.card.def.effects?.[a.eff];
+        return e?.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
       }
       case 'attack': return a.target ? 'Attack' : 'Direct Attack';
       case 'phase': return a.to;
@@ -1365,7 +1357,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ================================================================== prompts
-  handlePrompt(p: Prompt, duel: Duel): Promise<unknown> {
+  handlePrompt(p: Prompt, duel: OcgDuel): Promise<unknown> {
     if (this.dead || duel !== this.duel) return Promise.resolve(SURRENDER);
     return new Promise((resolve) => {
       if (p.t === 'chain' && this.shouldAutoPass(p)) { resolve(null); return; }
@@ -1402,6 +1394,13 @@ export class DuelScene extends Phaser.Scene {
             { label: 'Yes', run: () => this.choose(true) }, { label: 'No', run: () => this.choose(false) },
           ]);
           break;
+        case 'announce': void modal(this, { title: p.text, input: '', ok: 'Declare', cancel: 'Retry' }).then(function resolve(this: DuelScene, value: string | boolean | null) {
+          if (this.pending?.p !== p) return;
+          const query = typeof value === 'string' ? value.trim().toLowerCase() : '';
+          const card = p.cards.find(card => String(card.code) === query || card.name.toLowerCase() === query);
+          if (card) this.choose(card.code);
+          else void modal(this, { title: p.text, input: query, ok: 'Declare', cancel: 'Retry' }).then(resolve.bind(this));
+        }.bind(this)); break;
         case 'position': this.showPosition(p.card); break;
         case 'option': this.showOptions(p.text, p.options); break;
         case 'replay':
@@ -1415,9 +1414,9 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private shouldAutoPass(p: Extract<Prompt, { t: 'chain' }>): boolean {
-    if (this.chainMode === 'always') return false;
+    if (this.chainMode === 'always' || p.core) return false;
     const ev = p.ev;
-    const specific = p.actions.some((a) => { const e = a.a === 'act' ? a.card.def.effects![a.eff] : undefined; return !!(e && (e.on || e.when || e.phase)); });
+    const specific = p.actions.some((a) => { const e = a.a === 'act' ? a.card.def.effects?.[a.eff] : undefined; return !!(e && (e.on || e.when || e.phase)); });
     if (specific) return false;
     switch (ev.e) {
       case 'chain': return ev.link.p === this.me;
@@ -1586,6 +1585,7 @@ export class DuelScene extends Phaser.Scene {
     };
     render();
     layer.add(button(this, x0 + w - 100, y0 + h - 30, 160, 35, 'Inspect field', () => this.minimizePrompt(true), { size: 12 }));
+    if (p.cancel) layer.add(button(this, x0 + 85, y0 + h - 30, 120, 35, 'Cancel', () => this.choose(null), { size: 12 }));
     this.dialog = layer;
   }
 
@@ -1687,8 +1687,7 @@ export class DuelScene extends Phaser.Scene {
       }],
       [`Speed: ${this.spd < 1 ? 'Fast' : 'Normal'}`, () => {
         this.spd = this.spd < 1 ? 1 : 0.5;
-        this.ai.delay = 550 * this.spd;
-        if (this.nearAi) this.nearAi.delay = 550 * this.spd;
+        this.duel.delay = this.duel.nearDelay = 550 * this.spd;
         try { localStorage.setItem('arcana-duel.fast', this.spd < 1 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
       }],
@@ -1737,10 +1736,11 @@ export class DuelScene extends Phaser.Scene {
 
   private surrender() {
     if (this.ended) return;
-    this.duel.surrender(this.me);
+    this.duel.stop();
     const p = this.pending;
     this.pending = null;
     p?.resolve(SURRENDER);
+    this.showEnd(opp(this.me), 'You surrendered');
   }
 
   private toggleLogs() {
