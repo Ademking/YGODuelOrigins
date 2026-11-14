@@ -23,13 +23,14 @@ export const GIF_LIBRARY: Record<string, string[]> = {
 export const GIF_IDS = new Set(Object.values(GIF_LIBRARY).flat());
 export const gifURL = (id: string, still = false) => `https://media.giphy.com/media/${id}/200w${still ? '_s' : ''}.gif`;
 
-/** A Tenor media path like `AbC123xyzAAAAM/name.gif`, always loaded from media.tenor.com. */
-export const TENOR_PATH = /^[A-Za-z0-9_-]{8,64}\/[A-Za-z0-9._-]{1,120}\.gif$/;
+/** A KLIPY media path like `ii/<32 hex>/c3/5c/AbCd1234.gif`, always loaded from static.klipy.com. */
+export const KLIPY_PATH = /^ii\/[0-9a-f]{32}\/[0-9a-f]{2}\/[0-9a-f]{2}\/[A-Za-z0-9]{4,40}\.gif$/;
+export const klipyURL = (path: string) => `https://static.klipy.com/${path}`;
 export const gifMessage = (id: string) => `gif:${id}`;
-export const tenorMessage = (path: string) => `tenor:${path}`;
+export const klipyMessage = (path: string) => `klipy:${path}`;
 /** Image URL for a GIF chat message, or null when the text is not one. */
 export function gifSrc(text: string) {
   if (text.startsWith('gif:') && GIF_IDS.has(text.slice(4))) return gifURL(text.slice(4));
-  if (text.startsWith('tenor:') && TENOR_PATH.test(text.slice(6))) return `https://media.tenor.com/${text.slice(6)}`;
+  if (text.startsWith('klipy:') && KLIPY_PATH.test(text.slice(6))) return klipyURL(text.slice(6));
   return null;
 }

@@ -1,6 +1,6 @@
 import type { ChatLine, PrivateRoom } from './client';
 import './multiplayer.css';
-import { GIF_LIBRARY, TENOR_PATH, gifMessage, gifSrc, gifURL, tenorMessage } from './gifs';
+import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';
 
 /** Cut-corner button matching theme.ts button(). */
 export function btn(text: string, kind: '' | 'primary' | 'small' = '') {
@@ -22,18 +22,18 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = ''
 }
 
 // ---------------------------------------------------------------- GIFs
-// Two sources: Tenor search when VITE_TENOR_KEY is set, else the built-in library. Only a library id or a Tenor media path
+// Two sources: KLIPY search when VITE_KLIPY_KEY is set, else the built-in library. Only a library id or a KLIPY media path
 // travels over the wire, and the URL is always rebuilt for a fixed host, so peers cannot make us load arbitrary sites.
-const TENOR_KEY = (import.meta.env.VITE_TENOR_KEY as string | undefined)?.trim();
-/** Tenor v2 search (featured when the query is empty). Returns media paths under media.tenor.com. */
-async function tenor(query: string): Promise<string[]> {
-  const params = new URLSearchParams({ key: TENOR_KEY!, client_key: 'duel_origins', limit: '24', media_filter: 'tinygif', contentfilter: 'medium' });
+const KLIPY_KEY = (import.meta.env.VITE_KLIPY_KEY as string | undefined)?.trim();
+/** KLIPY search through its Tenor-compatible v2 API (featured when the query is empty). Returns paths under static.klipy.com. */
+async function klipy(query: string): Promise<string[]> {
+  const params = new URLSearchParams({ key: KLIPY_KEY!, client_key: 'duel_origins', limit: '24', media_filter: 'tinygif', contentfilter: 'medium' });
   if (query) params.set('q', query);
-  const response = await fetch(`https://tenor.googleapis.com/v2/${query ? 'search' : 'featured'}?${params}`, { signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error('Tenor search failed.');
+  const response = await fetch(`https://api.klipy.com/v2/${query ? 'search' : 'featured'}?${params}`, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error('GIF search failed.');
   const body = await response.json() as { results?: { media_formats?: { tinygif?: { url?: string } } }[] };
-  return (body.results ?? []).map(r => r.media_formats?.tinygif?.url?.replace(/^https:\/\/media\.tenor\.com\//, '') ?? '')
-    .filter(path => TENOR_PATH.test(path));
+  return (body.results ?? []).map(r => r.media_formats?.tinygif?.url?.replace(/^https:\/\/static\.klipy\.com\//, '') ?? '')
+    .filter(path => KLIPY_PATH.test(path));
 }
 
 // ---------------------------------------------------------------- chat
@@ -92,9 +92,9 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     }
     pop.replaceChildren(grid);
   };
-  let gifTab = TENOR_KEY ? 'Trending' : Object.keys(GIF_LIBRARY)[0];
+  let gifTab = KLIPY_KEY ? 'Trending' : Object.keys(GIF_LIBRARY)[0];
   const showGifs = () => {
-    const search = element('input'); search.placeholder = 'Search Tenor'; search.setAttribute('aria-label', 'Search Tenor GIFs');
+    const search = element('input'); search.placeholder = 'Search GIFs'; search.setAttribute('aria-label', 'Search GIFs');
     const tabs = element('div', '', 'mp-gif-tabs');
     const grid = element('div', '', 'mp-gif-grid');
     const note = element('div', '', 'mp-pop-note'); note.hidden = true;
@@ -110,22 +110,22 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
       const mine = ++last;
       grid.replaceChildren(); note.textContent = 'Loading…'; note.hidden = false;
       try {
-        const paths = await tenor(query);
+        const paths = await klipy(query);
         if (mine !== last) return;
         note.textContent = 'No GIFs found.'; note.hidden = !!paths.length;
-        grid.replaceChildren(...paths.map(path => pick(`https://media.tenor.com/${path}`, tenorMessage(path), `${query || 'Trending'} GIF`)));
-      } catch { if (mine === last) note.textContent = 'Could not reach Tenor.'; }
+        grid.replaceChildren(...paths.map(path => pick(klipyURL(path), klipyMessage(path), `${query || 'Trending'} GIF`)));
+      } catch { if (mine === last) note.textContent = 'Could not load GIFs.'; }
     };
     const draw = () => {
-      const names = TENOR_KEY ? ['Trending', ...Object.keys(GIF_LIBRARY)] : Object.keys(GIF_LIBRARY);
+      const names = KLIPY_KEY ? ['Trending', ...Object.keys(GIF_LIBRARY)] : Object.keys(GIF_LIBRARY);
       tabs.replaceChildren(...names.map(tag => {
         const chip = element('button', tag, tag === gifTab ? 'on' : ''); chip.type = 'button';
         chip.onclick = () => { gifTab = tag; search.value = ''; draw(); };
         return chip;
       }));
       grid.scrollTop = 0;
-      // With Tenor, chips are quick searches; without it they are the built-in library's categories.
-      if (TENOR_KEY) void load(gifTab === 'Trending' ? '' : gifTab === 'GG' ? 'good game' : gifTab);
+      // With KLIPY, chips are quick searches; without it they are the built-in library's categories.
+      if (KLIPY_KEY) void load(gifTab === 'Trending' ? '' : gifTab === 'GG' ? 'good game' : gifTab);
       else { note.hidden = true; grid.replaceChildren(...GIF_LIBRARY[gifTab].map(id => pick(gifURL(id), gifMessage(id), `${gifTab} GIF`))); }
     };
     let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -140,8 +140,8 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     };
     search.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
     draw();
-    pop.replaceChildren(...(TENOR_KEY ? [search] : []), tabs, note, grid, element('div', TENOR_KEY ? 'Powered by Tenor' : 'GIFs via GIPHY', 'mp-pop-credit'));
-    if (TENOR_KEY) queueMicrotask(() => search.focus());
+    pop.replaceChildren(...(KLIPY_KEY ? [search] : []), tabs, note, grid, element('div', KLIPY_KEY ? 'Powered by KLIPY' : 'GIFs via GIPHY', 'mp-pop-credit'));
+    if (KLIPY_KEY) queueMicrotask(() => search.focus());
   };
   const toggle = (next: 'emoji' | 'gif') => {
     if (mode === next) { close(); return; }
