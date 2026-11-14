@@ -9,7 +9,7 @@ import { sfx } from './sfx';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
-const PER_ROW = 12;
+const PER_ROW = 13;
 
 /** A random duelist's index, avoiding `not` when there is a choice. */
 export function randomDuelist(not = RANDOM) {
@@ -54,7 +54,7 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   const style = txt(scene, cx, top + 344, '', 12, COL.dim, { align: 'center', wordWrap: { width: 440 } }).setOrigin(0.5, 0);
 
   // Strip: the die for Random, then every duelist. Clicking a face selects it.
-  const tileAt = (n: number) => ({ x: cx + (n % PER_ROW - (PER_ROW - 1) / 2) * 40, y: top + 414 + Math.floor(n / PER_ROW) * 52 });
+  const tileAt = (n: number) => ({ x: cx + (n % PER_ROW - (PER_ROW - 1) / 2) * 39, y: top + 414 + Math.floor(n / PER_ROW) * 52 });
   const marker = scene.add.graphics();
   const choose = (index: number) => { selected = index; refresh(); onChange(index); };
   const faces = Array.from({ length: roster.length + 1 }, (_, n) => {

@@ -121,6 +121,38 @@ const recipes: Recipe[] = [
       'Book of Moon': 2, 'Smashing Ground': 2, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Dust Tornado': 2,
     },
   },
+  {
+    id: 'rex', name: 'Rex Raptor', title: 'Dinosaur Duelist', ace: 'Two-Headed King Rex',
+    style: 'Dinosaurs, Jurassic World and Red-Eyes', suggested: 'normal',
+    main: {
+      'Two-Headed King Rex': 3, 'Red-Eyes B. Dragon': 1, 'Serpent Night Dragon': 1, 'Megazowler': 1,
+      'Crawling Dragon #2': 3, 'Sabersaurus': 3, 'Gilasaurus': 3, 'Hydrogeddon': 3, 'Hyper Hammerhead': 2,
+      'Black Stego': 2, 'Jurassic World': 3, 'Fossil Excavation': 3, 'Smashing Ground': 2, 'Mystical Space Typhoon': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Survival Instinct': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'keith', name: 'Bandit Keith', title: 'Machine Duelist', ace: 'Barrel Dragon',
+    style: 'Barrel Dragon, Machine beatdown and coin tosses', suggested: 'hard',
+    main: {
+      'Barrel Dragon': 2, 'Blowback Dragon': 2, 'Launcher Spider': 1, 'Mechanicalchaser': 3, 'X-Head Cannon': 3,
+      'Reflect Bounder': 2, 'Drillroid': 2, 'Cyber Dragon': 2, 'Dekoichi the Battlechanted Locomotive': 2,
+      'Heavy Mech Support Platform': 2, 'Second Coin Toss': 2, 'Limiter Removal': 1, 'Machine Duplication': 2,
+      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Metalmorph': 2, 'Time Machine': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'bonz', name: 'Bonz', title: 'Zombie Duelist', ace: 'Pumpking the King of Ghosts',
+    style: 'Classic Zombies, revival and Call of the Haunted', suggested: 'normal',
+    main: {
+      'Pumpking the King of Ghosts': 2, 'Armored Zombie': 2, 'Clown Zombie': 2, 'Dragon Zombie': 3,
+      'Pyramid Turtle': 3, 'Goblin Zombie': 2, 'Spirit Reaper': 2, 'Vampire Lord': 2, 'Ryu Kokki': 2,
+      'Book of Life': 3, 'Call of the Mummy': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Creature Swap': 2, 'Call Of The Haunted': 1,
+      'Skull Invitation': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));
