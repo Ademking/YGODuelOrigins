@@ -135,11 +135,11 @@ const recipes: Recipe[] = [
     id: 'keith', name: 'Bandit Keith', title: 'Machine Duelist', ace: 'Barrel Dragon',
     style: 'Barrel Dragon, Machine beatdown and coin tosses', suggested: 'hard',
     main: {
-      'Barrel Dragon': 2, 'Blowback Dragon': 2, 'Launcher Spider': 1, 'Mechanicalchaser': 3, 'X-Head Cannon': 3,
-      'Reflect Bounder': 2, 'Drillroid': 2, 'Cyber Dragon': 2, 'Dekoichi the Battlechanted Locomotive': 2,
-      'Heavy Mech Support Platform': 2, 'Second Coin Toss': 2, 'Limiter Removal': 1, 'Machine Duplication': 2,
-      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
-      'Metalmorph': 2, 'Time Machine': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+      'Barrel Dragon': 2, 'Slot Machine': 1, 'Launcher Spider': 1, 'Pendulum Machine': 1, 'Zoa': 1, 'Metalzoa': 1,
+      'Blast Sphere': 2, 'Mechanicalchaser': 3, 'Patrol Robo': 2, 'Gradius': 3, 'Giga-Tech Wolf': 2, 'Cannon Soldier': 2,
+      '7 Completed': 2, 'Machine Conversion Factory': 2, 'Stop Defense': 1, 'Second Coin Toss': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2,
+      'Metalmorph': 2, 'Time Machine': 2, 'Trap Hole': 1, 'Mirror Force': 1,
     },
   },
   {
@@ -151,6 +151,29 @@ const recipes: Recipe[] = [
       'Book of Life': 3, 'Call of the Mummy': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
       'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Creature Swap': 2, 'Call Of The Haunted': 1,
       'Skull Invitation': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'tyranno', name: 'Tyranno Hassleberry', title: 'Dinosaur Commander', ace: 'Ultimate Tyranno',
+    style: 'Dinosaur swarms and heavy hitters', suggested: 'hard',
+    main: {
+      'Ultimate Tyranno': 2, 'Super Conductor Tyranno': 1, 'Sabersaurus': 3, 'Black Stego': 3,
+      'Hydrogeddon': 3, 'Gilasaurus': 3, 'Hyper Hammerhead': 3, 'Babycerasaurus': 2,
+      'Jurassic World': 3, 'Fossil Excavation': 2, 'Big Evolution Pill': 2, 'Tail Swipe': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2,
+      'Smashing Ground': 2, 'Survival Instinct': 2, 'Sakuretsu Armor': 2, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'sartorius', name: 'Sartorius Kumar', title: 'Society of Light', ace: 'Arcana Force XXI - The World',
+    style: 'Arcana Force monsters and coin-toss effects', suggested: 'hard',
+    main: {
+      'Arcana Force Ex - The Light Ruler': 1, 'Arcana Force EX - The Dark Ruler': 1, 'Shining Angel': 1, 'Arcana Force I - The Magician': 3, 'Arcana Force III - The Empress': 3,
+      'Arcana Force IV - The Emperor': 3, 'Arcana Force VI - The Lovers': 3, 'Arcana Force VII - The Chariot': 3,
+      'Arcana Force XIV - Temperance': 2, 'Arcana Force XVIII - The Moon': 1, 'Arcana Force XXI - The World': 2,
+      'Light Barrier': 3, 'Second Coin Toss': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Call Of The Haunted': 1, 'Mirror Force': 1,
+      'Sakuretsu Armor': 2, 'Compulsory Evacuation Device': 2,
     },
   },
 ];
@@ -181,10 +204,18 @@ function expand(counts: Record<string, number>): string[] {
   });
 }
 
-export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia').map(({ main, extra, ...opponent }) => ({
+const previousKeith = {
+      'Barrel Dragon': 2, 'Blowback Dragon': 2, 'Launcher Spider': 1, 'Mechanicalchaser': 3, 'X-Head Cannon': 3,
+      'Reflect Bounder': 2, 'Drillroid': 2, 'Cyber Dragon': 2, 'Dekoichi the Battlechanted Locomotive': 2,
+      'Heavy Mech Support Platform': 2, 'Second Coin Toss': 2, 'Limiter Removal': 1, 'Machine Duplication': 2,
+      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Metalmorph': 2, 'Time Machine': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    };
+
+export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia' || recipe.id === 'keith').map(({ main, extra, ...opponent }) => ({
   ...opponent,
   art: '*',
-  deck: { main: expand(main), extra: expand(extra ?? {}) } satisfies DeckList,
+  deck: { main: expand(opponent.id === 'keith' ? previousKeith : main), extra: expand(extra ?? {}) } satisfies DeckList,
 })).concat(recipes.filter(recipe => recipe.id in revisions).map(({ main, extra, ...opponent }) => ({
   ...opponent,
   art: '*',

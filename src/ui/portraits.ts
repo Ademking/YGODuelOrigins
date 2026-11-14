@@ -2,6 +2,7 @@ export const PORTRAIT_IDS = [
   'yugi', 'kaiba', 'joey', 'mai', 'pegasus', 'jaden', 'zane', 'syrus', 'crowler',
   'exodia', 'orichalcos', 'bakura', 'marik', 'mako', 'weevil', 'chazz', 'aster', 'jesse', 'axel', 'bastion', 'alexis',
   'rex', 'keith', 'bonz',
+  'tyranno', 'sartorius',
 ] as const;
 
 export function portraitKey(opponentId: string): string | null {

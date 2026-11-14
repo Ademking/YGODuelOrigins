@@ -140,7 +140,15 @@ test('every premade opponent completes an OCGCore CPU duel', async () => {
         const next = duel.advance();
         if (next.ended) { finished = true; break; }
         assert.ok(next.prompt, opponent.name);
-        duel.respond(cpuChoice(decision(next.prompt, code => duel.rows.get(code)?.name ?? String(code))));
+        const prompt = next.prompt;
+        const choice = decision(prompt, code => duel.rows.get(code)?.name ?? String(code));
+        // The direct core smoke test does not have the board adapter's attack-cost handler.
+        if (prompt.type === OcgMessageType.SELECT_UNSELECT_CARD && prompt.can_cancel
+            && prompt.min === 1 && prompt.max === 1 && !prompt.unselect_cards.length) {
+          const select = choice.choices.find(option => option.response.type === OcgResponseType.SELECT_UNSELECT_CARD && option.response.index === 0);
+          if (select) { duel.respond(select.response); continue; }
+        }
+        duel.respond(cpuChoice(choice));
       }
       assert.ok(finished, opponent.name);
     } finally { duel.close(); }
