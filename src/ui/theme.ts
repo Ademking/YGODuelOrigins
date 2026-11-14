@@ -248,6 +248,13 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
     });
     const shader = scene.add.shader(source, 0, 0, 320, 180).setDepth(-101).setRenderToTexture(key);
     const background = scene.add.image(W / 2, H / 2, key).setDepth(-100).setFlipY(true);
+    let lastFrame = -Infinity;
+    const update = (time: number) => {
+      const render = motion === '1.0' && time - lastFrame >= 1000 / 30 - 0.5;
+      if (render) lastFrame = time;
+      shader.setVisible(render);
+    };
+    scene.events.on('postupdate', update);
     const resize = () => {
       const width = scene.scale.baseSize.width / scene.cameras.main.zoom;
       const height = scene.scale.baseSize.height / scene.cameras.main.zoom;
@@ -255,6 +262,7 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
       background.setDisplaySize(width, height);
     };
     background.once('destroy', () => {
+      scene.events.off('postupdate', update);
       if (shader.active) shader.destroy();
     });
     resize();

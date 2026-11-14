@@ -9,15 +9,18 @@ import { WatchScene } from './scenes/WatchScene';
 import { H, W } from './ui/theme';
 
 const options = new URLSearchParams(location.search);
+const canvasMode = options.has('compat') || options.has('compact');
+const availableScale = Math.min(window.innerWidth / W, window.innerHeight / H) * window.devicePixelRatio;
+const boardScale = canvasMode ? 1 : Math.max(1, Math.min(1.5, Math.round(availableScale * 4) / 4));
 const game = new Phaser.Game({
-  type: options.has('compat') || options.has('compact') ? Phaser.CANVAS : Phaser.AUTO,
+  type: canvasMode ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   callbacks: { postBoot: (game) => {
     game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
   } },
-  // Keep the framebuffer at the design resolution. Text retains its own raster scale.
-  width: W,
-  height: H,
+  // Give large displays smoother edges without returning to a 2× framebuffer.
+  width: W * boardScale,
+  height: H * boardScale,
   backgroundColor: '#06050d',
   antialias: true,
   dom: { createContainer: true },
