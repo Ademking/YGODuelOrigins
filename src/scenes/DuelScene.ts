@@ -27,6 +27,7 @@ import { activeFieldMat, FIELD_MATS, fieldArtKey, fieldMatShader, loadFieldArt, 
 import type { DebugSetup } from '../engine/debug';
 import { RPS_CHOICES, rpsResult, type RpsChoice } from '../engine/rockPaperScissors';
 import { portraitKey } from '../ui/portraits';
+import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
 /** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
@@ -685,10 +686,6 @@ export class DuelScene extends Phaser.Scene {
     };
     outline(attacker, COL.gold);
     if (target) outline(target, COL.red);
-    if (!target) {
-      const y = attack.attacker.ctrl === this.me ? 34 : H - 34;
-      graphics.lineStyle(3, COL.red, 0.9).strokeCircle(CX, y, 18);
-    }
   }
 
   private zoneOutline(side: Side, zone: Zone, slot: number) {
@@ -2307,12 +2304,27 @@ export class DuelScene extends Phaser.Scene {
     const god = gods[cardImagePasscode(card.def.id) ?? ''];
     if (!god || !this.textures.exists(`god_${god.key}`)) return false;
     const layer = this.add.container(0, 0).setDepth(850);
-    const shade = this.add.rectangle(640, H / 2, 1280, H, 0x03040c, 0.88).setAlpha(0);
-    // A restrained geometric halo: no particles, per-frame shaders, or card resizing.
-    const halo = this.add.graphics({ x: CX, y: 300 }).setAlpha(0);
-    halo.lineStyle(1, god.color, 0.28).strokeCircle(0, 0, 210)
-      .lineStyle(3, god.color, 0.6).strokeCircle(0, 0, 202)
-      .lineStyle(1, god.color, 0.18).strokeCircle(0, 0, 226);
+    const shade = this.add.rectangle(CX, H / 2, 1, H, 0x03040c, 0.88).setAlpha(0);
+    const energy = !this.reducedMotion && this.game.renderer.type === Phaser.WEBGL
+      ? this.add.shader(new Phaser.Display.BaseShader('god-reveal', godSummonShader(god.color), undefined, {
+        opacity: { type: '1f', value: 0 }, surge: { type: '1f', value: 0 },
+      }), CX, H / 2, 960, H) : null;
+    const energyState = { opacity: 0, surge: 0 };
+    const mask = this.make.graphics({ x: 0, y: 0 });
+    const clip = mask.createGeometryMask();
+    layer.setMask(clip);
+    const resize = () => {
+      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
+      const height = this.scale.baseSize.height / this.cameras.main.zoom;
+      const left = this.sidePanelX + 12 + LEFT_W;
+      const right = 640 + fullWidth / 2;
+      const width = Math.max(1, right - left);
+      shade.setPosition((left + right) / 2, H / 2).setDisplaySize(width, height);
+      energy?.setPosition((left + right) / 2, H / 2).setSize(width, height).updateDisplayOrigin();
+      mask.clear().fillStyle(0xffffff).fillRect(left, (H - height) / 2, width, height);
+    };
+    resize();
+    this.scale.on('resize', resize);
     const art = this.add.image(CX, 310, `god_${god.key}`).setAlpha(0);
     const scale = Math.min(650 / art.width, 440 / art.height);
     art.setScale(scale * (this.reducedMotion ? 1 : 0.94));
@@ -2326,19 +2338,36 @@ export class DuelScene extends Phaser.Scene {
     }).setOrigin(0.5).setStroke('#080914', 4);
     if (name.width > 790) name.setScale(790 / name.width);
     const caption = this.add.container(0, this.reducedMotion ? 0 : 16, [plate, rule, subtitle, name]).setAlpha(0);
-    layer.add([shade, halo, art, caption]);
+    layer.add([shade, ...(energy ? [energy] : []), art, caption]);
     const duration = this.reducedMotion ? 160 : 480;
     try {
       this.tweens.add({ targets: shade, alpha: 1, duration: 220 });
-      this.tweens.add({ targets: halo, alpha: 1, scale: 1.04, duration, ease: 'Sine.out' });
+      if (energy) {
+        this.tweens.add({ targets: energyState, opacity: 1, surge: 1, duration: 280, ease: 'Cubic.in',
+          onUpdate: () => { if (energy.active) {
+            energy.setUniform('opacity.value', energyState.opacity);
+            energy.setUniform('surge.value', energyState.surge);
+          } } });
+        await wait(this, 280);
+        this.tweens.add({ targets: energyState, surge: 0.15, duration: 650, ease: 'Sine.out',
+          onUpdate: () => { if (energy.active) energy.setUniform('surge.value', energyState.surge); } });
+      }
       await this.tw({ targets: art, alpha: 1, scale, duration, ease: 'Cubic.out' });
       if (this.dead) return true;
       await this.tw({ targets: caption, alpha: 1, y: 0, duration: 240, ease: 'Cubic.out' });
-      await wait(this, this.reducedMotion ? 700 : 1100);
-      if (!this.dead) await this.tw({ targets: layer, alpha: 0, duration: 320, ease: 'Sine.in' });
+      await wait(this, this.reducedMotion ? 700 : 1500);
+      if (!this.dead) {
+        // Phaser Shader objects do not inherit Container alpha: fade the uniform explicitly.
+        if (energy) this.tweens.add({ targets: energyState, opacity: 0, duration: 320,
+          onUpdate: () => { if (energy.active) energy.setUniform('opacity.value', energyState.opacity); } });
+        await this.tw({ targets: layer, alpha: 0, duration: 320, ease: 'Sine.in' });
+      }
     } finally {
-      for (const object of [shade, halo, art, caption, layer]) this.tweens.killTweensOf(object);
+      this.scale.off('resize', resize);
+      for (const object of [shade, energyState, art, caption, layer]) this.tweens.killTweensOf(object);
       layer.destroy();
+      clip.destroy();
+      mask.destroy();
     }
     return true;
   }
@@ -2435,7 +2464,7 @@ export class DuelScene extends Phaser.Scene {
       if (this.dead) return;
       sfx.hit();
       flash(this, destination.x, destination.y, 0xff3344, 40, 200 * speed, 611);
-      ring(this, destination.x, destination.y, 0xff4654, { from: 8, to: 42, ms: 220 * speed });
+      if (target) ring(this, destination.x, destination.y, 0xff4654, { from: 8, to: 42, ms: 220 * speed });
       await this.tw({ targets: beam, alpha: 0, duration: 200 * speed });
     } finally {
       beam.destroy();
