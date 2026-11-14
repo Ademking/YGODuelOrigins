@@ -16,17 +16,20 @@ export class Lobby {
   private profile;
   private chatAction;
   private invites;
+  private declines;
   private lastChat = 0;
   private rate = new Map<string, number>();
   private busy = false;
   onChange = () => {};
   onInvite = (_peer: string, _code: string) => {};
+  onDecline = (_peer: string, _code: string) => {};
   onError = (_message: string) => {};
   constructor(public name: string) {
     this.room = joinRoom({ ...config, maxUsers: 64 }, 'lobby');
     this.profile = this.room.makeAction('profile');
     this.chatAction = this.room.makeAction('chat');
     this.invites = this.room.makeAction('invite');
+    this.declines = this.room.makeAction('decline');
     this.room.onPeerJoin(({ peerId }) => { void this.announce(peerId); });
     this.room.onPeerLeave(({ peerId }) => { const gone = this.peers.get(peerId); this.peers.delete(peerId); if (gone) this.addChat({ name: '', text: `${gone.name} left`, system: true }); for (const key of this.rate.keys()) if (key.startsWith(peerId + ':')) this.rate.delete(key); this.onChange(); });
     this.room.onError(error => this.onError(error.message));
@@ -44,8 +47,12 @@ export class Lobby {
       if (text && peer) this.addChat({ name: peer.name, text });
     });
     this.invites.onMessage((raw, { peerId }) => {
-      if (this.busy || !this.peers.has(peerId) || !this.allow(peerId + ':invite', 10000)) return;
-      if (typeof raw === 'string' && /^[A-HJ-NP-Z2-9]{12}$/.test(raw)) this.onInvite(peerId, raw);
+      if (!this.peers.has(peerId) || typeof raw !== 'string' || !/^[A-HJ-NP-Z2-9]{12}$/.test(raw)) return;
+      if (this.busy) { void this.decline(peerId, raw).catch(() => {}); return; }
+      if (this.allow(peerId + ':invite', 10000)) this.onInvite(peerId, raw);
+    });
+    this.declines.onMessage((raw, { peerId }) => {
+      if (this.peers.has(peerId) && typeof raw === 'string' && /^[A-HJ-NP-Z2-9]{12}$/.test(raw)) this.onDecline(peerId, raw);
     });
   }
   private allow(key: string, interval: number) {
@@ -71,6 +78,7 @@ export class Lobby {
     await this.chatAction.send(text);
   }
   async invite(peer: string, code: string) { await this.invites.send(code, { target: peer }); }
+  async decline(peer: string, code: string) { await this.declines.send(code, { target: peer }); }
   close() { void this.room.leave(); }
 }
 

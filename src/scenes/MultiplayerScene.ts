@@ -186,10 +186,20 @@ export class MultiplayerScene extends Phaser.Scene {
         const inner = el('div');
         const accept = btn('Accept', 'primary'), decline = btn('Decline');
         accept.onclick = () => { box.replaceChildren(); void startRoom(code, false, from); };
-        decline.onclick = () => box.replaceChildren();
+        decline.onclick = () => { box.replaceChildren(); void lobby?.decline(peer, code).catch(error); };
         inner.append(el('p', `${from} challenges you!`), accept, decline);
         box.append(frame('mp-invite', inner));
         sfx.click();
+      };
+      lobby.onDecline = (peer, code) => {
+        if (!session || !challengeWith || session.code !== code || session.opponent) return;
+        const who = lobby!.peers.get(peer)?.name ?? challengeWith;
+        leaveRoom();
+        const inner = el('div'), ok = btn('OK', 'small');
+        ok.onclick = () => q('invite').replaceChildren();
+        inner.append(el('p', `${who} declined your challenge.`), ok);
+        q('invite').replaceChildren(frame('mp-invite', inner));
+        status(`${who} declined your challenge.`);
       };
       status('Connected. Challenge a player or create a private room.');
       renderRoster(); renderChat(q('messages'), lobby.chat);

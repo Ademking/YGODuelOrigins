@@ -4,14 +4,14 @@
   --ink: #f1ebdc; --dim: #9a93ae; --line: #3a3456; --field: #0a0916; --green: #5ee0a0;
   --cut: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)),
     calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
-  font: 12px/1.65 Michroma, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
+  font: 15px/1.7 Michroma, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
 }
 .mp-root *, .mp-chat *, .mp-modal * { box-sizing: border-box; font-family: inherit; }
 
 /* Transparent so the scene's smoke background shows through. */
-.mp-root { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; gap: 14px; padding: 22px clamp(16px, 3vw, 40px) 24px; overflow: hidden; }
+.mp-root { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; gap: 18px; padding: 26px clamp(16px, 3vw, 48px) 28px; overflow: hidden; }
 .mp-top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.mp-top h1 { font-size: 24px; margin: 0; color: var(--gold-txt); flex: 1; white-space: nowrap; }
+.mp-top h1 { font-size: 32px; margin: 0; color: var(--gold-txt); flex: 1; white-space: nowrap; }
 
 /* Cut-corner frame: line colour shows through a 1px gap around the inner fill. */
 .mp-frame { --c: 10px; position: relative; clip-path: var(--cut); background: var(--line); padding: 1px; }
@@ -19,21 +19,21 @@
 .mp-frame > * { position: relative; }
 
 .mp-me { display: flex; align-items: center; gap: 12px; padding: 7px 8px 7px 8px; }
-.mp-me b { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-txt); }
+.mp-me b { max-width: 220px; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-txt); }
 
 .mp-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.mp-bar input { width: 240px; flex: 0 1 240px; text-transform: uppercase; letter-spacing: 1px; }
+.mp-bar input { width: 300px; flex: 0 1 300px; text-transform: uppercase; letter-spacing: 1px; }
 .mp-status { flex: 1; min-width: 200px; color: var(--dim); overflow-wrap: anywhere; }
-.mp-status::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 10px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
+.mp-status::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 12px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
 
-.mp-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(270px, 370px) 1fr; gap: 16px; }
+.mp-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 20px; }
 .mp-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.mp-panel > h2 { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-txt); margin: 0; padding: 16px 18px 12px; border-bottom: 1px solid #2a2540; }
-.mp-scroll { flex: 1; overflow: auto; padding: 6px 18px; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
+.mp-panel > h2 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-txt); margin: 0; padding: 18px 22px 14px; border-bottom: 1px solid #2a2540; }
+.mp-scroll { flex: 1; overflow: auto; padding: 8px 22px; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
 
 /* Buttons: same shape and states as theme.ts button(). */
-.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: bold 12px Michroma, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
-.mp-btn > span { display: block; padding: 10px 16px; background: #14121ff5; clip-path: var(--cut); }
+.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: bold 15px Michroma, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
+.mp-btn > span { display: block; padding: 13px 22px; background: #14121ff5; clip-path: var(--cut); }
 .mp-btn:hover:not(:disabled) { background: var(--gold); color: var(--gold-txt); transform: scale(1.03); }
 .mp-btn:hover:not(:disabled) > span { background: #242039; }
 .mp-btn:active:not(:disabled) { transform: scale(.97); }
@@ -43,71 +43,71 @@
 .mp-btn.primary > span { background: var(--gold); }
 .mp-btn.primary:hover:not(:disabled) { color: #1d1505; }
 .mp-btn.primary:hover:not(:disabled) > span { background: var(--gold-lit); }
-.mp-btn.small > span { padding: 7px 12px; font-size: 11px; }
+.mp-btn.small > span { padding: 10px 16px; font-size: 13px; }
 
 .mp-root input, .mp-root select, .mp-modal input, .mp-chat input {
   width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 2px;
-  padding: 9px 12px; font: 12px Michroma, Arial, sans-serif; outline: none;
+  padding: 12px 16px; font: 15px Michroma, Arial, sans-serif; outline: none;
 }
-.mp-root select { width: auto; max-width: 220px; cursor: pointer; }
+.mp-root select { width: auto; max-width: 280px; cursor: pointer; }
 .mp-root input::placeholder, .mp-modal input::placeholder, .mp-chat input::placeholder { color: #5f5975; }
 .mp-root input:focus, .mp-root select:focus, .mp-modal input:focus, .mp-chat input:focus { border-color: var(--gold); }
 
-.mp-peer { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid #1d1930; }
+.mp-peer { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #1d1930; }
 .mp-peer:last-child { border-bottom: 0; }
 .mp-peer > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
-.mp-peer small { display: block; font-size: 10px; font-weight: normal; color: var(--dim); }
+.mp-peer small { display: block; font-size: 12px; font-weight: normal; color: var(--dim); }
 .mp-peer small::before { content: '◆ '; color: var(--green); }
 .mp-peer.busy small::before { color: var(--gold); }
 .mp-peer.you > span { color: var(--gold-txt); }
-.mp-avatar { --c: 6px; --fill: #191630; flex: none; width: 34px; height: 34px; background: var(--gold-dim); color: var(--gold-txt); font-weight: bold; }
+.mp-avatar { --c: 6px; --fill: #191630; flex: none; width: 44px; height: 44px; font-size: 18px; background: var(--gold-dim); color: var(--gold-txt); font-weight: bold; }
 .mp-avatar > div { height: 100%; display: grid; place-items: center; }
-.mp-empty { text-align: center; padding: 34px 6px; color: var(--dim); font-size: 11px; }
+.mp-empty { text-align: center; padding: 40px 8px; color: var(--dim); font-size: 13px; }
 
 .mp-messages { overflow-wrap: anywhere; }
-.mp-root .mp-messages:empty::before { content: 'No messages yet. Say hello!'; display: block; text-align: center; padding: 34px 6px; color: var(--dim); font-size: 11px; }
-.mp-message { padding: 3px 0; white-space: pre-wrap; color: #cfc8dc; }
+.mp-root .mp-messages:empty::before { content: 'No messages yet. Say hello!'; display: block; text-align: center; padding: 40px 8px; color: var(--dim); font-size: 13px; }
+.mp-message { padding: 5px 0; white-space: pre-wrap; color: #cfc8dc; }
 .mp-message b { color: var(--gold-txt); margin-right: 8px; }
-.mp-message.sys { color: var(--dim); font-size: 10px; letter-spacing: 1px; }
+.mp-message.sys { color: var(--dim); font-size: 12px; letter-spacing: 1px; }
 .mp-message.sys::before { content: '— '; }
-.mp-compose { display: flex; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid #2a2540; }
+.mp-compose { display: flex; gap: 10px; padding: 16px 22px 20px; border-top: 1px solid #2a2540; }
 
-.mp-invite { --fill: #241d14f0; margin: 12px 14px 0; background: var(--gold); }
-.mp-invite > div { padding: 12px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mp-invite { --fill: #241d14f0; margin: 14px 18px 0; background: var(--gold); }
+.mp-invite > div { padding: 16px 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mp-invite p { flex: 1 1 100%; margin: 0 0 4px; color: var(--gold-txt); font-weight: bold; }
 
 /* Modals: the same cut-corner panel as theme.ts modal(). */
-.mp-modal { --c: 10px; border: 0; padding: 1px; background: var(--gold-dim); clip-path: var(--cut); width: min(440px, calc(100vw - 32px)); max-width: none; color: var(--ink); }
-.mp-modal > * { display: block; background: #0e0c1bfa; clip-path: var(--cut); padding: 26px 28px; }
+.mp-modal { --c: 10px; border: 0; padding: 1px; background: var(--gold-dim); clip-path: var(--cut); width: min(560px, calc(100vw - 32px)); max-width: none; color: var(--ink); }
+.mp-modal > * { display: block; background: #0e0c1bfa; clip-path: var(--cut); padding: 34px 38px; }
 .mp-modal::backdrop { background: #00000099; }
-.mp-modal h2 { margin: 0 0 8px; font-size: 19px; color: var(--gold-txt); text-align: center; }
-.mp-modal p { color: var(--dim); margin: 0 0 18px; text-align: center; }
-.mp-row { display: flex; gap: 10px; margin-top: 16px; }
+.mp-modal h2 { margin: 0 0 10px; font-size: 26px; color: var(--gold-txt); text-align: center; }
+.mp-modal p { color: var(--dim); margin: 0 0 22px; text-align: center; }
+.mp-row { display: flex; gap: 12px; margin-top: 20px; }
 .mp-row .mp-btn { flex: 1; }
-.mp-err { color: #ffb3c0; font-size: 11px; min-height: 18px; margin-top: 8px; text-align: center; }
-.mp-code { font-size: 22px; font-weight: bold; letter-spacing: 4px; color: var(--gold-txt); text-align: center; padding: 14px; background: var(--field); border: 1px dashed var(--gold-dim); overflow-wrap: anywhere; }
+.mp-err { color: #ffb3c0; font-size: 13px; min-height: 18px; margin-top: 8px; text-align: center; }
+.mp-code { font-size: 30px; font-weight: bold; letter-spacing: 4px; color: var(--gold-txt); text-align: center; padding: 18px; background: var(--field); border: 1px dashed var(--gold-dim); overflow-wrap: anywhere; }
 .mp-versus { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-top: 18px; }
 .mp-versus > .mp-frame { --c: 7px; --fill: #14121f; text-align: center; min-width: 0; }
-.mp-versus > .mp-frame > div { padding: 12px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
-.mp-versus small { display: block; font-size: 10px; font-weight: normal; color: var(--dim); }
+.mp-versus > .mp-frame > div { padding: 16px 10px; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
+.mp-versus small { display: block; font-size: 12px; font-weight: normal; color: var(--dim); }
 .mp-versus .ok { color: var(--green); }
-.mp-versus > b { font-size: 20px; color: var(--gold-txt); }
+.mp-versus > b { font-size: 26px; color: var(--gold-txt); }
 
 /* In-duel chat dock. */
-.mp-chat { position: fixed; right: 18px; bottom: 18px; z-index: 110; width: 300px; border: 1px solid var(--gold-dim); background: #0e0c1bf5; box-shadow: 0 8px 30px #0007; }
-.mp-chat summary { cursor: pointer; padding: 12px 16px; color: var(--gold-txt); list-style: none; font-size: 11px; font-weight: bold; }
-.mp-chat .mp-messages { height: 190px; overflow: auto; padding: 0 14px; }
+.mp-chat { position: fixed; right: 18px; bottom: 18px; z-index: 110; width: 380px; border: 1px solid var(--gold-dim); background: #0e0c1bf5; box-shadow: 0 8px 30px #0007; }
+.mp-chat summary { cursor: pointer; padding: 14px 18px; color: var(--gold-txt); list-style: none; font-size: 14px; font-weight: bold; }
+.mp-chat .mp-messages { height: 240px; overflow: auto; padding: 0 14px; }
 .mp-chat form { display: flex; padding: 10px; gap: 6px; }
 .mp-chat input { min-width: 0; }
-.mp-chat button { background: #14121f; color: var(--ink); border: 1px solid var(--line); padding: 8px 10px; font: bold 11px Michroma, Arial, sans-serif; cursor: pointer; }
+.mp-chat button { background: #14121f; color: var(--ink); border: 1px solid var(--line); padding: 10px 14px; font: bold 13px Michroma, Arial, sans-serif; cursor: pointer; }
 .mp-chat button:hover { border-color: var(--gold); color: var(--gold-txt); }
 
 @media (max-width: 760px) {
   .mp-root { overflow: auto; }
   .mp-grid { flex: none; grid-template-columns: 1fr; grid-template-rows: auto 420px; }
-  .mp-players .mp-scroll { flex: none; max-height: 240px; }
+  .mp-players .mp-scroll { flex: none; max-height: 300px; }
   .mp-bar input { flex: 1 1 140px; width: auto; }
   .mp-me { width: 100%; }
   .mp-root select { flex: 1; max-width: none; }
-  .mp-chat { width: min(300px, 90vw); }
+  .mp-chat { width: min(380px, 92vw); }
 }
