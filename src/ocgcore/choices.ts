@@ -70,8 +70,9 @@ export function decision(message: OcgMessage, name: (code: number) => string, de
       }
       break;
     case M.SELECT_EFFECTYN: case M.SELECT_YESNO: {
-      result.title = describe?.(message.description) ??
-        (message.type === M.SELECT_EFFECTYN ? `Use effect · ${name(message.code)}` : 'Confirm this action?');
+      const description = describe?.(message.description);
+      const fallback = message.type === M.SELECT_EFFECTYN ? `Activate ${name(message.code)}'s effect?` : 'Activate this effect?';
+      result.title = description && !/%(?:ls|s|d)/.test(description) ? description : fallback;
       const type = message.type === M.SELECT_EFFECTYN ? R.SELECT_EFFECTYN : R.SELECT_YESNO;
       add('Yes', { type, yes: true }, 1);
       add('No', { type, yes: false });

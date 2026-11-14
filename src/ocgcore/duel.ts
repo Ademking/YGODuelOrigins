@@ -19,6 +19,11 @@ const displayCards = new Map(CARDS.map(card => [Number(cardImagePasscode(card.id
 const phases: Partial<Record<number, Phase>> = {
   [P.DRAW]: 'DP', [P.STANDBY]: 'SP', [P.MAIN1]: 'M1', [P.BATTLE_START]: 'BP', [P.BATTLE_STEP]: 'BP', [P.MAIN2]: 'M2', [P.END]: 'EP',
 };
+const godTributes = new Set([10000000, 10000010, 10000020]);
+function normalTributes(code: number, level = 0) {
+  return godTributes.has(code) ? 3 : level >= 7 ? 2 : level >= 5 ? 1 : 0;
+}
+
 type Location = Pick<OcgCardLoc, 'controller' | 'location' | 'sequence'>;
 type Ask = (prompt: Prompt, duel: OcgDuel) => Promise<unknown>;
 
@@ -378,7 +383,7 @@ export class OcgDuel {
           const special = response.action === I.SELECT_SPECIAL_SUMMON;
           const card = this.definition((special ? message.special_summons : message.summons)[index].code);
           const atk = Math.max(0, card.atk ?? 0);
-          const tributes = special ? 0 : (card.lv ?? 0) >= 7 ? 2 : (card.lv ?? 0) >= 5 ? 1 : 0;
+          const tributes = special ? 0 : normalTributes(message.summons[index].code, card.lv);
           const existingATK = Math.max(0, ...monsters.map(monster => this.atk(monster)));
           choice.score = 8 + atk / 300 + (special ? 3 : 0) - tributes * 3;
           if (tributes && existingATK >= atk && monsters.length <= tributes + 1) choice.score = -4;
@@ -499,7 +504,7 @@ export class OcgDuel {
           const card = loc && this.lookup(loc);
           if (card) {
             switch (r.action) {
-              case I.SELECT_SUMMON: action = { a: 'summon', card, tributes: Math.max(0, (card.def.lv ?? 0) >= 7 ? 2 : (card.def.lv ?? 0) >= 5 ? 1 : 0) }; break;
+              case I.SELECT_SUMMON: action = { a: 'summon', card, tributes: normalTributes(message.summons[r.index!].code, card.def.lv) }; break;
               case I.SELECT_SPECIAL_SUMMON: action = { a: 'ss', card }; break;
               case I.SELECT_POS_CHANGE: action = { a: card.faceUp ? 'pos' : 'flip', card }; break;
               case I.SELECT_MONSTER_SET: action = { a: 'mset', card, tributes: 0 }; break;

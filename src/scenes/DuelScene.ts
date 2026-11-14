@@ -685,28 +685,9 @@ export class DuelScene extends Phaser.Scene {
     };
     outline(attacker, COL.gold);
     if (target) outline(target, COL.red);
-    const x = target?.x ?? CX;
-    const y = target?.y ?? (attack.attacker.ctrl === this.me ? 42 : H - 42);
-    const progress = (this.time.now % 750) / 750;
-    const dx = x - attacker.x;
-    const dy = y - attacker.y;
-    const distance = Math.hypot(dx, dy) || 1;
-    const tip = Math.min(progress, 0.92);
-    const tail = Math.max(0, tip - 0.32);
-    const tx = attacker.x + dx * tip;
-    const ty = attacker.y + dy * tip;
-    const bx = attacker.x + dx * tail;
-    const by = attacker.y + dy * tail;
-    graphics.lineStyle(10, 0xff773a, 0.3).lineBetween(bx, by, tx, ty);
-    graphics.lineStyle(3, 0xffe0ab, 0.95).lineBetween(bx, by, tx, ty);
-    for (const spread of [-1, 1]) {
-      const ox = -dy / distance * 7 * spread;
-      const oy = dx / distance * 7 * spread;
-      graphics.lineStyle(2, 0xffa059, 0.75).lineBetween(bx + ox, by + oy, tx + ox * 0.5, ty + oy * 0.5);
-    }
-    if (progress > 0.69) {
-      const hit = (progress - 0.69) / 0.31;
-      graphics.lineStyle(3, 0xffa059, 1 - hit).strokeCircle(x, y, 12 + 22 * hit);
+    if (!target) {
+      const y = attack.attacker.ctrl === this.me ? 34 : H - 34;
+      graphics.lineStyle(3, COL.red, 0.9).strokeCircle(CX, y, 18);
     }
   }
 
@@ -1630,10 +1611,11 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(850);
     const selected = new Set<number>();
-    const label = htxt(this, CX, Y.phase - 25, '', 12, COL.goldTxt).setOrigin(0.5);
-    layer.add(panel(this, CX - 128, Y.phase - 40, 256, 28, 0.96));
+    const top = H / 2 - this.scale.baseSize.height / (2 * this.cameras.main.zoom) + 12;
+    const label = htxt(this, CX - 76, top + 22, '', 14, COL.goldTxt).setOrigin(0.5);
+    layer.add(panel(this, CX - 228, top, 456, 44, 0.98));
     layer.add(label);
-    const confirm = button(this, CX, Y.phase + 16, 144, 28, 'Confirm', () => this.choose([...selected]), { size: 12, primary: true });
+    const confirm = button(this, CX + 142, top + 22, 132, 32, 'Confirm', () => this.choose([...selected]), { size: 13, primary: true });
     const update = () => {
       label.setText(`Disable zones · ${selected.size}/${prompt.count}`);
       confirm.setEnabled(selected.size === prompt.count);
@@ -2400,28 +2382,12 @@ export class DuelScene extends Phaser.Scene {
     await this.tw({ targets: sprite, x: origin.x - nx * 9, y: origin.y - ny * 9, scale: origin.scale * 1.06, duration: 150 * speed, ease: 'Sine.out' });
     await this.tw({ targets: sprite, x: origin.x + nx * lungeDistance, y: origin.y + ny * lungeDistance,
       scale: origin.scale * 1.08, duration: 170 * speed, ease: 'Cubic.in' });
-    const beam = this.add.graphics().setDepth(610).setBlendMode(Phaser.BlendModes.ADD);
-    const beamStart = { x: sprite.x, y: sprite.y };
-    const beamFlight = { progress: 0 };
-    await this.tw({ targets: beamFlight, progress: 1, duration: 140 * speed, ease: 'Cubic.in', onUpdate: () => {
-      const x = Phaser.Math.Linear(beamStart.x, destination.x, beamFlight.progress);
-      const y = Phaser.Math.Linear(beamStart.y, destination.y, beamFlight.progress);
-      beam.clear().lineStyle(12, 0xff182f, 0.2).lineBetween(beamStart.x, beamStart.y, x, y)
-        .lineStyle(5, 0xff2639, 0.85).lineBetween(beamStart.x, beamStart.y, x, y)
-        .lineStyle(2, 0xffc0b7, 1).lineBetween(beamStart.x, beamStart.y, x, y);
-    } });
-    this.tweens.add({ targets: beam, alpha: 0, duration: 150 * speed, onComplete: () => beam.destroy() });
     sfx.hit();
-
-    const impact = this.add.graphics({ x: destination.x, y: destination.y }).setDepth(612);
-    impact.fillStyle(0xffb45d, 0.35).fillTriangle(-34, 24, 27, -35, 40, -38)
-      .fillStyle(0xfff4dc, 0.95).fillTriangle(-31, 22, 28, -34, 35, -36)
-      .fillStyle(0xffffff, 1).fillTriangle(-24, 16, 28, -34, 31, -34);
-    impact.setScale(0.5).setAlpha(0.95);
-    this.tweens.add({ targets: impact, scale: 1.12, alpha: 0, duration: 240 * speed, ease: 'Cubic.out', onComplete: () => impact.destroy() });
-    flash(this, destination.x, destination.y, 0xffe2b0, 56, 240 * speed, 611);
-    ring(this, destination.x, destination.y, 0xffb45d, { from: 8, to: 64, ms: 300 * speed });
-    burst(this, destination.x, destination.y, color, { n: 18, speed: [120, 340], life: 400 });
+    const slash = this.add.graphics({ x: destination.x, y: destination.y }).setDepth(612).setRotation(Math.atan2(dy, dx) + Math.PI / 3);
+    slash.fillStyle(0xff9850, 0.4).fillPoints([{ x: -36, y: 0 }, { x: 0, y: -8 }, { x: 36, y: 0 }, { x: 0, y: 8 }], true);
+    slash.fillStyle(0xfff4dc, 1).fillPoints([{ x: -32, y: 0 }, { x: 0, y: -3 }, { x: 32, y: 0 }, { x: 0, y: 3 }], true);
+    this.tweens.add({ targets: slash, scale: 1.5, alpha: 0, duration: 210 * speed, onComplete: () => slash.destroy() });
+    ring(this, destination.x, destination.y, color, { from: 12, to: 46, ms: 230 * speed });
     this.cameras.main.shake(90, 0.003);
     if (targetSprite) this.tweens.add({ targets: targetSprite, x: targetSprite.x + nx * 5, y: targetSprite.y + ny * 5, duration: 55 * speed, yoyo: true });
     await this.tw({ targets: sprite, x: origin.x, y: origin.y, scale: origin.scale, duration: 180 * speed, ease: 'Sine.out' });
