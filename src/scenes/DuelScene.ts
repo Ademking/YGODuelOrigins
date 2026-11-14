@@ -186,6 +186,7 @@ export class DuelScene extends Phaser.Scene {
 
   create() {
     fitCamera(this);
+    this.createFpsCounter();
     if (this.game.renderer.type === Phaser.WEBGL) {
       const pipelines = (this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).pipelines;
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
@@ -243,6 +244,24 @@ export class DuelScene extends Phaser.Scene {
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
       this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
     });
+  }
+
+  private createFpsCounter() {
+    const fps = this.add.text(0, 0, '— FPS', {
+      fontFamily: FONT_N, fontSize: '13px', color: COL.text, backgroundColor: '#14121f',
+      padding: { x: 8, y: 4 },
+    }).setOrigin(1, 0).setDepth(1200);
+    const position = () => {
+      const { width, height } = this.scale.baseSize;
+      const zoom = this.cameras.main.zoom;
+      fps.setPosition(640 + width / (2 * zoom) - 12, H / 2 - height / (2 * zoom) + 12);
+    };
+    position();
+    this.scale.on('resize', position);
+    this.events.once('shutdown', () => this.scale.off('resize', position));
+    this.time.addEvent({ delay: 500, loop: true, callback: () => {
+      fps.setText(`${Math.round(this.game.loop.actualFps)} FPS`);
+    } });
   }
 
   private async chooseFirstPlayer(duel: OcgDuel): Promise<Side | null> {
@@ -957,7 +976,9 @@ export class DuelScene extends Phaser.Scene {
       const mine = s === this.me;
       const pile = (arr: Card[], z: Zone, face: boolean) => arr.forEach((c, i) => {
         const p = this.zonePos(s, z);
-        this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, dur);
+        // Only the exposed top and edges of a face-down stack contribute to the board.
+        const visible = face || i >= arr.length - 6;
+        this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, visible ? dur : 0, visible);
       });
       pile(P.deck, 'deck', false);
       pile(P.extra, 'extra', false);
@@ -993,9 +1014,11 @@ export class DuelScene extends Phaser.Scene {
     this.refreshHighlights();
   }
 
-  private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number) {
+  private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number, visible = true) {
     const s = this.sprite(c);
     if (this.busy.has(s)) return; // its effect calls layout again when it finishes
+    s.setVisible(visible);
+    if (s.input) s.input.enabled = visible;
     if (face && s.getData('cardId') !== c.def.id) setCardTexture(s, c.def.id);
     else if (!face) {
       s.setData('cardId', null);
@@ -2358,6 +2381,12 @@ export class DuelScene extends Phaser.Scene {
     mesh.hideCCW = false;
     mesh.setOrtho(mesh.width, mesh.height);
     mesh.addVertices(vertices, uvs);
+    if (mesh.vertices.length !== shards.length * 3) {
+      mesh.destroy();
+      await this.tw({ targets: sprite, alpha: 0, duration: 260 * speed });
+      if (sprite.active) sprite.setAlpha(1);
+      return;
+    }
     // as with the card skins, screen positions are written straight into the vertices
     (mesh as unknown as { preUpdate: () => void }).preUpdate = () => {};
     if (visual !== sprite) mesh.setPipeline('HologramPipeline');
@@ -2379,9 +2408,12 @@ export class DuelScene extends Phaser.Scene {
     sprite.setAlpha(0);
     burst(this, centre.x, centre.y, 0xfff1d6, { n: 14, speed: [40, 170], life: 520, size: 0.11, spread: 22, depth: 613 });
     const state = { t: 0 };
-    await this.tw({ targets: state, t: 1, duration: 720 * speed, onUpdate: () => place(state.t) });
-    mesh.destroy();
-    sprite.setAlpha(1);
+    await this.tw({ targets: state, t: 1, duration: 720 * speed, onUpdate: () => {
+      if (mesh.active) place(state.t);
+    } });
+    this.tweens.killTweensOf(state);
+    if (mesh.active) mesh.destroy();
+    if (sprite.active) sprite.setAlpha(1);
   }
   private async lpFx(side: Side, delta: number, lp: number) {
     if (delta < 0) sfx.damage(); else sfx.heal();
