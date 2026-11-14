@@ -28,13 +28,15 @@ export class Lobby {
     this.chatAction = this.room.makeAction('chat');
     this.invites = this.room.makeAction('invite');
     this.room.onPeerJoin(({ peerId }) => { void this.announce(peerId); });
-    this.room.onPeerLeave(({ peerId }) => { this.peers.delete(peerId); for (const key of this.rate.keys()) if (key.startsWith(peerId + ':')) this.rate.delete(key); this.onChange(); });
+    this.room.onPeerLeave(({ peerId }) => { const gone = this.peers.get(peerId); this.peers.delete(peerId); if (gone) this.addChat({ name: '', text: `${gone.name} left`, system: true }); for (const key of this.rate.keys()) if (key.startsWith(peerId + ':')) this.rate.delete(key); this.onChange(); });
     this.room.onError(error => this.onError(error.message));
     this.profile.onMessage((raw, { peerId }) => {
       const p = raw as PeerProfile;
       if (!p || !cleanName(p.name) || typeof p.busy !== 'boolean') return;
+      const known = this.peers.has(peerId);
       this.peers.set(peerId, { name: cleanName(p.name), busy: p.busy });
-      this.onChange();
+      if (!known) this.addChat({ name: '', text: `${cleanName(p.name)} joined`, system: true });
+      else this.onChange();
     });
     this.chatAction.onMessage((raw, { peerId }) => {
       if (!this.allow(peerId + ':chat', 800)) return;
@@ -65,8 +67,8 @@ export class Lobby {
     text = cleanChat(text);
     if (!text || Date.now() - this.lastChat < 800) return;
     this.lastChat = Date.now();
-    await this.chatAction.send(text);
     this.addChat({ name: this.name, text });
+    await this.chatAction.send(text);
   }
   async invite(peer: string, code: string) { await this.invites.send(code, { target: peer }); }
   close() { void this.room.leave(); }

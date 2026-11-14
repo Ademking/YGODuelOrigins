@@ -4,35 +4,52 @@ import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protoco
 import { Lobby, PrivateRoom } from '../multiplayer/client';
 import { element as el, multiplayerStyles, renderChat } from '../multiplayer/ui';
 
+const NAME_KEY = 'duel-origins.multiplayer.name';
+
 export class MultiplayerScene extends Phaser.Scene {
   constructor() { super('Multiplayer'); }
-  create() {
+  create(data: { rejoin?: boolean } = {}) {
     multiplayerStyles();
     const root = el('main', '', 'mp-root');
-    root.innerHTML = `<header><div><div class="mp-kicker">YGO Duel Origins · Online</div><h1>Multiplayer</h1></div><button id="mp-back">Back</button></header>
+    root.innerHTML = `<header class="mp-top">
+        <button id="mp-back">← Back</button>
+        <div style="flex:1"><div class="mp-kicker">YGO Duel Origins · Online</div><h1>Lobby</h1></div>
+        <div class="mp-me"><div class="mp-avatar" id="mp-me-avatar">?</div><b id="mp-me-name">…</b>
+          <select id="mp-deck" aria-label="Your deck"></select></div>
+      </header>
+      <div class="mp-bar">
+        <div class="mp-status" id="mp-status" role="status">Connecting…</div>
+        <button id="mp-create" class="mp-primary">Create private room</button>
+        <input id="mp-code" placeholder="Room code or link" aria-label="Room code or invite link">
+        <button id="mp-join">Join</button>
+      </div>
       <div class="mp-grid">
-        <section class="mp-panel"><h2>Your duelist</h2><label for="mp-name">Display name</label><input id="mp-name" maxlength="24" placeholder="Enter your name" autocomplete="nickname">
-        <label for="mp-deck">Your deck</label><select id="mp-deck"></select><p id="mp-deck-info"></p>
-        <button id="mp-connect" class="mp-primary">Enter lobby</button><p class="mp-status" id="mp-status" role="status"></p>
-        <hr style="border:0;border-top:1px solid #393049;margin:22px 0">
-        <h2>Play with a friend</h2><button id="mp-create" disabled>Create private room</button>
-        <label for="mp-code">Room code or invite link</label><input id="mp-code" placeholder="Paste a code or link"><div class="mp-row"><button id="mp-join" disabled>Join room</button></div></section>
-        <section class="mp-panel"><h2 id="mp-roster-title">Players in lobby</h2><div id="mp-invite"></div><div id="mp-room"></div><div id="mp-roster" class="mp-empty">Enter your name to find other duelists.</div></section>
-        <section class="mp-panel mp-global"><h2>Global chat</h2><div class="mp-messages" id="mp-messages" role="log"></div>
-        <form id="mp-chat-form"><label for="mp-chat">Message</label><div class="mp-row"><input id="mp-chat" maxlength="350" placeholder="Say hello…" disabled><button id="mp-send" disabled>Send</button></div></form></section>
-      </div><footer>No player accounts. Your name is saved on this device. Chat is live and is not stored on a server.<br>
-      Casual peer-to-peer duels · Keep this tab open. Public relay availability and network restrictions can affect connections.</footer>`;
+        <section class="mp-panel mp-players"><h2 id="mp-roster-title">Players online</h2><div id="mp-invite"></div>
+          <div class="mp-scroll" id="mp-roster"></div></section>
+        <section class="mp-panel"><h2>Global chat</h2>
+          <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite"></div>
+          <form class="mp-compose" id="mp-chat-form"><input id="mp-chat" maxlength="350" placeholder="Say hello to the lobby…" aria-label="Chat message" autocomplete="off"><button id="mp-send">Send</button></form></section>
+      </div>
+      <dialog class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form">
+        <h2>Enter the lobby</h2><p>Pick a name other duelists will see.</p>
+        <input id="mp-name" maxlength="24" placeholder="Your duelist name" autocomplete="nickname" aria-label="Display name" required>
+        <div class="mp-err" id="mp-name-err" role="alert"></div>
+        <div class="mp-row"><button type="button" id="mp-name-back">Back</button><button class="mp-primary">Enter ↵</button></div>
+      </form></dialog>
+      <dialog class="mp-modal" id="mp-room-modal"></dialog>`;
     document.body.append(root);
+    // ponytail: Phaser's keyboard listener lives on window; stop keys leaking into the scene while typing.
+    root.addEventListener('keydown', e => e.stopPropagation());
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
     const name = q<HTMLInputElement>('name'), decks = loadDecks(), select = q<HTMLSelectElement>('deck');
-    try { name.value = cleanName(localStorage.getItem('duel-origins.multiplayer.name')); } catch {}
+    const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
+    try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
     for (const [title, deck] of Object.entries(decks)) {
       if (validateDeck(deck).length) continue;
       const option = el('option', title); option.value = title; select.append(option);
     }
+    if (!select.options.length) select.append(el('option', 'No valid deck'));
     if (Array.from(select.options).some(o => o.value === selectedDeck())) select.value = selectedDeck();
-    const deckInfo = () => { const d = decks[select.value]; q('deck-info').textContent = d ? `${d.main.length} cards · ${d.extra.length} Fusion cards` : 'Create a valid deck in the Deck Editor first.'; };
-    deckInfo(); select.onchange = deckInfo;
     const codeInput = q<HTMLInputElement>('code');
     const fromLink = location.hash.startsWith('#duel=') ? parseCode(location.href) : null;
     if (fromLink) codeInput.value = fromLink;
@@ -40,36 +57,53 @@ export class MultiplayerScene extends Phaser.Scene {
     let outgoingInvite = false;
     const status = (message: string) => { if (alive) q('status').textContent = message; };
     const error = (e: unknown) => status(e instanceof Error ? e.message : 'Connection failed.');
-    const copy = async (value: string) => {
-      try { await navigator.clipboard.writeText(value); status('Copied to clipboard.'); }
-      catch { codeInput.value = value; codeInput.focus(); codeInput.select(); status('Select and copy the invite above.'); }
+    const copy = async (value: string, button: HTMLButtonElement) => {
+      const label = button.textContent;
+      try { await navigator.clipboard.writeText(value); button.textContent = 'Copied ✓'; }
+      catch { prompt('Copy this:', value); return; }
+      setTimeout(() => { button.textContent = label; }, 1500);
+    };
+    const leaveRoom = () => {
+      const current = session; session = undefined;
+      void current?.leave(); lobby?.setBusy(false); select.disabled = false; renderRoom(); renderRoster();
+      status('Back in the lobby.');
     };
     const renderRoom = () => {
-      const box = q('room'); box.replaceChildren();
-      if (!session) return;
-      const panel = el('div', '', 'mp-invite');
-      panel.append(el('h2', 'Private duel'), el('div', session.code, 'mp-code'));
-      const buttons = el('div', '', 'mp-row');
+      if (!session) { if (roomModal.open) roomModal.close(); roomModal.replaceChildren(); return; }
+      const s = session;
+      const head = el('h2', 'Private duel');
+      const hint = el('p', s.opponent ? 'Both players press Ready to start.' : 'Share this code or link with your opponent.');
+      const copies = el('div', '', 'mp-row');
       const copyCode = el('button', 'Copy code'), copyLink = el('button', 'Copy link');
-      copyCode.onclick = () => void copy(session!.code);
-      copyLink.onclick = () => void copy(inviteURL(session!.code));
-      buttons.append(copyCode, copyLink); panel.append(buttons);
-      panel.append(el('p', session.opponent ? `Opponent: ${session.opponent.name} · ${session.opponent.ready ? 'Ready' : 'Choosing'}` : 'Waiting for your friend to join…'));
-      if (session.error) panel.append(el('p', session.error, 'mp-status'));
-      const actions = el('div', '', 'mp-row');
-      const ready = el('button', session.isReady ? 'Ready ✓' : 'Ready to duel', 'mp-primary');
-      ready.disabled = !session.opponent || session.isReady || !!session.error;
-      ready.onclick = () => void session!.setReady().catch(error);
-      const cancel = el('button', 'Leave room');
-      cancel.onclick = () => {
-        const current = session; session = undefined;
-        void current?.leave(); lobby?.setBusy(false); select.disabled = false; renderRoom(); renderRoster();
+      copyCode.type = copyLink.type = 'button';
+      copyCode.onclick = () => void copy(s.code, copyCode);
+      copyLink.onclick = () => void copy(inviteURL(s.code), copyLink);
+      copies.append(copyCode, copyLink);
+      const side = (who: string, state: string, ok: boolean) => {
+        const d = el('div', who); const small = el('small', state, ok ? 'ok' : ''); d.append(small); return d;
       };
-      actions.append(ready, cancel); panel.append(actions); box.append(panel);
+      const versus = el('div', '', 'mp-versus');
+      versus.append(
+        side(lobby?.name ?? 'You', s.isReady ? 'Ready ✓' : 'Not ready', s.isReady),
+        el('span', 'VS', 'mp-kicker'),
+        s.opponent ? side(s.opponent.name, s.opponent.ready ? 'Ready ✓' : 'Choosing…', s.opponent.ready) : side('Waiting…', 'No one yet', false),
+      );
+      const err = el('div', s.error, 'mp-err');
+      const actions = el('div', '', 'mp-row');
+      const cancel = el('button', 'Leave'); cancel.type = 'button'; cancel.onclick = leaveRoom;
+      const ready = el('button', s.isReady ? 'Waiting for opponent…' : 'Ready to duel', 'mp-primary'); ready.type = 'button';
+      ready.disabled = !s.opponent || s.isReady || !!s.error;
+      ready.onclick = () => void s.setReady().catch(error);
+      actions.append(cancel, ready);
+      roomModal.replaceChildren(head, hint, el('div', s.code, 'mp-code'), copies, versus, err, actions);
+      if (!roomModal.open) roomModal.showModal();
+      if (!ready.disabled) ready.focus();
     };
+    roomModal.addEventListener('cancel', e => e.preventDefault());
     const startRoom = async (code: string, host: boolean) => {
       if (!lobby || connecting) return;
       if (session) { status('Leave your current room before joining another.'); return; }
+      if (!decks[select.value]) { status('Build a valid deck in the Deck Editor first.'); return; }
       connecting = true; status('Opening private room…');
       try {
         const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value]);
@@ -86,21 +120,26 @@ export class MultiplayerScene extends Phaser.Scene {
           });
         };
         renderRoom(); renderRoster();
-        status('Share your code or link. Both players must press Ready.');
+        status('In a private room.');
       } catch (e) { error(e); }
       finally { connecting = false; }
     };
     const renderRoster = () => {
-      const list = q('roster'); list.replaceChildren(); list.className = '';
-      q('roster-title').textContent = `Players in lobby · ${(lobby?.peers.size ?? 0) + (lobby ? 1 : 0)}`;
+      const list = q('roster'); list.replaceChildren();
+      const count = (lobby?.peers.size ?? 0) + (lobby ? 1 : 0);
+      q('roster-title').textContent = `Players online · ${count}`;
+      if (lobby) {
+        const me = el('div', '', 'mp-peer you');
+        const label = el('span', lobby.name); label.append(el('small', 'You'));
+        me.append(el('div', lobby.name.slice(0, 1).toUpperCase(), 'mp-avatar'), label); list.append(me);
+      }
       if (!lobby?.peers.size) {
-        list.append(el('div', lobby ? 'No other duelists connected yet. Invite a friend using a private room link.' : 'Enter your name to find other duelists.', 'mp-empty'));
+        list.append(el('div', lobby ? 'Waiting for other duelists… Create a private room and send the link to a friend.' : '', 'mp-empty'));
         return;
       }
       for (const [id, profile] of lobby.peers) {
-        const row = el('div', '', 'mp-peer');
-        const avatar = el('div', profile.name.slice(0, 1).toUpperCase(), 'mp-avatar');
-        const label = el('span', profile.name); label.append(el('small', profile.busy ? 'In a room' : 'Available'));
+        const row = el('div', '', profile.busy ? 'mp-peer busy' : 'mp-peer');
+        const label = el('span', profile.name); label.append(el('small', profile.busy ? 'In a duel' : 'Available'));
         const challenge = el('button', 'Challenge');
         challenge.disabled = profile.busy || !!session || outgoingInvite;
         challenge.onclick = async () => {
@@ -108,54 +147,57 @@ export class MultiplayerScene extends Phaser.Scene {
           outgoingInvite = true;
           const code = newCode();
           await startRoom(code, true);
-          if (session) await lobby.invite(id, code).catch(error);
+          if (session) await lobby.invite(id, code).then(() => status(`Challenge sent to ${profile.name}.`), error);
           outgoingInvite = false; renderRoster();
         };
-        row.append(avatar, label, challenge); list.append(row);
+        row.append(el('div', profile.name.slice(0, 1).toUpperCase(), 'mp-avatar'), label, challenge); list.append(row);
       }
     };
-    q<HTMLButtonElement>('back').onclick = () => this.scene.start('Title');
-    q<HTMLButtonElement>('create').onclick = () => void startRoom(newCode(), true);
-    q<HTMLButtonElement>('join').onclick = () => {
-      const code = parseCode(codeInput.value);
-      if (!code) { status('Enter a 12-character room code or a valid invite link.'); return; }
-      void startRoom(code, false);
-    };
-    q<HTMLButtonElement>('connect').onclick = () => {
-      if (lobby) return;
-      const chosen = cleanName(name.value);
-      if (!chosen) { status('Choose a display name first.'); name.focus(); return; }
-      if (!decks[select.value]) { status('Create a valid deck first.'); return; }
-      if (!window.RTCPeerConnection || !crypto.subtle) { status('Multiplayer needs a browser with WebRTC and a secure HTTPS connection.'); return; }
-      try {
-        localStorage.setItem('duel-origins.multiplayer.name', chosen);
-      } catch {}
-      try { lobby = new Lobby(chosen); } catch (e) { error(e); return; }
-      name.value = chosen; name.disabled = true;
-      q<HTMLButtonElement>('connect').disabled = true;
-      for (const id of ['create', 'join', 'chat', 'send']) (q(id) as HTMLInputElement).disabled = false;
+    const connect = (chosen: string) => {
+      try { localStorage.setItem(NAME_KEY, chosen); } catch {}
+      lobby = new Lobby(chosen);
+      q('me-name').textContent = chosen; q('me-avatar').textContent = chosen.slice(0, 1).toUpperCase();
       lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); };
       lobby.onError = status;
       lobby.onInvite = (peer, code) => {
         if (session) return;
         const box = q('invite'); box.replaceChildren();
         const notice = el('div', '', 'mp-invite');
-        notice.append(el('p', `${lobby!.peers.get(peer)?.name ?? 'A duelist'} invited you to play.`));
-        const accept = el('button', 'Accept', 'mp-primary'), decline = el('button', 'Dismiss');
+        notice.append(el('p', `⚔ ${lobby!.peers.get(peer)?.name ?? 'A duelist'} challenged you!`));
+        const accept = el('button', 'Accept', 'mp-primary'), decline = el('button', 'Decline');
         accept.onclick = () => { box.replaceChildren(); void startRoom(code, false); };
         decline.onclick = () => box.replaceChildren();
-        notice.append(accept, document.createTextNode(' '), decline); box.append(notice);
+        notice.append(accept, decline); box.append(notice);
       };
-      status('Discovering duelists… You can create or join a private room now.');
-      renderRoster();
+      status('Connected. Challenge a player or create a private room.');
+      renderRoster(); renderChat(q('messages'), lobby.chat);
+      q('chat').focus();
       if (fromLink) { history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
+    q<HTMLFormElement>('name-form').onsubmit = e => {
+      const chosen = cleanName(name.value);
+      const err = q('name-err');
+      if (!chosen) { e.preventDefault(); err.textContent = 'Choose a display name first.'; name.focus(); return; }
+      if (!window.RTCPeerConnection || !crypto.subtle) { e.preventDefault(); err.textContent = 'Multiplayer needs a browser with WebRTC over HTTPS.'; return; }
+      try { connect(chosen); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : 'Connection failed.'; }
+    };
+    const back = () => this.scene.start('Title');
+    nameModal.addEventListener('cancel', back);
+    q<HTMLButtonElement>('name-back').onclick = back;
+    q<HTMLButtonElement>('back').onclick = back;
+    q<HTMLButtonElement>('create').onclick = () => void startRoom(newCode(), true);
+    q<HTMLButtonElement>('join').onclick = () => {
+      const code = parseCode(codeInput.value);
+      if (!code) { status('Enter a 12-character room code or a valid invite link.'); codeInput.focus(); return; }
+      void startRoom(code, false);
+    };
+    codeInput.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('join').click(); };
     q<HTMLFormElement>('chat-form').onsubmit = e => {
       e.preventDefault();
       const input = q<HTMLInputElement>('chat'), text = input.value; input.value = '';
       void lobby?.say(text).catch(error);
     };
-    name.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('connect').click(); };
+    if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else { nameModal.showModal(); name.select(); }
     this.events.once('shutdown', () => {
       alive = false; root.remove();
       if (!transferred) { lobby?.close(); void session?.leave(); }

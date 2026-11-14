@@ -2681,7 +2681,7 @@ export class DuelScene extends Phaser.Scene {
     const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: 680 } }).setOrigin(0.5);
     detail.setScale(Math.min(1, 44 / detail.height));
     layer.add(detail);
-    layer.add(button(this, CX - 128, 470, 240, 50, this.init0.multiplayer ? 'Back to lobby' : 'Rematch', () => this.init0.multiplayer ? this.scene.start('Multiplayer') : this.scene.restart(this.init0), { size: 16, primary: true }));
+    layer.add(button(this, CX - 128, 470, 240, 50, this.init0.multiplayer ? 'Back to lobby' : 'Rematch', () => this.init0.multiplayer ? this.scene.start('Multiplayer', { rejoin: true }) : this.scene.restart(this.init0), { size: 16, primary: true }));
     layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
     layer.add(button(this, CX, 528, 132, 30, 'View Log', () => this.toggleLogs(), { size: 11 }));
   }

@@ -4,8 +4,8 @@ The `multiplayer` branch adds online casual duels without a custom backend, data
 
 ## Player flow
 
-1. Open **Multiplayer**, enter a nickname, choose a saved deck, and enter the lobby.
-2. Challenge an available player, or create a private room and share its 12-character code or invite link.
+1. Open **Multiplayer**, type a nickname in the popup and press Enter. You land in the lobby with the player list and global chat; pick your deck at the top right.
+2. Challenge an available player, or create a private room and share its 12-character code or invite link. The room opens as a popup showing both players.
 3. Both players review their opponent and press **Ready to duel**.
 4. The first player is randomly chosen. Both players use the existing duel board.
 5. Expand **Duel chat** at the bottom right to message the opponent. After the duel, use **Back to lobby** to start another match.
