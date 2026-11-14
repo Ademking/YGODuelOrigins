@@ -25,14 +25,16 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = ''
 // Two sources: KLIPY search when VITE_KLIPY_KEY is set, else the built-in library. Only a library id or a KLIPY media path
 // travels over the wire, and the URL is always rebuilt for a fixed host, so peers cannot make us load arbitrary sites.
 const KLIPY_KEY = (import.meta.env.VITE_KLIPY_KEY as string | undefined)?.trim();
-/** KLIPY search through its Tenor-compatible v2 API (featured when the query is empty). Returns paths under static.klipy.com. */
+/** KLIPY v1 GIF search (trending when the query is empty). Returns small (~220px) GIF paths under static.klipy.com. */
 async function klipy(query: string): Promise<string[]> {
-  const params = new URLSearchParams({ key: KLIPY_KEY!, client_key: 'duel_origins', limit: '24', media_filter: 'tinygif', contentfilter: 'medium' });
+  const params = new URLSearchParams({ page: '1', per_page: '50', format_filter: 'gif' });
   if (query) params.set('q', query);
-  const response = await fetch(`https://api.klipy.com/v2/${query ? 'search' : 'featured'}?${params}`, { signal: AbortSignal.timeout(8000) });
+  const base = `https://api.klipy.com/api/v1/${encodeURIComponent(KLIPY_KEY!)}/gifs`;
+  const response = await fetch(`${base}/${query ? 'search' : 'trending'}?${params}`, { signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error('GIF search failed.');
-  const body = await response.json() as { results?: { media_formats?: { tinygif?: { url?: string } } }[] };
-  return (body.results ?? []).map(r => r.media_formats?.tinygif?.url?.replace(/^https:\/\/static\.klipy\.com\//, '') ?? '')
+  const body = await response.json() as { data?: { data?: { type?: string; file?: { sm?: { gif?: { url?: string } } } }[] } };
+  return (body.data?.data ?? []).filter(g => g.type === 'gif')
+    .map(g => g.file?.sm?.gif?.url?.replace(/^https:\/\/static\.klipy\.com\//, '') ?? '')
     .filter(path => KLIPY_PATH.test(path));
 }
 
