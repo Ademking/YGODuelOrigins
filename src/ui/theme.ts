@@ -107,12 +107,13 @@ export interface Button extends Phaser.GameObjects.Container {
  */
 export function button(
   scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
-  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean } = {},
+  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean; wrap?: boolean } = {},
 ): Button {
   const c = scene.add.container(x, y) as Button;
   const g = scene.add.graphics();
   const t = scene.add.text(0, 0, label, {
     fontFamily: FONT_H, fontSize: `${opts.size ?? 15}px`, color: COL.text, fontStyle: 'bold', align: 'center',
+    wordWrap: opts.wrap ? { width: w - 24, useAdvancedWrap: true } : undefined,
   }).setOrigin(0.5);
   c.add([g, t]);
   let hover = false, selected = false;
@@ -163,6 +164,7 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
       precision mediump float;
       #endif
       uniform vec2 resolution;
+      uniform vec2 viewport;
       uniform float time;
       varying vec2 fragCoord;
 
@@ -194,7 +196,7 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
       void main() {
         vec2 uv = vec2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
         vec2 px = uv * resolution;
-        vec2 q = (px - 0.5 * resolution) / min(resolution.x, resolution.y);
+        vec2 q = (uv - 0.5) * viewport / min(viewport.x, viewport.y);
         float t = time * ${motion};
         float swirl = 1.8;
         float rim = 0.8;
@@ -239,12 +241,34 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
         gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
       }
     `;
-    const shader = scene.add.shader(new Phaser.Display.BaseShader('duel-arena', fragment), W / 2, H / 2, W, H).setDepth(-100);
-    const resize = () => shader.setSize(scene.scale.baseSize.width / scene.cameras.main.zoom, scene.scale.baseSize.height / scene.cameras.main.zoom).updateDisplayOrigin();
+    // Render the soft smoke separately so it doesn't determine the board's render resolution.
+    const key = `arena-background-${scene.sys.settings.key}`;
+    const source = new Phaser.Display.BaseShader('duel-arena', fragment, undefined, {
+      viewport: { type: '2f', value: { x: W, y: H } },
+    });
+    const shader = scene.add.shader(source, 0, 0, 320, 180).setDepth(-101).setRenderToTexture(key);
+    const background = scene.add.image(W / 2, H / 2, key).setDepth(-100).setFlipY(true);
+    let lastFrame = -Infinity;
+    const update = (time: number) => {
+      const render = motion === '1.0' && time - lastFrame >= 1000 / 30 - 0.5;
+      if (render) lastFrame = time;
+      shader.setVisible(render);
+    };
+    scene.events.on('postupdate', update);
+    const resize = () => {
+      const width = scene.scale.baseSize.width / scene.cameras.main.zoom;
+      const height = scene.scale.baseSize.height / scene.cameras.main.zoom;
+      shader.setUniform('viewport.value', { x: width, y: height });
+      background.setDisplaySize(width, height);
+    };
+    background.once('destroy', () => {
+      scene.events.off('postupdate', update);
+      if (shader.active) shader.destroy();
+    });
     resize();
     scene.scale.on('resize', resize);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));
-    return shader;
+    return background;
   }
   if (!scene.textures.exists('duel-bg')) {
     const texture = scene.textures.createCanvas('duel-bg', W * RES, H * RES)!;

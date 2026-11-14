@@ -4,7 +4,7 @@ export const soundFiles = {
   activate: 'activate', field: 'field', chain: 'chain', attack: 'attack', hit: 'hit', destroy: 'destroy', battleDestroy: 'battle-destroy',
   damage: 'damage', heal: 'heal', phase: 'phase', turn: 'turn', deny: 'deny', win: 'win', lose: 'lose',
   coinToss: 'coin-toss', fusion: 'fusion', fusionComplete: 'fusion-complete', start: 'start',
-  tribute: 'tribute', exodiaCharge: 'exodia-charge', exodiaBlast: 'exodia-blast',
+  godSummon: 'god-summon', tribute: 'tribute', exodiaCharge: 'exodia-charge', exodiaBlast: 'exodia-blast',
 };
 
 type Sound = keyof typeof soundFiles;
@@ -24,7 +24,7 @@ function play(sound: Sound) {
   if (!pool) { pool = []; voices.set(sound, pool); }
   let audio = pool.find(voice => voice.paused || voice.ended);
   if (!audio && pool.length < 4) {
-    audio = new Audio(`/sfx/${soundFiles[sound]}.wav`);
+    audio = new Audio(`/sfx/${soundFiles[sound]}.${sound === 'godSummon' ? 'mp3' : 'wav'}`);
     pool.push(audio);
   }
   audio ??= pool[0];
@@ -76,6 +76,9 @@ export const sfx = {
   field: () => play('field'), coinToss: () => play('coinToss'), fusion: () => play('fusion'),
   fusionComplete: () => play('fusionComplete'), start: () => play('start'),
   tribute: () => play('tribute'), exodiaCharge: () => play('exodiaCharge'), exodiaBlast: () => play('exodiaBlast'),
+  godSummon: () => play('godSummon'),
+  stopGodSummon: () => stop('godSummon'),
+  fadeGodSummon: (duration: number) => fadeOut('godSummon', duration),
   stopExodia: () => { stop('exodiaCharge'); stop('exodiaBlast'); },
   stopExodiaCharge: () => stop('exodiaCharge'),
   fadeExodiaBlast: (duration: number) => fadeOut('exodiaBlast', duration),

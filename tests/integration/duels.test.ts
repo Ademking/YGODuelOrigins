@@ -3,14 +3,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Duel, type DeckList } from '../../src/engine/duel';
 import { AIController } from '../../src/engine/ai';
-import { STARTERS, OPPONENTS, validateDeck } from '../../src/data/decks';
+import { OPPONENTS, validateDeck } from '../../src/data/decks';
+import { getCard as liveCard } from '../../src/ocgcore/catalog';
 import { byName, mulberry } from '../helpers';
 
 test('every opponent has a legal deck and an included ace', () => {
   assert.equal(new Set(OPPONENTS.map(opponent => opponent.id)).size, OPPONENTS.length);
   for (const opponent of OPPONENTS) {
     assert.deepEqual(validateDeck(opponent.deck), [], opponent.name);
-    assert.ok([...opponent.deck.main, ...opponent.deck.extra].includes(byName(opponent.ace).id), opponent.name);
+    assert.ok([...opponent.deck.main, ...opponent.deck.extra].some(id => liveCard(id).name === opponent.ace), opponent.name);
   }
 });
 
@@ -66,8 +67,9 @@ test('new GX opponents complete CPU duels', async () => {
   }
 });
 
-test('themed CPU duels finish without engine errors', async () => {
-  const all: [string, DeckList][] = [...Object.entries(THEMES), ...Object.entries(STARTERS), ...OPPONENTS.map((o) => [o.name, o.deck] as [string, DeckList])];
+test('legacy themed CPU duels finish without engine errors', async () => {
+  // Live premade decks include OCGCore-only cards and are covered for every opponent in ocgcore.test.ts.
+  const all: [string, DeckList][] = Object.entries(THEMES);
   const reasons: Record<string, number> = {};
   for (let i = 0; i < 40; i++) {
     const rng = mulberry(7000 + i);

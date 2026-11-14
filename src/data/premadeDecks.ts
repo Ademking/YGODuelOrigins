@@ -1,6 +1,6 @@
 import type { Difficulty } from '../engine/ai';
 import type { DeckList } from '../engine/duel';
-import { CARDS } from './cards';
+import { CARDS } from '../ocgcore/catalog';
 
 interface Recipe {
   id: string;
@@ -121,6 +121,203 @@ const recipes: Recipe[] = [
       'Book of Moon': 2, 'Smashing Ground': 2, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Dust Tornado': 2,
     },
   },
+  {
+    id: 'rex', name: 'Rex Raptor', title: 'Dinosaur Duelist', ace: 'Two-Headed King Rex',
+    style: 'Dinosaurs, Jurassic World and Red-Eyes', suggested: 'normal',
+    main: {
+      'Two-Headed King Rex': 3, 'Red-Eyes B. Dragon': 1, 'Serpent Night Dragon': 1, 'Megazowler': 1,
+      'Crawling Dragon #2': 3, 'Sabersaurus': 3, 'Gilasaurus': 3, 'Hydrogeddon': 3, 'Hyper Hammerhead': 2,
+      'Black Stego': 2, 'Jurassic World': 3, 'Fossil Excavation': 3, 'Smashing Ground': 2, 'Mystical Space Typhoon': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Survival Instinct': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'keith', name: 'Bandit Keith', title: 'Machine Duelist', ace: 'Barrel Dragon',
+    style: 'Barrel Dragon, Machine beatdown and coin tosses', suggested: 'hard',
+    main: {
+      'Barrel Dragon': 2, 'Slot Machine': 1, 'Launcher Spider': 1, 'Pendulum Machine': 1, 'Zoa': 1, 'Metalzoa': 1,
+      'Blast Sphere': 2, 'Mechanicalchaser': 3, 'Patrol Robo': 2, 'Gradius': 3, 'Giga-Tech Wolf': 2, 'Cannon Soldier': 2,
+      '7 Completed': 2, 'Machine Conversion Factory': 2, 'Stop Defense': 1, 'Second Coin Toss': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2,
+      'Metalmorph': 2, 'Time Machine': 2, 'Trap Hole': 1, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'bonz', name: 'Bonz', title: 'Zombie Duelist', ace: 'Pumpking the King of Ghosts',
+    style: 'Classic Zombies, revival and Call of the Haunted', suggested: 'normal',
+    main: {
+      'Pumpking the King of Ghosts': 2, 'Armored Zombie': 2, 'Clown Zombie': 2, 'Dragon Zombie': 3,
+      'Pyramid Turtle': 3, 'Goblin Zombie': 2, 'Spirit Reaper': 2, 'Vampire Lord': 2, 'Ryu Kokki': 2,
+      'Book of Life': 3, 'Call of the Mummy': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Creature Swap': 2, 'Call Of The Haunted': 1,
+      'Skull Invitation': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'tyranno', name: 'Tyranno Hassleberry', title: 'Dinosaur Commander', ace: 'Ultimate Tyranno',
+    style: 'Dinosaur swarms and heavy hitters', suggested: 'hard',
+    main: {
+      'Ultimate Tyranno': 2, 'Super Conductor Tyranno': 1, 'Sabersaurus': 3, 'Black Stego': 3,
+      'Hydrogeddon': 3, 'Gilasaurus': 3, 'Hyper Hammerhead': 3, 'Babycerasaurus': 2,
+      'Jurassic World': 3, 'Fossil Excavation': 2, 'Big Evolution Pill': 2, 'Tail Swipe': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2,
+      'Smashing Ground': 2, 'Survival Instinct': 2, 'Sakuretsu Armor': 2, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'sartorius', name: 'Sartorius Kumar', title: 'Society of Light', ace: 'Arcana Force XXI - The World',
+    style: 'Arcana Force monsters and coin-toss effects', suggested: 'hard',
+    main: {
+      'Arcana Force Ex - The Light Ruler': 1, 'Arcana Force EX - The Dark Ruler': 1, 'Shining Angel': 1, 'Arcana Force I - The Magician': 3, 'Arcana Force III - The Empress': 3,
+      'Arcana Force IV - The Emperor': 3, 'Arcana Force VI - The Lovers': 3, 'Arcana Force VII - The Chariot': 3,
+      'Arcana Force XIV - Temperance': 2, 'Arcana Force XVIII - The Moon': 1, 'Arcana Force XXI - The World': 2,
+      'Light Barrier': 3, 'Second Coin Toss': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Call Of The Haunted': 1, 'Mirror Force': 1,
+      'Sakuretsu Armor': 2, 'Compulsory Evacuation Device': 2,
+    },
+  },
+  {
+    id: 'paradox', name: 'Paradox Brothers', title: 'Labyrinth Duelists', ace: 'Gate Guardian', style: 'Gate Guardian and its three guardians', suggested: 'hard',
+    main: {
+      'Gate Guardian': 1, 'Sanga of the Thunder': 2, 'Kazejin': 2, 'Suijin': 2,
+      'Labyrinth Wall': 3, 'Wall Shadow': 2, 'Monster Tamer': 3, 'Shadow Ghoul': 3,
+      'The Wicked Worm Beast': 3, 'Jirai Gumo': 3, 'Dungeon Worm': 2, 'Giga-Tech Wolf': 3,
+      'Cannon Soldier': 3, 'Magical Labyrinth': 2, 'Polymerization': 2, 'Remove Trap': 2, 'Tribute Doll': 2,
+    },
+    extra: { 'Labyrinth Tank': 1 },
+  },
+  {
+    id: 'panik', name: 'PaniK', title: 'Pegasus’s Eliminator', ace: 'Castle of Dark Illusions', style: 'Defensive Fiends and battle traps', suggested: 'normal',
+    main: {
+      'Castle of Dark Illusions': 3, 'Dark Chimera': 3, 'King of Yamimakai': 3, 'Metal Guardian': 3,
+      'Reaper of the Cards': 3, 'Shield & Sword': 3, 'Yami': 3, 'Dark Assailant': 3,
+      'Dragon Zombie': 3, 'Frenzied Panda': 3, 'Wall of Illusion': 3, 'Giant Soldier of Stone': 3,
+      'Trap Hole': 3, 'Swords of Revealing Light': 1,
+    },
+    extra: { Barox: 1 },
+  },
+  {
+    id: 'rebecca', name: 'Rebecca Hawkins', title: 'Graveyard Strategist', ace: 'Shadow Ghoul', style: 'Shadow Ghoul and Graveyard setup', suggested: 'normal',
+    main: {
+      'Shadow Ghoul': 3, 'Millennium Shield': 2, 'Cannon Soldier': 3, 'Witch of the Black Forest': 1,
+      'Sangan': 1, 'Skelengel': 3, 'Electric Snake': 3, 'Ring of Magnetism': 3,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Graceful Charity': 1, 'Card Destruction': 1,
+      'Foolish Burial': 2, 'Magician of Faith': 3, 'Man-Eater Bug': 3, 'Mystic Tomato': 3,
+      'Call Of The Haunted': 1, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Compulsory Evacuation Device': 1,
+    },
+  },
+  {
+    id: 'camula', name: 'Camula', title: 'Shadow Rider', ace: 'Vampire Genesis', style: 'Vampires and Graveyard revival', suggested: 'hard',
+    main: {
+      'Vampire Genesis': 2, 'Vampire Lord': 3, 'Vampire Lady': 3, 'Despair from the Dark': 2,
+      'Ryu Kokki': 2, "Vampire's Curse": 2, 'Pyramid Turtle': 3, 'Goblin Zombie': 3,
+      'Spirit Reaper': 2, 'Book of Life': 3, 'Call of the Mummy': 3, 'Giant Trunade': 2,
+      'Pot of Greed': 1, 'Monster Reborn': 1, 'Call Of The Haunted': 1, 'Creature Swap': 2,
+      'Sakuretsu Armor': 3, 'Compulsory Evacuation Device': 2,
+    },
+  },
+  {
+    id: 'chumley', name: 'Chumley Huffington', title: 'Beast Fusion Duelist', ace: 'Master of Oz', style: 'Koalas, Kangaroos and Beast Fusion', suggested: 'normal',
+    main: {
+      'Big Koala': 3, 'Des Kangaroo': 3, 'Des Koala': 3, 'Giant Rat': 3,
+      'Nimble Momonga': 3, 'Berserk Gorilla': 3, 'King of the Swamp': 2, 'Polymerization': 3,
+      'De-Fusion': 2, 'Silent Doom': 2, 'The Big March of Animals': 2, "Wild Nature's Release": 2,
+      'Pot of Greed': 1, 'Dian Keto the Cure Master': 1, 'Scapegoat': 1, 'Beast Soul Swap': 2,
+      'Cross Counter': 2, 'Destruction Punch': 2,
+    },
+    extra: {'Master of Oz': 2},
+  },
+  {
+    id: 'zaloog', name: 'Don Zaloog', title: 'Dark Scorpion Leader', ace: 'Don Zaloog', style: 'Dark Scorpions and battle damage effects', suggested: 'normal',
+    main: {
+      'Don Zaloog': 3, 'Cliff the Trap Remover': 3, 'Dark Scorpion - Chick the Yellow': 3, 'Dark Scorpion - Gorg the Strong': 3,
+      'Dark Scorpion - Meanae the Thorn': 3, 'Golem Sentry': 3, 'Dark Scorpion Burglars': 3, 'Mystic Tomato': 3,
+      'Mustering of the Dark Scorpions': 3, 'Reinforcement of the Army': 2, 'The Warrior Returning Alive': 2, 'Axe of Despair': 2,
+      'Dark Scorpion Combination': 3, "Robbin' Goblin": 2, 'Pot of Greed': 1, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'atticus', name: 'Atticus Rhodes / Nightshroud', title: 'Shadow Rider', ace: 'Red-Eyes Darkness Dragon', style: 'Red-Eyes Dragons and Graveyard setup', suggested: 'hard',
+    main: {
+      'Red-Eyes Darkness Dragon': 2, 'Red-Eyes B. Dragon': 3, 'Red-Eyes B. Chick': 3, 'Masked Dragon': 3,
+      'Troop Dragon': 3, 'Spear Dragon': 3, 'Luster Dragon': 3, 'Twin-Headed Behemoth': 1,
+      'Inferno Fire Blast': 3, 'Megamorph': 2, 'Stamping Destruction': 2, 'Foolish Burial': 2,
+      'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Call Of The Haunted': 1,
+      'Negate Attack': 3, 'Mirror Force': 1, 'Sakuretsu Armor': 1,
+    },
+  },
+  {
+    id: 'espa', name: 'Espa Roba', title: 'Psychic Duelist', ace: 'Jinzo', style: 'Machine beatdown and Trap disruption', suggested: 'normal',
+    main: {
+      'Jinzo': 2, 'Cyber Raider': 3, 'Reflect Bounder': 2, 'Mechanicalchaser': 3,
+      'Gear Golem the Moving Fortress': 3, 'Spell Canceller': 1, 'Goblin Attack Force': 2, 'The Fiend Megacyber': 2,
+      'Cannon Soldier': 2, 'Jinzo - Returner': 2, 'Limiter Removal': 1, 'Heavy Storm': 1,
+      'Amplifier': 2, 'Brain Control': 1, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Swords of Revealing Light': 1, '7 Completed': 2,
+      'Trap Hole': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'odion', name: 'Odion', title: 'Temple Guardian', ace: 'Mystical Beast of Serket', style: 'Trap Monsters and Temple of the Kings', suggested: 'hard',
+    main: {
+      'Mystical Beast of Serket': 2, 'Guardian Sphinx': 2, 'Mystic Tomato': 3, 'Nimble Momonga': 3,
+      'Gravekeeper\'s Spy': 3, 'Gravekeeper\'s Guard': 2, 'Temple of the Kings': 2, 'Pot of Greed': 1,
+      'Monster Reborn': 1, 'Swords of Revealing Light': 1, 'Mystical Space Typhoon': 2, 'Embodiment of Apophis': 3,
+      'Metal Reflect Slime': 3, 'Zoma the Spirit': 2, 'Judgment of Anubis': 2, 'Curse of Anubis': 2,
+      'Waboku': 2, 'Magic Jammer': 2, 'Mirror Force': 1, 'Call Of The Haunted': 1,
+    },
+  },
+  {
+    id: 'ishizu', name: 'Ishizu Ishtar', title: 'Gravekeeper of the Pharaoh', ace: 'Exchange of the Spirit', style: 'Fairies, Graveyard setup and deck reversal', suggested: 'hard',
+    main: {
+      'Keldo': 3, 'Mudora': 3, 'Agido': 3, 'Kelbek': 3,
+      'Zolga': 3, 'Shining Angel': 3, 'Magician of Faith': 2, 'Gravekeeper\'s Spy': 2,
+      'Graceful Charity': 1, 'Card Destruction': 1, 'Pot of Greed': 1, 'Monster Reborn': 1,
+      'Foolish Burial': 2, 'Monster Reincarnation': 2, 'Exchange of the Spirit': 1, 'Blast Held by a Tribute': 2,
+      'Compulsory Evacuation Device': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1, 'Call Of The Haunted': 1,
+    },
+  },
+  {
+    id: 'titan', name: 'Titan', title: 'Shadow Duelist', ace: 'Terrorking Archfiend', style: 'Chess Archfiends and Pandemonium', suggested: 'normal',
+    main: {
+      'Terrorking Archfiend': 3, 'Infernalqueen Archfiend': 3, 'Desrook Archfiend': 3, 'Darkbishop Archfiend': 3,
+      'Shadowknight Archfiend': 3, 'Vilepawn Archfiend': 3, 'Skull Archfiend of Lightning': 2, 'Archfiend Soldier': 3,
+      'Pandemonium': 3, 'Terraforming': 2, 'Checkmate': 2, 'Monster Reborn': 1,
+      'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Sakuretsu Armor': 3,
+      'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'amnael', name: 'Amnael', title: 'The Alchemist', ace: 'Helios - The Primordial Sun', style: 'Helios evolution and banishment', suggested: 'hard',
+    main: {
+      'Helios - The Primordial Sun': 3, 'Helios Duo Megistus': 3, 'Helios Trice Megistus': 2, 'Golden Homunculus': 2,
+      'Banisher of the Light': 3, 'Banisher of the Radiance': 3, 'D.D. Survivor': 3, 'D.D. Scout Plane': 3,
+      'Dimensional Fissure': 3, 'Grand Convergence': 3, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2,
+      'Smashing Ground': 2, 'Macro Cosmos': 3, 'Return from the Different Dimension': 1, 'Sakuretsu Armor': 2,
+      'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'kagemaru', name: 'Kagemaru', title: 'Sacred Beast Summoner', ace: 'Raviel, Lord of Phantasms', style: 'Uria, Hamon and Raviel with their summon costs', suggested: 'hard',
+    main: {
+      'Uria, Lord of Searing Flames': 1, 'Hamon, Lord of Striking Thunder': 1, 'Raviel, Lord of Phantasms': 1, 'Giant Germ': 3,
+      'Mystic Tomato': 3, 'Archfiend Soldier': 3, 'Newdoria': 2, 'Giant Orc': 3,
+      'Sangan': 1, 'Banner of Courage': 3, 'Messenger of Peace': 2, 'Swords of Revealing Light': 1,
+      'Pot of Greed': 1, 'Monster Reborn': 1, 'Mystical Space Typhoon': 2, 'Gravity Bind': 2,
+      'Metal Reflect Slime': 2, 'Embodiment of Apophis': 3, 'Zoma the Spirit': 2, 'Call Of The Haunted': 1,
+      'Mirror Force': 1, 'Magic Cylinder': 1,
+    },
+  },
+  {
+    id: 'adrian', name: 'Adrian Gecko', title: 'Cloudian Duelist', ace: 'Cloudian - Eye of the Typhoon', style: 'Cloudians and Fog Counters', suggested: 'normal',
+    main: {
+      'Cloudian - Eye of the Typhoon': 2, 'Cloudian - Altus': 3, 'Cloudian - Cirrostratus': 3, 'Cloudian - Acid Cloud': 3,
+      'Cloudian - Turbulence': 3, 'Cloudian - Smoke Ball': 3, 'Cloudian - Sheep Cloud': 3, 'Cloudian - Poison Cloud': 2,
+      'Cloudian - Nimbusman': 2, 'Cloudian Squall': 2, 'The Sanctuary in the Sky': 3, 'Terraforming': 2,
+      'Pot of Greed': 1, 'Monster Reborn': 1, 'Mystical Space Typhoon': 2, 'Fog Control': 2,
+      'Natural Disaster': 2, 'Mirror Force': 1,
+    },
+  },
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));
@@ -136,6 +333,9 @@ const additions: Record<string, Record<string, number>> = {
   crowler: { 'Ancient Gear Knight': 2, 'Ancient Gear Gadjiltron Dragon': 1, 'Ancient Gear Gadjiltron Chimera': 1, 'Gear Golem the Moving Fortress': 2 },
 };
 const revisions: Record<string, { main: Record<string, number>; extra: Record<string, number> }> = {
+  yugi: { main: { 'Slifer the Sky Dragon': 1 }, extra: {} },
+  kaiba: { main: { 'Obelisk the Tormentor': 1 }, extra: {} },
+  marik: { main: { 'The Winged Dragon of Ra': 1 }, extra: {} },
   jaden: {
     main: { 'Elemental Hero Neos': 2, 'Neo-Spacian Air Hummingbird': 1, 'Neo-Spacian Aqua Dolphin': 1, 'Neo-Spacian Grand Mole': 1, 'Neo Space': 1, 'Common Soul': 1 },
     extra: { 'Elemental Hero Air Neos': 1, 'Elemental Hero Aqua Neos': 1, 'Elemental Hero Grand Neos': 1 },
@@ -149,10 +349,18 @@ function expand(counts: Record<string, number>): string[] {
   });
 }
 
-export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia').map(({ main, extra, ...opponent }) => ({
+const previousKeith = {
+      'Barrel Dragon': 2, 'Blowback Dragon': 2, 'Launcher Spider': 1, 'Mechanicalchaser': 3, 'X-Head Cannon': 3,
+      'Reflect Bounder': 2, 'Drillroid': 2, 'Cyber Dragon': 2, 'Dekoichi the Battlechanted Locomotive': 2,
+      'Heavy Mech Support Platform': 2, 'Second Coin Toss': 2, 'Limiter Removal': 1, 'Machine Duplication': 2,
+      'Smashing Ground': 2, 'Mystical Space Typhoon': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Metalmorph': 2, 'Time Machine': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
+    };
+
+export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia' || recipe.id === 'keith').map(({ main, extra, ...opponent }) => ({
   ...opponent,
   art: '*',
-  deck: { main: expand(main), extra: expand(extra ?? {}) } satisfies DeckList,
+  deck: { main: expand(opponent.id === 'keith' ? previousKeith : main), extra: expand(extra ?? {}) } satisfies DeckList,
 })).concat(recipes.filter(recipe => recipe.id in revisions).map(({ main, extra, ...opponent }) => ({
   ...opponent,
   art: '*',

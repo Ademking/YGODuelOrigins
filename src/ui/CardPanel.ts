@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import type { CardDef } from '../engine/types';
-import { typeLine } from '../data/cards';
+import { typeLine } from '../ocgcore/catalog';
 import { ATTR_COLOR, BACK, CH, CW } from './cardArt';
 import { setCardTexture } from './cardLoader';
+import { cardStat } from './cardStat';
 import { COL, FONT_B, FONT_H, panel, ScrollBar } from './theme';
 
 export interface PanelInfo { atk?: number; def?: number; notes?: string[]; hidden?: boolean }
@@ -98,15 +99,16 @@ export class CardPanel {
 
   show(def: CardDef | null, info: PanelInfo = {}) {
     this.scroll = 0;
-    if (!def || info.hidden) {
+    const concealed = info.hidden || def?.id === '';
+    if (!def || concealed) {
       this.img.setData('cardId', null).setTexture(BACK);
-      this.name.setText(info.hidden ? 'Face-down card' : '').setColor(COL.goldTxt);
+      this.name.setText(concealed ? 'Face-down card' : '').setColor(COL.goldTxt);
       this.type.setText('');
       this.attributeIcon.setVisible(false);
       this.levelIcon.setVisible(false);
       this.levelText.setVisible(false);
       this.descTop = this.type.y + 8;
-      this.desc.setText(info.hidden ? 'This card has not been revealed.' : 'Hover over a card to see its details.').setColor(COL.dim);
+      this.desc.setText(concealed ? 'This card has not been revealed.' : 'Hover over a card to see its details.').setColor(COL.dim);
       this.desc.y = this.descTop;
       this.stats.setVisible(false);
       this.bottom = this.fullBottom;
@@ -149,8 +151,8 @@ export class CardPanel {
     if (def.kind === 'monster') {
       const a = info.atk ?? def.atk!, d = info.def ?? def.def!;
       const col = (v: number, b: number) => (v > b ? '#7dffa6' : v < b ? '#ff8a8a' : COL.text);
-      const shownAtk = def.variableStats && info.atk === undefined ? '?' : a;
-      const shownDef = def.variableStats && info.def === undefined ? '?' : d;
+      const shownAtk = cardStat(def.variableStats && info.atk === undefined ? undefined : a);
+      const shownDef = cardStat(def.variableStats && info.def === undefined ? undefined : d);
       this.stats.setScale(1).setText(`ATK ${shownAtk}  /  DEF ${shownDef}`).setVisible(true);
       if (this.stats.width > this.w - 28) this.stats.setScale((this.w - 28) / this.stats.width);
       this.stats.setColor(a !== def.atk || d !== def.def ? col(a + d, def.atk! + def.def!) : COL.text);

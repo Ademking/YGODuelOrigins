@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CARDS, getCard } from '../data/cards';
+import { CARDS, getCard } from '../ocgcore/catalog';
 import { OPPONENTS, STARTERS } from '../data/decks';
 import type { DebugSetup } from '../engine/debug';
 import type { CardDef } from '../engine/types';

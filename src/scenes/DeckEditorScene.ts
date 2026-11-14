@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CARDS, copyLimit, getCard, isExtraDeckCard } from '../data/cards';
+import { CARDS, copyLimit, getCard, isExtraDeckCard } from '../ocgcore/catalog';
 import { loadDecks, saveDecks, selectedDeck, setSelectedDeck, validateDeck } from '../data/decks';
 import type { DeckList } from '../engine/duel';
 import type { Attr, CardDef, Race } from '../engine/types';

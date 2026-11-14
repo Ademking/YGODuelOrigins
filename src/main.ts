@@ -3,21 +3,24 @@ import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SetupScene } from './scenes/SetupScene';
 import { DuelScene } from './scenes/DuelScene';
-import { DeckEditorScene } from './scenes/DeckEditorScene';
 import { DebugScene } from './scenes/DebugScene';
+import { DeckEditorScene } from './scenes/DeckEditorScene';
 import { WatchScene } from './scenes/WatchScene';
-import { H, RES, W } from './ui/theme';
+import { H, W } from './ui/theme';
 
 const options = new URLSearchParams(location.search);
+const canvasMode = options.has('compat') || options.has('compact');
+const availableScale = Math.min(window.innerWidth / W, window.innerHeight / H) * window.devicePixelRatio;
+const boardScale = canvasMode ? 1 : Math.max(1, Math.min(1.5, Math.round(availableScale * 4) / 4));
 const game = new Phaser.Game({
-  type: options.has('compat') ? Phaser.CANVAS : Phaser.AUTO,
+  type: canvasMode ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   callbacks: { postBoot: (game) => {
     game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
   } },
-  // rendered at RES× and zoomed back by each scene's camera (see fitCamera) so nothing is upscaled
-  width: W * RES,
-  height: H * RES,
+  // Give large displays smoother edges without returning to a 2× framebuffer.
+  width: W * boardScale,
+  height: H * boardScale,
   backgroundColor: '#06050d',
   antialias: true,
   dom: { createContainer: true },

@@ -1,11 +1,20 @@
 import type { DeckList } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
-import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from './cards';
+import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from '../ocgcore/catalog';
 import { PREMADE, PREVIOUS_PREMADE } from './premadeDecks';
 
 export interface Opponent { id: string; name: string; title: string; art: string; ace: string; style: string; deck: DeckList; suggested: Difficulty }
 
-export const OPPONENTS: Opponent[] = PREMADE.map(opponent => structuredClone(opponent));
+// Anime debut order, with same-episode characters grouped together.
+const appearanceOrder = [
+  'yugi', 'joey', 'kaiba', 'pegasus', 'weevil', 'rex', 'mai', 'bakura', 'mako', 'panik', 'keith', 'bonz',
+  'paradox', 'rebecca', 'exodia', 'marik', 'espa', 'odion', 'ishizu', 'orichalcos',
+  'jaden', 'syrus', 'chumley', 'bastion', 'chazz', 'alexis', 'crowler', 'zane',
+  'titan', 'atticus', 'camula', 'zaloog', 'amnael', 'kagemaru', 'aster', 'sartorius', 'tyranno', 'jaden-neos', 'jesse', 'axel', 'adrian',
+];
+const appearanceRank = new Map(appearanceOrder.map((id, index) => [id, index]));
+export const OPPONENTS: Opponent[] = PREMADE.map(opponent => structuredClone(opponent))
+  .sort((a, b) => (appearanceRank.get(a.id) ?? Infinity) - (appearanceRank.get(b.id) ?? Infinity));
 export const STARTERS: Record<string, DeckList> = Object.fromEntries(PREMADE.map(opponent => [opponent.name, structuredClone(opponent.deck)]));
 
 /** 2004-style deck rules: 40–60 main, up to 15 Fusion Deck, 3 copies max (or the card's limit). */

@@ -28,6 +28,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('dice_sheet', '/ui/dice.png');
     this.load.image('level_icon', '/ui/icon-level.png');
     this.load.image('exodia_victory', '/ui/exodia-victory.png');
+    for (const god of ['slifer', 'obelisk', 'ra']) this.load.image(`god_${god}`, `/gods/${god}.webp`);
     for (const attribute of ['dark', 'light', 'earth', 'water', 'fire', 'wind', 'divine', 'spell', 'trap']) {
       this.load.image(`attribute_${attribute}`, `/ui/attributes/${attribute}.png`);
     }

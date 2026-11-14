@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { loadDecks, OPPONENTS, selectedDeck, setSelectedDeck, validateDeck, type Opponent } from '../data/decks';
-import { getCard } from '../data/cards';
+import { getCard } from '../ocgcore/catalog';
 import type { DeckList } from '../engine/duel';
 import { BACK } from '../ui/cardArt';
 import { setCardTexture } from '../ui/cardLoader';

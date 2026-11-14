@@ -1,15 +1,19 @@
 import Phaser from 'phaser';
-import { Duel, SURRENDER, opp, type Action, type Card, type Controller, type DeckList, type Phase, type Prompt, type UIEvent } from '../engine/duel';
-import { AIController, type Difficulty } from '../engine/ai';
+import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
+import type { Difficulty } from '../engine/ai';
 import type { Side, Zone } from '../engine/types';
 import type { Opponent } from '../data/decks';
 import { BACK, CARD_K, CH, CW, cardKey, faceKey } from '../ui/cardArt';
 import { cardImagePasscode } from '../data/cardImages';
-import { getCard } from '../data/cards';
+import { getCard } from '../ocgcore/catalog';
+import { loadRuntime } from '../ocgcore/runtime';
+import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
+import { cardStat } from '../ui/cardStat';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
-import { burst, flash, motes, ring } from '../ui/fx';
+import { burst, flash, ring } from '../ui/fx';
+import { debugModeEnabled } from '../ui/debugMode';
 import { sfx } from '../ui/sfx';
 import { volumeControls } from '../ui/settings';
 import { actionIndicator } from '../ui/actionIndicator';
@@ -20,9 +24,10 @@ import { evolveColor, evolveShader } from '../ui/evolveEffect';
 import { fusionVortexShader } from '../ui/fusionVortex';
 import { ritualCircleShader } from '../ui/ritualCircle';
 import { activeFieldMat, FIELD_MATS, fieldArtKey, fieldMatShader, loadFieldArt, type FieldMatName } from '../ui/fieldMat';
-import { prepareDebugDuel, type DebugSetup } from '../engine/debug';
+import type { DebugSetup } from '../engine/debug';
 import { RPS_CHOICES, rpsResult, type RpsChoice } from '../engine/rockPaperScissors';
 import { portraitKey } from '../ui/portraits';
+import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
 /** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
@@ -74,7 +79,7 @@ const PLATE = { x: 20, w: LEFT_W - 16, h: 72, yFoe: 8, yMe: 640, lpX: 88 };
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
 function logLineHtml(line: string, actors: string[]): string {
   const esc = (s: string) => s.replace(/[&<>]/g, (ch) => (ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : '&gt;'));
-  if (/^\W+Turn \d+/.test(line)) return `<div class="turn">${esc(line.replace(/^\W+|\W+$/g, ''))}</div>`;
+  if (/^\W*Turn \d+/.test(line)) return `<div class="turn">${esc(line.replace(/^\W+|\W+$/g, ''))}</div>`;
   const kind = / not |cannot| no /.test(line) ? 'note'
     : /damage|pays \d+|loses \d+/.test(line) ? 'hurt'
       : /gains \d+ LP|recovers/.test(line) ? 'heal'
@@ -84,19 +89,12 @@ function logLineHtml(line: string, actors: string[]): string {
   return `<div class="${kind}">${actor ? `<b>${esc(actor)}</b>${esc(line.slice(actor.length))}` : esc(line)}</div>`;
 }
 
-class HumanController implements Controller {
-  constructor(private scene: DuelScene) {}
-  ask(p: Prompt, duel: Duel): Promise<unknown> { return this.scene.handlePrompt(p, duel); }
-}
-
 type Pending = { p: Prompt; resolve: (v: unknown) => void };
 
 export class DuelScene extends Phaser.Scene {
-  private duel!: Duel;
+  private duel!: OcgDuel;
   private init0!: DuelInit;
   private me: Side = 0;
-  private ai!: AIController;
-  private nearAi: AIController | null = null; // plays the near side when spectating
   private sprites = new Map<number, Phaser.GameObjects.Image>();
   private statTexts = new Map<number, Phaser.GameObjects.Container>();
   private durationBadges = new Map<number, { container: Phaser.GameObjects.Container; label: Phaser.GameObjects.Text }>();
@@ -108,18 +106,22 @@ export class DuelScene extends Phaser.Scene {
   private hoverAny: Card | null = null;
   private cardPanel!: CardPanel;
   private sidePanelX = 0;
+  private revealingGod: number | null = null;
+  private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
   private lpBar: Phaser.GameObjects.Graphics[] = [];
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
   private tiles: Phaser.GameObjects.Graphics[] = [];
+  private disabledZoneOverlay!: Phaser.GameObjects.Graphics;
+  private lastZoneMask = -1;
+  private attackMarker!: Phaser.GameObjects.Graphics;
+  private turnCount!: Phaser.GameObjects.Text;
   private shadowG!: Phaser.GameObjects.Graphics;
   private zoneIcons: (Phaser.GameObjects.Mesh | Phaser.GameObjects.Image)[][] = [[], []];
   private askingSurrender = false;
   /** Cards an effect (attack, flip) is moving right now: layout must not yank them away mid-animation. */
   private busy = new Set<Phaser.GameObjects.Image>();
-  private defaultBackdrop!: ReturnType<typeof duelBackground>;
-  private fieldBackdrop!: ReturnType<typeof duelBackground>;
   private fieldMatName: FieldMatName | null = null;
   private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number } | null = null;
   private skins = new Map<number, Phaser.GameObjects.Mesh>();
@@ -146,7 +148,6 @@ export class DuelScene extends Phaser.Scene {
   private dead = false;
   private ended = false;
   private hoverCard: Card | null = null;
-  private pinnedCard: Card | null = null;
   private minimizedDialog: Phaser.GameObjects.Container | null = null;
 
   constructor() { super('Duel'); }
@@ -178,13 +179,14 @@ export class DuelScene extends Phaser.Scene {
     this.targeting = null;
     this.fieldSelection = null;
     this.overlay = this.dialog = this.logLayer = this.minimizedDialog = null;
-    this.pinnedCard = null;
     this.dragging = null;
     this.dead = this.ended = false;
+    this.revealingGod = null;
+    this.revealedGods.clear();
     this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
     try {
       this.chainMode = (localStorage.getItem('arcana-duel.chain') as 'auto' | 'always') ?? 'auto';
-      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.5 : 1;
+      this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.4 : 1;
       const reduced = localStorage.getItem('arcana-duel.reduced-effects');
       if (reduced !== null) this.reducedEffects = reduced === '1';
     } catch { /* ignore */ }
@@ -192,15 +194,20 @@ export class DuelScene extends Phaser.Scene {
 
   create() {
     fitCamera(this);
+    if (debugModeEnabled()) this.createFpsCounter();
     if (this.game.renderer.type === Phaser.WEBGL) {
       const pipelines = (this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).pipelines;
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
     }
     const d = this.init0;
-    this.fieldBackdrop = duelBackground(this, false).setVisible(false);
-    this.defaultBackdrop = duelBackground(this);
-    this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
+    duelBackground(this, !this.reducedMotion);
+    this.events.once('shutdown', () => { this.dead = true; sfx.stopGodSummon(); this.pending?.resolve(SURRENDER); });
     this.drawBoard();
+    this.lastZoneMask = -1;
+    this.disabledZoneOverlay = this.add.graphics().setDepth(55);
+    this.attackMarker = this.add.graphics().setDepth(340);
+    this.turnCount = txt(this, proj(-EDGE_U, -EDGE_W).x + 8, proj(-EDGE_U, -EDGE_W).y - 6, 'Turn 0', 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
+      .setOrigin(0, 1).setDepth(351);
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
     const sync = () => this.syncSkins();
     this.events.on('postupdate', sync);
@@ -209,17 +216,14 @@ export class DuelScene extends Phaser.Scene {
     this.hlPulse = { a: 1 };
     this.tweens.add({ targets: this.hlPulse, a: 0.55, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
-    this.ai = new AIController(d.level, 550 * this.spd);
-    this.nearAi = d.watch ? new AIController(d.watch.suggested, 550 * this.spd) : null;
-    // The scene object is reused on restart, so events from a previous (surrendered) duel must be ignored.
-    const duel: Duel = new Duel(
-      [d.deck, d.opp.deck],
-      [d.watch?.name ?? 'You', d.opp.name],
-      [this.nearAi ?? new HumanController(this), this.ai],
-      (e) => (duel === this.duel ? this.onDuelEvent(e) : undefined),
-      Math.random,
-      d.startingLP,
+    const duel: OcgDuel = new OcgDuel(
+      [d.deck, d.opp.deck], [d.watch?.name ?? 'You', d.opp.name],
+      d.watch ? null : (prompt, current) => this.handlePrompt(prompt, current),
+      (event) => duel === this.duel ? this.onDuelEvent(event) : undefined,
+      d.startingLP, 200 * this.spd, 200 * this.spd,
+      () => { if (duel === this.duel) this.layout(); },
     );
+    this.events.once('shutdown', () => duel.stop());
     this.duel = duel;
     this.layout(true);
     this.input.dragDistanceThreshold = 8;
@@ -227,7 +231,6 @@ export class DuelScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => {
       if (this.overlay) this.closeMenu();
       else if (this.minimizedDialog) this.minimizePrompt(false);
-      else if (this.pinnedCard) this.pinnedCard = null;
       else if (this.targeting) this.cancelTargeting();
       else if (this.logLayer) this.toggleLogs();
       else this.closeMenu();
@@ -236,7 +239,6 @@ export class DuelScene extends Phaser.Scene {
     const ids = [d.deck, d.opp.deck].flatMap((x) => [...x.main, ...x.extra]).concat(d.debug ? Object.values(d.debug).flat() : []);
     void loadCards(this.textures, ids);
     void (async () => {
-      if (d.debug) prepareDebugDuel(duel, d.debug);
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
       const first = d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
@@ -246,7 +248,8 @@ export class DuelScene extends Phaser.Scene {
         this.showEnd(opp(this.me), 'You surrendered');
         return;
       }
-      await duel.run(!!d.debug, first ?? undefined);
+      const [core, bundle] = await loadRuntime();
+      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined);
     })().catch((error: unknown) => {
       if (this.dead || duel !== this.duel) return;
       const detail = error instanceof Error ? error.message : String(error);
@@ -255,7 +258,25 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
-  private async chooseFirstPlayer(duel: Duel): Promise<Side | null> {
+  private createFpsCounter() {
+    const fps = this.add.text(0, 0, '— FPS', {
+      fontFamily: FONT_N, fontSize: '13px', color: COL.text, backgroundColor: '#14121f',
+      padding: { x: 8, y: 4 },
+    }).setOrigin(1, 0).setDepth(1200);
+    const position = () => {
+      const { width, height } = this.scale.baseSize;
+      const zoom = this.cameras.main.zoom;
+      fps.setPosition(640 + width / (2 * zoom) - 12, H / 2 - height / (2 * zoom) + 12);
+    };
+    position();
+    this.scale.on('resize', position);
+    this.events.once('shutdown', () => this.scale.off('resize', position));
+    this.time.addEvent({ delay: 500, loop: true, callback: () => {
+      fps.setText(`${Math.round(this.game.loop.actualFps)} FPS`);
+    } });
+  }
+
+  private async chooseFirstPlayer(duel: OcgDuel): Promise<Side | null> {
     const ask = async (player?: RpsChoice, opponent?: RpsChoice) => {
       const result = await this.askRps(duel, player, opponent);
       return result === SURRENDER || this.dead || duel !== this.duel ? null : Number(result);
@@ -283,7 +304,7 @@ export class DuelScene extends Phaser.Scene {
    * Rock, Paper, Scissors. With no arguments the three hands are offered; with both picks it plays the showdown:
    * the fists pump three times, both hands open at once, and the winner is lit.
    */
-  private askRps(duel: Duel, player?: RpsChoice, opponent?: RpsChoice): Promise<unknown> {
+  private askRps(duel: OcgDuel, player?: RpsChoice, opponent?: RpsChoice): Promise<unknown> {
     if (this.dead || duel !== this.duel) return Promise.resolve(SURRENDER);
     return new Promise((resolve) => {
       const result = player && opponent ? rpsResult(player, opponent) : null;
@@ -623,6 +644,8 @@ export class DuelScene extends Phaser.Scene {
     this.syncFieldMat();
     this.drawShadows();
     this.drawGlows();
+    this.drawActiveAttack();
+    this.drawDisabledZones();
     for (const [uid, img] of this.sprites) {
       const m = this.skins.get(uid);
       const c = this.duel.byUid(uid);
@@ -651,12 +674,54 @@ export class DuelScene extends Phaser.Scene {
     this.syncDurationBadges();
   }
 
+  private drawActiveAttack() {
+    const graphics = this.attackMarker;
+    graphics.clear();
+    const attack = this.duel.activeAttack;
+    if (!attack || this.ended) return;
+    const attacker = this.sprites.get(attack.attacker.uid);
+    const target = attack.target ? this.sprites.get(attack.target.uid) : undefined;
+    if (!attacker?.visible || !this.duel.onField(attack.attacker)
+      || attack.target && (!target?.visible || !this.duel.onField(attack.target))) return;
+    const outline = (sprite: Phaser.GameObjects.Image, color: number) => {
+      const quad = this.cardQuad({ x: sprite.x, y: sprite.y, angle: sprite.angle, sx: sprite.scaleX, sy: sprite.scaleY },
+        sprite.width, sprite.height, 10, true);
+      graphics.lineStyle(3, color, 1).strokePoints(quad, true);
+    };
+    outline(attacker, COL.gold);
+    if (target) outline(target, COL.red);
+  }
+
+  private zoneOutline(side: Side, zone: Zone, slot: number) {
+    const cell = this.cell(side, zone, slot);
+    const main = zone === 'mzone' || zone === 'szone';
+    const hu = main ? ZONE_HU : cell.hu;
+    const hw = main ? ZONE_HW : cell.hw;
+    return this.quad(cell.u - hu, cell.u + hu, cell.w - hw, cell.w + hw);
+  }
+
+  private drawDisabledZones() {
+    const mask = this.duel.disabledZones;
+    if (mask === this.lastZoneMask) return;
+    this.lastZoneMask = mask;
+    const g = this.disabledZoneOverlay.clear();
+    for (const side of [0, 1] as const) {
+      for (const [zone, slots, offset] of [['mzone', 5, 0], ['szone', 5, 8], ['fzone', 1, 13]] as const) {
+        for (let slot = 0; slot < slots; slot++) {
+          if (!((mask >>> (side * 16 + offset + slot)) & 1)) continue;
+          const q = this.zoneOutline(side, zone, slot);
+          g.fillStyle(0x66243d, 0.55).fillPoints(q, true);
+          g.lineStyle(2, COL.red, 0.8).strokePoints(q, true)
+            .lineBetween(q[0].x, q[0].y, q[2].x, q[2].y).lineBetween(q[1].x, q[1].y, q[3].x, q[3].y);
+        }
+      }
+    }
+  }
+
   private syncFieldMat() {
     const name = activeFieldMat(this.duel.players.map((player) => player.f));
     if (name === this.fieldMatName) return;
     this.fieldMatName = name;
-    this.defaultBackdrop.setVisible(!name);
-    this.fieldBackdrop.setVisible(!!name);
     const previous = this.fieldMat;
     this.fieldMat = null;
     if (previous) {
@@ -717,7 +782,7 @@ export class DuelScene extends Phaser.Scene {
     for (const side of [0, 1] as Side[]) {
       for (const card of this.duel.fieldCards(side)) {
         const counters = Object.values(card.data.ctr ?? {}).reduce<number>((sum, count) => sum + (typeof count === 'number' ? count : 0), 0);
-        if (!card.faceUp || (!card.def.lifetime && !counters)) continue;
+        if (!card.faceUp || (!card.def.lifetime && card.data.turnCounter === undefined && !counters)) continue;
         const sprite = this.sprites.get(card.uid);
         if (!sprite?.visible || sprite.alpha <= 0) continue;
         visible.add(card.uid);
@@ -734,7 +799,7 @@ export class DuelScene extends Phaser.Scene {
         const x = Math.min(...corners.map((point) => point.x)) + 10;
         const y = Math.min(...corners.map((point) => point.y)) + 10;
         badge.container.setPosition(x, y).setAlpha(sprite.alpha);
-        const remaining = [card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
+        const remaining = [card.data.turnCounter !== undefined ? String(card.data.turnCounter) : card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
         if (badge.label.text !== remaining) badge.label.setText(remaining);
       }
     }
@@ -835,7 +900,7 @@ export class DuelScene extends Phaser.Scene {
       } else {
         const duelist = watched ?? this.init0.opp;
         const portrait = portraitKey(duelist.id);
-        if (portrait) this.add.image(px, py, portrait).setDisplaySize(46, 55);
+        if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
         else this.add.text(px, py, duelist.art, { fontSize: '22px' }).setOrigin(0.5);
       }
       this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
@@ -907,10 +972,7 @@ export class DuelScene extends Phaser.Scene {
         if (this.dragMoved) return;
         if (ptr.rightButtonReleased()) {
           if (this.targeting) this.cancelTargeting();
-          else if (this.canSee(c)) {
-            this.pinnedCard = this.pinnedCard === c ? null : c;
-            this.hover(c);
-          }
+          else if (this.canSee(c)) this.hover(c);
           return;
         }
         this.clickCard(c);
@@ -933,8 +995,10 @@ export class DuelScene extends Phaser.Scene {
   /** A choice between labelled options (Types, Attributes, coin calls…), laid out in a grid. */
   private showOptions(text: string, options: string[]) {
     this.closeDialog();
-    const cols = options.length > 6 ? 4 : 1;
-    const bw = cols > 1 ? 180 : 360, bh = 34, rows = Math.ceil(options.length / cols);
+    const long = options.some(option => option.length > 42);
+    const cols = options.length > 6 ? (long ? 2 : 4) : 1;
+    const bw = long ? (cols > 1 ? 330 : 530) : cols > 1 ? 180 : 360;
+    const bh = long ? 64 : 34, rows = Math.ceil(options.length / cols);
     const w = cols * (bw + 10) + 40, h = 90 + rows * (bh + 6);
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.35));
@@ -945,7 +1009,7 @@ export class DuelScene extends Phaser.Scene {
     layer.add(title);
     options.forEach((o, i) => {
       const x = x0 + 20 + (i % cols) * (bw + 10) + bw / 2, y = y0 + 64 + Math.floor(i / cols) * (bh + 6) + bh / 2;
-      layer.add(button(this, x, y, bw, bh, o, () => this.choose(i), { size: 12 }));
+      layer.add(button(this, x, y, bw, bh, o, () => this.choose(i), { size: 12, wrap: long }));
     });
     this.dialog = layer;
   }
@@ -968,12 +1032,14 @@ export class DuelScene extends Phaser.Scene {
       const mine = s === this.me;
       const pile = (arr: Card[], z: Zone, face: boolean) => arr.forEach((c, i) => {
         const p = this.zonePos(s, z);
-        this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, dur);
+        // Only the exposed top and edges of a face-down stack contribute to the board.
+        const visible = i >= arr.length - 6;
+        this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, visible ? dur : 0, visible);
       });
       pile(P.deck, 'deck', false);
       pile(P.extra, 'extra', false);
       pile(P.gy, 'gy', true);
-      pile(P.banished, 'banished', true);
+      pile(d.banishedFor(s), 'banished', true);
       const n = P.hand.length;
       const opponentScale = Math.min(OPP_HAND_SCALE, Math.max(1, 420 - Math.max(0, n - 1) * 4) / (Math.max(n, 1) * CW));
       const sp = mine ? Math.min(92, 600 / Math.max(n, 1)) : CW * opponentScale + 4;
@@ -1004,9 +1070,12 @@ export class DuelScene extends Phaser.Scene {
     this.refreshHighlights();
   }
 
-  private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number) {
+  private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number, visible = true) {
     const s = this.sprite(c);
     if (this.busy.has(s)) return; // its effect calls layout again when it finishes
+    visible = visible && c.uid !== this.revealingGod;
+    s.setVisible(visible);
+    if (s.input) s.input.enabled = visible;
     if (face && s.getData('cardId') !== c.def.id) setCardTexture(s, c.def.id);
     else if (!face) {
       s.setData('cardId', null);
@@ -1029,7 +1098,7 @@ export class DuelScene extends Phaser.Scene {
     this.statTexts.clear();
     for (const s of [0, 1] as Side[]) {
       this.duel.players[s].m.forEach((c, i) => {
-        if (!c || (!c.faceUp && c.ctrl !== this.me)) return;
+        if (!c || c.uid === this.revealingGod || (!c.faceUp && c.ctrl !== this.me)) return;
         const p = this.zonePos(s, 'mzone', i);
         const a = this.duel.atk(c), df = this.duel.defv(c);
         const badgeAtBottom = s === this.me || (this.hologramsEnabled && c.faceUp);
@@ -1037,13 +1106,13 @@ export class DuelScene extends Phaser.Scene {
         const ys = this.cardQuad({ x: p.x, y: p.y, angle: 0, sx: sc, sy: sc }, CW, CH, 0, true).map((q) => q.y);
         const style = { fontFamily: FONT_N, fontSize: '11px', fontStyle: 'bold' };
         const statColor = (value: number, original: number | undefined, active: boolean) => {
-          if (original !== undefined && value > original) return active ? '#7dffb0' : '#54b57d';
-          if (original !== undefined && value < original) return active ? '#ff8aa0' : '#ca7483';
+          if (value >= 0 && original !== undefined && original >= 0 && value > original) return active ? '#7dffb0' : '#54b57d';
+          if (value >= 0 && original !== undefined && original >= 0 && value < original) return active ? '#ff8aa0' : '#ca7483';
           return active ? '#fff6e0' : '#8f8aa3';
         };
-        const atk = this.add.text(0, 3, String(a), { ...style, color: statColor(a, c.def.atk, c.pos === 'atk') });
+        const atk = this.add.text(0, 3, cardStat(a), { ...style, color: statColor(a, c.def.atk, c.pos === 'atk') });
         const separator = this.add.text(0, 3, ' / ', { ...style, color: '#7c6638' });
-        const def = this.add.text(0, 3, String(df), { ...style, color: statColor(df, c.def.def, c.pos === 'def') });
+        const def = this.add.text(0, 3, cardStat(df), { ...style, color: statColor(df, c.def.def, c.pos === 'def') });
         const width = atk.width + separator.width + def.width + 14;
         const height = Math.max(atk.height, separator.height, def.height) + 5;
         atk.x = 7;
@@ -1062,7 +1131,7 @@ export class DuelScene extends Phaser.Scene {
     for (const t of this.counts) {
       const [s, z] = (t.getData('k') as string).split(':');
       const P = this.duel.players[Number(s) as Side];
-      const n = { deck: P.deck.length, extra: P.extra.length, gy: P.gy.length, banished: P.banished.length }[z as 'deck'] ?? 0;
+      const n = { deck: P.deck.length, extra: P.extra.length, gy: P.gy.length, banished: this.duel.banishedFor(Number(s) as Side).length }[z as 'deck'] ?? 0;
       t.setText(String(n)).setVisible(n > 0);
     }
   }
@@ -1072,7 +1141,7 @@ export class DuelScene extends Phaser.Scene {
     this.hlWant.clear();
     if (this.fieldSelection) {
       for (const card of this.fieldSelection.prompt.cards) {
-        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) ? 0xffffff : COL.gold);
+        this.hlWant.set(card.uid, this.fieldSelection.chosen.has(card) || this.fieldSelection.prompt.marked?.includes(card) ? 0x53ffad : 0xffcf48);
       }
       return;
     }
@@ -1094,9 +1163,9 @@ export class DuelScene extends Phaser.Scene {
     const want = new Map(this.hlWant);
     const hv = this.hoverAny;
     if (hv && this.sprites.has(hv.uid) && !this.dialog && !this.overlay) {
-      want.set(hv.uid, HOVER_GLOW);
+      if (!this.fieldSelection) want.set(hv.uid, HOVER_GLOW);
       const target = hv.zone === 'szone' && hv.faceUp ? this.duel.equippedTo(hv) : undefined;
-      if (target?.faceUp && this.sprites.has(target.uid)) want.set(target.uid, EQUIP_TARGET_GLOW);
+      if (!this.fieldSelection && target?.faceUp && this.sprites.has(target.uid)) want.set(target.uid, EQUIP_TARGET_GLOW);
     }
     for (const [uid, color] of want) {
       const img = this.sprites.get(uid);
@@ -1107,6 +1176,12 @@ export class DuelScene extends Phaser.Scene {
       const t = { x: img.x, y: img.y, angle: img.angle, sx: img.scaleX, sy: img.scaleY };
       const field = this.onBoard(c) && this.dragging !== img;
       const q = (pad: number) => this.cardQuad(t, img.width, img.height, pad, field);
+      if (this.fieldSelection) {
+        g.setVisible(true).setDepth(Math.max(img.depth, this.holograms.get(uid)?.depth ?? 0) + 2).setAlpha(1);
+        g.lineStyle(8, 0x11101a, 0.95).strokePoints(q(7), true);
+        g.lineStyle(4, color, 1).strokePoints(q(7), true);
+        continue;
+      }
       const hovered = color === HOVER_GLOW;
       g.setVisible(true).setDepth(img.depth - 0.5).setAlpha(hovered || color === EQUIP_TARGET_GLOW ? 1 : this.hlPulse.a);
       if (this.holograms.get(uid)?.visible) {
@@ -1123,7 +1198,6 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private hover(c: Card) {
-    if (this.pinnedCard && this.pinnedCard !== c) return;
     const vis = this.canSee(c);
     const notes: string[] = [];
     if (this.duel.onField(c) && vis) {
@@ -1131,8 +1205,9 @@ export class DuelScene extends Phaser.Scene {
       if (eq.length) notes.push(`Equipped: ${eq.join(', ')}`);
       if (c.equipTo !== undefined) { const t = this.duel.byUid(c.equipTo); if (t) notes.push(`Equipped to: ${t.def.name}`); }
       if (!c.faceUp) notes.push('(Set face-down)');
-      if (c.def.lifetime) notes.push(`Turns remaining: ${c.def.lifetime - c.counter}`);
-      if (c.faceUp) for (const [kind, count] of Object.entries(c.data.ctr ?? {})) if (typeof count === 'number' && count > 0) notes.push(`${kind} counters: ${count}`);
+      if (c.data.turnCounter !== undefined) notes.push(`Turn counter: ${c.data.turnCounter}`);
+      else if (c.def.lifetime) notes.push(`Turns remaining: ${c.def.lifetime - c.counter}`);
+      if (c.faceUp) for (const [kind, count] of Object.entries(c.data.ctr ?? {})) if (typeof count === 'number' && count > 0) notes.push(`${kind === '1' ? 'Spell Counter' : /^\d+$/.test(kind) ? 'Counter' : kind}: ${count}`);
     }
     const onM = c.zone === 'mzone' && c.faceUp;
     if (vis && c.zone === 'mzone' && c.data.nameAs?.turn === this.duel.turn) {
@@ -1257,10 +1332,7 @@ export class DuelScene extends Phaser.Scene {
     const acts = this.actionsByCard.get(c.uid);
     if (acts?.length && this.pending?.p.t === 'main' && !this.dialog) return this.actionMenu(c, acts);
     if (['gy', 'banished'].includes(c.zone)) this.openPile(c.owner, c.zone);
-    else if (this.canSee(c)) {
-      this.pinnedCard = this.pinnedCard === c ? null : c;
-      this.hover(c);
-    }
+    else if (this.canSee(c)) this.hover(c);
   }
 
   private label(a: Action): string {
@@ -1273,8 +1345,8 @@ export class DuelScene extends Phaser.Scene {
       case 'gemini': return 'Gemini Summon';
       case 'sset': return 'Set';
       case 'act': {
-        const e = a.card.def.effects![a.eff];
-        return e.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
+        const e = a.card.def.effects?.[a.eff];
+        return a.description ?? e?.label ?? (a.card.def.kind === 'monster' ? 'Activate Effect' : 'Activate');
       }
       case 'attack': return a.target ? 'Attack' : 'Direct Attack';
       case 'phase': return a.to;
@@ -1284,7 +1356,9 @@ export class DuelScene extends Phaser.Scene {
   private actionMenu(c: Card, acts: Action[]) {
     this.closeMenu();
     const attacks = acts.filter((a) => a.a === 'attack');
-    const items: { label: string; run: () => void }[] = acts.filter((a) => a.a !== 'attack').map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
+    const items: { label: string; run: () => void }[] = acts.filter((a) => a.a !== 'attack')
+      .sort((a, b) => Number(b.a === 'act') - Number(a.a === 'act'))
+      .map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
     if (attacks.length === 1) items.unshift({ label: this.label(attacks[0]), run: () => this.choose(attacks[0]) });
     else if (attacks.length > 1) items.unshift({ label: 'Attack…', run: () => this.startTargeting(c, attacks) });
     const s = this.sprites.get(c.uid)!;
@@ -1365,7 +1439,7 @@ export class DuelScene extends Phaser.Scene {
   }
 
   // ================================================================== prompts
-  handlePrompt(p: Prompt, duel: Duel): Promise<unknown> {
+  handlePrompt(p: Prompt, duel: OcgDuel): Promise<unknown> {
     if (this.dead || duel !== this.duel) return Promise.resolve(SURRENDER);
     return new Promise((resolve) => {
       if (p.t === 'chain' && this.shouldAutoPass(p)) { resolve(null); return; }
@@ -1386,7 +1460,12 @@ export class DuelScene extends Phaser.Scene {
         case 'chain': {
           const opts = p.actions.filter((a): a is Extract<Action, { a: 'act' }> => a.a === 'act');
           sfx.chain();
-          this.showDialog('Chain?', `${p.text}\nActivate a card in response?`, [
+          const attack = this.duel.activeAttack;
+          const target = attack?.target;
+          const context = attack
+            ? `${attack.attacker.def.name} → ${target ? target.faceUp || target.ctrl === this.me ? target.def.name : 'Face-down monster' : 'Direct attack'}`
+            : '';
+          this.showDialog('Chain?', [context, p.text, 'Activate a card in response?'].filter(Boolean).join('\n'), [
             ...opts.map((a) => ({ label: `Activate ${a.card.def.name}`, run: () => this.choose(a), hover: a.card })),
             { label: 'No', run: () => this.choose(null) },
           ]);
@@ -1402,7 +1481,15 @@ export class DuelScene extends Phaser.Scene {
             { label: 'Yes', run: () => this.choose(true) }, { label: 'No', run: () => this.choose(false) },
           ]);
           break;
+        case 'announce': void modal(this, { title: p.text, input: '', ok: 'Declare', cancel: 'Retry' }).then(function resolve(this: DuelScene, value: string | boolean | null) {
+          if (this.pending?.p !== p) return;
+          const query = typeof value === 'string' ? value.trim().toLowerCase() : '';
+          const card = p.cards.find(card => String(card.code) === query || card.name.toLowerCase() === query);
+          if (card) this.choose(card.code);
+          else void modal(this, { title: p.text, input: query, ok: 'Declare', cancel: 'Retry' }).then(resolve.bind(this));
+        }.bind(this)); break;
         case 'position': this.showPosition(p.card); break;
+        case 'zones': this.showZoneSelection(p); break;
         case 'option': this.showOptions(p.text, p.options); break;
         case 'replay':
           this.showDialog('Replay', `The battle field changed. Choose a new target for ${p.attacker.def.name}, or stop the attack.`, [
@@ -1416,8 +1503,9 @@ export class DuelScene extends Phaser.Scene {
 
   private shouldAutoPass(p: Extract<Prompt, { t: 'chain' }>): boolean {
     if (this.chainMode === 'always') return false;
+    if (p.core) return p.optionalWindow === true;
     const ev = p.ev;
-    const specific = p.actions.some((a) => { const e = a.a === 'act' ? a.card.def.effects![a.eff] : undefined; return !!(e && (e.on || e.when || e.phase)); });
+    const specific = p.actions.some((a) => { const e = a.a === 'act' ? a.card.def.effects?.[a.eff] : undefined; return !!(e && (e.on || e.when || e.phase)); });
     if (specific) return false;
     switch (ev.e) {
       case 'chain': return ev.link.p === this.me;
@@ -1521,6 +1609,42 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  private showZoneSelection(prompt: Extract<Prompt, { t: 'zones' }>) {
+    this.closeDialog();
+    const layer = this.add.container(0, 0).setDepth(850);
+    const selected = new Set<number>();
+    const top = H / 2 - this.scale.baseSize.height / (2 * this.cameras.main.zoom) + 12;
+    const label = htxt(this, CX - 76, top + 22, '', 14, COL.goldTxt).setOrigin(0.5);
+    layer.add(panel(this, CX - 228, top, 456, 44, 0.98));
+    layer.add(label);
+    const confirm = button(this, CX + 142, top + 22, 132, 32, 'Confirm', () => this.choose([...selected]), { size: 13, primary: true });
+    const update = () => {
+      label.setText(`Disable zones · ${selected.size}/${prompt.count}`);
+      confirm.setEnabled(selected.size === prompt.count);
+    };
+    prompt.zones.forEach(({ side, zone, slot }, index) => {
+      const points = this.zoneOutline(side, zone, slot);
+      const tile = this.add.graphics();
+      const paint = () => {
+        const chosen = selected.has(index);
+        tile.clear().fillStyle(chosen ? COL.red : COL.gold, chosen ? 0.48 : 0.18).fillPoints(points, true)
+          .lineStyle(chosen ? 4 : 2, chosen ? COL.red : COL.gold, 1).strokePoints(points, true);
+      };
+      paint();
+      tile.setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains, true);
+      tile.on('pointerup', () => {
+        if (selected.has(index)) selected.delete(index);
+        else if (selected.size < prompt.count) selected.add(index);
+        paint();
+        update();
+      });
+      layer.add(tile);
+    });
+    layer.add(confirm);
+    update();
+    this.dialog = layer;
+  }
+
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {
     const layer = this.add.container(0, 0).setDepth(850);
     const title = htxt(this, CX, 62, prompt.text, 14).setOrigin(0.5);
@@ -1529,8 +1653,13 @@ export class DuelScene extends Phaser.Scene {
     layer.add(title);
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
-    const confirm = single ? null : button(this, CX, 110, 160, 32, 'Confirm', () => this.choose([...chosen]), { size: 12, primary: true });
-    if (confirm) { confirm.setEnabled(false); layer.add(confirm); }
+    const hasSecondary = prompt.finish || prompt.cancel;
+    const confirm = single ? null : button(this, hasSecondary ? CX - 66 : CX, 110, 160, 32, 'Confirm', () => this.choose([...chosen]), { size: 12, primary: true });
+    if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
+    if (prompt.finish || prompt.cancel) {
+      layer.add(button(this, single ? CX : CX + 86, 110, 120, 32, prompt.finish ? 'Confirm' : 'Cancel',
+        () => this.choose(null), { size: 12 }));
+    }
     this.fieldSelection = { prompt, chosen, layer, confirm };
     this.refreshHighlights();
   }
@@ -1559,14 +1688,11 @@ export class DuelScene extends Phaser.Scene {
       slice.forEach((c, i) => {
         const x = CX + (i - (slice.length - 1) / 2) * 98, y = y0 + 176;
         // your own off-field cards (deck, hand, Fusion Deck) are always shown face-up to you when choosing
-        const vis = !!p.reveal || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
+        const vis = !!p.reveal || !!p.showCardFaces || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
         const img = this.add.image(x, y, vis ? faceKey(this.textures, c.def.id) : BACK).setScale(0.42 * CARD_K).setInteractive({ useHandCursor: true });
         if (vis) setCardTexture(img, c.def.id);
         const sel = chosen.has(c);
-        const frame = this.add.graphics();
-        frame.fillStyle(COL.panel2, 1).fillPoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
-        frame.lineStyle(sel ? 2 : 1, sel ? COL.gold : COL.line, 1).strokePoints(chamfer(x - 46, y - 67, 92, 134, 6), true);
-        grid.add(frame);
+        const mark = sel ? htxt(this, x, y + 74, '✓', 16, COL.goldTxt).setOrigin(0.5) : null;
         img.on('pointerover', () => this.cardPanel.show(c.def, { hidden: !vis }));
         img.on('pointerup', () => {
           if (single) return this.choose([c]);
@@ -1575,17 +1701,19 @@ export class DuelScene extends Phaser.Scene {
           render();
         });
         grid.add(img);
+        if (mark) grid.add(mark);
       });
       if (pages > 1) {
         if (page > 0) grid.add(button(this, x0 + 34, y0 + 176, 34, 48, '‹', () => { page--; render(); }, { size: 24 }));
         if (page < pages - 1) grid.add(button(this, x0 + w - 34, y0 + 176, 34, 48, '›', () => { page++; render(); }, { size: 24 }));
       }
       if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
-      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click a card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})${p.validate ? ' · total Levels must meet the requirement' : ''}`);
+      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click one card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})`);
       ok.setVisible(!single).setEnabled(valid());
     };
     render();
     layer.add(button(this, x0 + w - 100, y0 + h - 30, 160, 35, 'Inspect field', () => this.minimizePrompt(true), { size: 12 }));
+    if (p.cancel) layer.add(button(this, x0 + 85, y0 + h - 30, 120, 35, 'Cancel', () => this.choose(null), { size: 12 }));
     this.dialog = layer;
   }
 
@@ -1604,8 +1732,10 @@ export class DuelScene extends Phaser.Scene {
       layer.add(img);
       layer.add(button(this, x, CY + 100, 170, 36, label, () => this.choose(v), { size: 14 }));
     };
-    mk(CX - 100, 0, `Attack (${c.def.atk})`, 'atk');
-    mk(CX + 100, 90, `Defense (${c.def.def})`, 'def');
+    const positionLabel = (label: string, value: number | undefined) =>
+      c.def.kind === 'monster' ? `${label} (${cardStat(c.def.variableStats ? undefined : value)})` : label;
+    mk(CX - 100, 0, positionLabel('Attack', c.def.atk), 'atk');
+    mk(CX + 100, 90, positionLabel('Defense', c.def.def), 'def');
     this.cardPanel.show(c.def);
     this.dialog = layer;
   }
@@ -1613,7 +1743,7 @@ export class DuelScene extends Phaser.Scene {
   private openPile(s: Side, z: Zone) {
     if (this.overlay) return;
     const P = this.duel.players[s];
-    const cards = ({ gy: P.gy, banished: P.banished, extra: P.extra, deck: [] } as Record<string, Card[]>)[z] ?? [];
+    const cards = ({ gy: P.gy, banished: this.duel.banishedFor(s), extra: P.extra, deck: [] } as Record<string, Card[]>)[z] ?? [];
     if (z === 'extra' && s !== this.me) return;
     if (this.dialog && !this.minimizedDialog) return;
     if (!cards.length) return;
@@ -1685,11 +1815,10 @@ export class DuelScene extends Phaser.Scene {
         try { localStorage.setItem('arcana-duel.chain', this.chainMode); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
       }],
-      [`Speed: ${this.spd < 1 ? 'Fast' : 'Normal'}`, () => {
-        this.spd = this.spd < 1 ? 1 : 0.5;
-        this.ai.delay = 550 * this.spd;
-        if (this.nearAi) this.nearAi.delay = 550 * this.spd;
-        try { localStorage.setItem('arcana-duel.fast', this.spd < 1 ? '1' : '0'); } catch { /* ignore */ }
+      [`Speed: ${this.spd < 0.7 ? 'Fast' : 'Normal'}`, () => {
+        this.spd = this.spd < 0.7 ? 1 : 0.4;
+        this.duel.delay = this.duel.nearDelay = 200 * this.spd;
+        try { localStorage.setItem('arcana-duel.fast', this.spd < 0.7 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
       }],
       ['Volume', () => this.showVolume()],
@@ -1737,10 +1866,11 @@ export class DuelScene extends Phaser.Scene {
 
   private surrender() {
     if (this.ended) return;
-    this.duel.surrender(this.me);
+    this.duel.stop();
     const p = this.pending;
     this.pending = null;
     p?.resolve(SURRENDER);
+    this.showEnd(opp(this.me), 'You surrendered');
   }
 
   private toggleLogs() {
@@ -1787,6 +1917,7 @@ export class DuelScene extends Phaser.Scene {
         await this.ritualFx(e.card);
         return;
       case 'turn':
+        this.turnCount.setText(`Turn ${e.turn}`);
         this.drawTurnGlow(e.player);
         sfx.turn();
         await this.banner(this.init0.watch ? `${this.duel.name(e.player)}'s Turn` : e.player === this.me ? 'Your Turn' : "Opponent's Turn", 750 * s, this.init0.watch ? 30 : 46);
@@ -1799,12 +1930,20 @@ export class DuelScene extends Phaser.Scene {
       case 'draw': {
         sfx.draw();
         this.layout();
-        await wait(this, 160 * s);
+        await wait(this, 240 * s);
         return;
       }
-      case 'move': case 'stat': case 'pos':
+      case 'move':
+        if (e.to !== 'mzone') this.revealedGods.delete(e.card.uid);
+        if (e.to === 'mzone' && e.from !== 'mzone' && e.card.faceUp) {
+          if (await this.godSummonFx(e.card)) this.revealedGods.add(e.card.uid);
+        }
         this.layout();
-        await wait(this, (e.t === 'move' ? 230 : 160) * s);
+        await wait(this, 230 * s);
+        return;
+      case 'stat': case 'pos':
+        this.layout();
+        await wait(this, 160 * s);
         return;
       case 'set':
         sfx.set();
@@ -2156,21 +2295,117 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private async summonFx(c: Card, how: Extract<UIEvent, { t: 'summon' }>['how']) {
+    if (how !== 'flip') {
+      const alreadyRevealed = this.revealedGods.delete(c.uid);
+      if (alreadyRevealed || await this.godSummonFx(c)) {
+        this.layout();
+        await wait(this, 260 * this.spd);
+        return;
+      }
+    }
     if (how === 'normal') sfx.summon();
     else if (how !== 'flip') sfx.specialSummon();
     this.layout();
     const s = this.sprites.get(c.uid);
     if (!s || this.dead) return;
     await wait(this, 240 * this.spd);
-    if (how !== 'flip') {
-      this.evolveFx(c);
-      const tint = evolveColor(c.def, true);
-      burst(this, s.x, s.y + 24, tint, { n: how === 'normal' ? 16 : 26, angle: [225, 315], speed: [70, 250], gravity: -80, life: 700, spread: 26, depth: 62 });
-    }
-    const base = s.scale;
-    s.setScale(base * 1.5);
-    this.tweens.add({ targets: s, scale: base, duration: 300 * this.spd, ease: 'Back.out' });
+    if (this.dead || !s.active) return;
+    if (how !== 'flip') this.evolveFx(c);
     await wait(this, 420 * this.spd);
+  }
+
+  /** Runs on the summon event, after the engine has paid tributes/resolved the summoning effect. */
+  private async godSummonFx(card: Card): Promise<boolean> {
+    const gods: Record<string, { key: string; color: number; text: string }> = {
+      '10000020': { key: 'slifer', color: 0xf24852, text: '#ff5964' },
+      '10000000': { key: 'obelisk', color: 0x379cff, text: '#58b6ff' },
+      '10000010': { key: 'ra', color: 0xffcd43, text: '#ffda62' },
+    };
+    const god = gods[cardImagePasscode(card.def.id) ?? ''];
+    if (!god || !this.textures.exists(`god_${god.key}`)) return false;
+    this.revealingGod = card.uid;
+    this.layout();
+    sfx.godSummon();
+    const layer = this.add.container(0, 0).setDepth(850);
+    const shade = this.add.rectangle(CX, H / 2, 1, H, 0x03040c, 0.88).setAlpha(0);
+    const energy = !this.reducedMotion && this.game.renderer.type === Phaser.WEBGL
+      ? this.add.shader(new Phaser.Display.BaseShader('god-reveal', godSummonShader(god.color), undefined, {
+        opacity: { type: '1f', value: 0 }, surge: { type: '1f', value: 0 },
+      }), CX, H / 2, 960, H) : null;
+    const energyState = { opacity: 0, surge: 0 };
+    const plate = this.add.graphics();
+    const mask = this.make.graphics({ x: 0, y: 0 });
+    const clip = mask.createGeometryMask();
+    layer.setMask(clip);
+    const resize = () => {
+      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
+      const height = this.scale.baseSize.height / this.cameras.main.zoom;
+      const left = this.sidePanelX + 12 + LEFT_W;
+      const right = 640 + fullWidth / 2;
+      const width = Math.max(1, right - left);
+      shade.setPosition((left + right) / 2, H / 2).setDisplaySize(width, height);
+      // Cover the entire duel viewport, with no fixed-width caption rectangle.
+      plate.clear();
+      const bottom = (H + height) / 2;
+      for (let y = 455; y < bottom; y += 4) {
+        const opacity = Math.sin(Math.min(1, (y - 455) / 150) * Math.PI / 2) * 0.88;
+        plate.fillStyle(0x03040c, opacity).fillRect(left, y, width, Math.min(4, bottom - y));
+      }
+      energy?.setPosition((left + right) / 2, H / 2).setSize(width, height).updateDisplayOrigin();
+      mask.clear().fillStyle(0xffffff).fillRect(left, (H - height) / 2, width, height);
+    };
+    resize();
+    this.scale.on('resize', resize);
+    const art = this.add.image(CX, 295, `god_${god.key}`).setAlpha(0);
+    const scale = Math.min(850 / art.width, 550 / art.height);
+    art.setScale(scale * (this.reducedMotion ? 1 : 0.94));
+    const subtitle = this.add.text(CX, 551, 'EGYPTIAN GOD', {
+      fontFamily: FONT_H, fontSize: '15px', color: '#d6d3df',
+    }).setOrigin(0.5).setLetterSpacing(5);
+    const name = this.add.text(CX, 592, card.def.name.toUpperCase(), {
+      fontFamily: FONT_H, fontSize: '32px', color: god.text, fontStyle: 'bold',
+    }).setOrigin(0.5).setStroke('#080914', 4);
+    if (name.width > 790) name.setScale(790 / name.width);
+    const caption = this.add.container(0, this.reducedMotion ? 0 : 16, [subtitle, name]).setAlpha(0);
+    layer.add([shade, ...(energy ? [energy] : []), art, plate, caption]);
+    const duration = this.reducedMotion ? 200 : 800;
+    try {
+      this.tweens.add({ targets: shade, alpha: 1, duration: 220 });
+      if (energy) {
+        this.tweens.add({ targets: energyState, opacity: 1, surge: 1, duration: 280, ease: 'Cubic.in',
+          onUpdate: () => { if (energy.active) {
+            energy.setUniform('opacity.value', energyState.opacity);
+            energy.setUniform('surge.value', energyState.surge);
+          } } });
+        await wait(this, 280);
+        this.tweens.add({ targets: energyState, surge: 0.15, duration: 650, ease: 'Sine.out',
+          onUpdate: () => { if (energy.active) energy.setUniform('surge.value', energyState.surge); } });
+      }
+      await this.tw({ targets: art, alpha: 1, scale, duration, ease: 'Cubic.out' });
+      if (this.dead) return true;
+      await this.tw({ targets: caption, alpha: 1, y: 0, duration: 240, ease: 'Cubic.out' });
+      if (!this.reducedMotion) this.tweens.add({ targets: art, scale: scale * 1.035, y: 288,
+        duration: 1850, ease: 'Sine.inOut' });
+      await wait(this, this.reducedMotion ? 700 : 1850);
+      sfx.fadeGodSummon(650);
+      if (!this.dead) await this.tw({ targets: [art, caption], alpha: 0,
+        duration: this.reducedMotion ? 180 : 650, ease: 'Sine.inOut' });
+      if (!this.dead) {
+        // Phaser Shader objects do not inherit Container alpha: fade the uniform explicitly.
+        if (energy) this.tweens.add({ targets: energyState, opacity: 0, duration: 320,
+          onUpdate: () => { if (energy.active) energy.setUniform('opacity.value', energyState.opacity); } });
+        await this.tw({ targets: layer, alpha: 0, duration: 320, ease: 'Sine.in' });
+      }
+    } finally {
+      this.scale.off('resize', resize);
+      for (const object of [shade, energyState, art, caption, layer]) this.tweens.killTweensOf(object);
+      layer.destroy();
+      clip.destroy();
+      mask.destroy();
+      sfx.stopGodSummon();
+      this.revealingGod = null;
+    }
+    return true;
   }
 
   private async flipFx(c: Card) {
@@ -2186,7 +2421,7 @@ export class DuelScene extends Phaser.Scene {
     s.setScale(sx, s.scaleY);
     this.busy.delete(s);
     this.layout();
-    this.hover(c);
+    this.hover(this.hoverAny ?? c);
     await wait(this, 220 * this.spd);
   }
 
@@ -2197,7 +2432,8 @@ export class DuelScene extends Phaser.Scene {
       await wait(this, 240 * this.spd);
       this.evolveFx(c);
     }
-    this.cardPanel.show(c.def);
+    if (this.hoverAny) this.hover(this.hoverAny);
+    else this.cardPanel.show(c.def);
     const big = this.add.image(CX, Y.phase, faceKey(this.textures, c.def.id)).setScale(0.2 * CARD_K).setAlpha(0).setDepth(820);
     const tint = c.def.kind === 'trap' ? 0xff60b0 : c.def.kind === 'spell' ? 0x40ffd0 : 0xffb040;
     flash(this, CX, Y.phase, tint, 150, 600 * this.spd, 819);
@@ -2244,47 +2480,31 @@ export class DuelScene extends Phaser.Scene {
       await wait(this, 120 * speed);
       return;
     }
-    const origin = { x: sprite.x, y: sprite.y, scale: sprite.scale };
-    const dx = destination.x - origin.x, dy = destination.y - origin.y;
-    const length = Math.hypot(dx, dy) || 1;
-    const nx = dx / length, ny = dy / length;
-    const color = 0xffd68a;
-    const lungeDistance = Math.min(length * 0.55, 110);
-    this.tweens.killTweensOf(sprite);
-    this.busy.add(sprite);
-    sprite.setDepth(600);
-    sfx.attack();
-
-    await this.tw({ targets: sprite, x: origin.x - nx * 9, y: origin.y - ny * 9, scale: origin.scale * 1.06, duration: 150 * speed, ease: 'Sine.out' });
-    await this.tw({ targets: sprite, x: origin.x + nx * lungeDistance, y: origin.y + ny * lungeDistance,
-      scale: origin.scale * 1.08, duration: 170 * speed, ease: 'Cubic.in' });
+    // Keep both cards anchored to their zones while the red beam travels between them.
+    // drawActiveAttack owns the persistent outlines throughout response windows.
     const beam = this.add.graphics().setDepth(610).setBlendMode(Phaser.BlendModes.ADD);
-    const beamStart = { x: sprite.x, y: sprite.y };
-    const beamFlight = { progress: 0 };
-    await this.tw({ targets: beamFlight, progress: 1, duration: 140 * speed, ease: 'Cubic.in', onUpdate: () => {
-      const x = Phaser.Math.Linear(beamStart.x, destination.x, beamFlight.progress);
-      const y = Phaser.Math.Linear(beamStart.y, destination.y, beamFlight.progress);
-      beam.clear().lineStyle(12, 0xff182f, 0.2).lineBetween(beamStart.x, beamStart.y, x, y)
-        .lineStyle(5, 0xff2639, 0.85).lineBetween(beamStart.x, beamStart.y, x, y)
-        .lineStyle(2, 0xffc0b7, 1).lineBetween(beamStart.x, beamStart.y, x, y);
-    } });
-    this.tweens.add({ targets: beam, alpha: 0, duration: 150 * speed, onComplete: () => beam.destroy() });
-    sfx.hit();
-
-    const impact = this.add.graphics({ x: destination.x, y: destination.y }).setDepth(612);
-    impact.fillStyle(0xffb45d, 0.35).fillTriangle(-34, 24, 27, -35, 40, -38)
-      .fillStyle(0xfff4dc, 0.95).fillTriangle(-31, 22, 28, -34, 35, -36)
-      .fillStyle(0xffffff, 1).fillTriangle(-24, 16, 28, -34, 31, -34);
-    impact.setScale(0.5).setAlpha(0.95);
-    this.tweens.add({ targets: impact, scale: 1.12, alpha: 0, duration: 240 * speed, ease: 'Cubic.out', onComplete: () => impact.destroy() });
-    flash(this, destination.x, destination.y, 0xffe2b0, 56, 240 * speed, 611);
-    ring(this, destination.x, destination.y, 0xffb45d, { from: 8, to: 64, ms: 300 * speed });
-    burst(this, destination.x, destination.y, color, { n: 18, speed: [120, 340], life: 400 });
-    this.cameras.main.shake(90, 0.003);
-    if (targetSprite) this.tweens.add({ targets: targetSprite, x: targetSprite.x + nx * 5, y: targetSprite.y + ny * 5, duration: 55 * speed, yoyo: true });
-    await this.tw({ targets: sprite, x: origin.x, y: origin.y, scale: origin.scale, duration: 180 * speed, ease: 'Sine.out' });
-    this.busy.delete(sprite);
-    this.layout();
+    const flight = { progress: 0 };
+    const origin = { x: sprite.x, y: sprite.y };
+    sfx.attack();
+    try {
+      await this.tw({ targets: flight, progress: 1, duration: 280 * speed, ease: 'Cubic.in',
+        onUpdate: () => {
+          if (!beam.active) return;
+          const x = Phaser.Math.Linear(origin.x, destination.x, flight.progress);
+          const y = Phaser.Math.Linear(origin.y, destination.y, flight.progress);
+          beam.clear().lineStyle(18, 0xff182f, 0.12).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(9, 0xff182f, 0.3).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(5, 0xff2639, 0.85).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(2, 0xffc0b7, 1).lineBetween(origin.x, origin.y, x, y);
+        } });
+      if (this.dead) return;
+      sfx.hit();
+      flash(this, destination.x, destination.y, 0xff3344, 40, 200 * speed, 611);
+      if (target) ring(this, destination.x, destination.y, 0xff4654, { from: 8, to: 42, ms: 220 * speed });
+      await this.tw({ targets: beam, alpha: 0, duration: 200 * speed });
+    } finally {
+      beam.destroy();
+    }
   }
   /**
    * Destruction: the card flares white for a beat, then breaks like glass into triangular shards. Each shard keeps
@@ -2350,6 +2570,12 @@ export class DuelScene extends Phaser.Scene {
     mesh.hideCCW = false;
     mesh.setOrtho(mesh.width, mesh.height);
     mesh.addVertices(vertices, uvs);
+    if (mesh.vertices.length !== shards.length * 3) {
+      mesh.destroy();
+      await this.tw({ targets: sprite, alpha: 0, duration: 260 * speed });
+      if (sprite.active) sprite.setAlpha(1);
+      return;
+    }
     // as with the card skins, screen positions are written straight into the vertices
     (mesh as unknown as { preUpdate: () => void }).preUpdate = () => {};
     if (visual !== sprite) mesh.setPipeline('HologramPipeline');
@@ -2371,9 +2597,12 @@ export class DuelScene extends Phaser.Scene {
     sprite.setAlpha(0);
     burst(this, centre.x, centre.y, 0xfff1d6, { n: 14, speed: [40, 170], life: 520, size: 0.11, spread: 22, depth: 613 });
     const state = { t: 0 };
-    await this.tw({ targets: state, t: 1, duration: 720 * speed, onUpdate: () => place(state.t) });
-    mesh.destroy();
-    sprite.setAlpha(1);
+    await this.tw({ targets: state, t: 1, duration: 720 * speed, onUpdate: () => {
+      if (mesh.active) place(state.t);
+    } });
+    this.tweens.killTweensOf(state);
+    if (mesh.active) mesh.destroy();
+    if (sprite.active) sprite.setAlpha(1);
   }
   private async lpFx(side: Side, delta: number, lp: number) {
     if (delta < 0) sfx.damage(); else sfx.heal();
@@ -2418,19 +2647,13 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(1000);
     layer.add(this.playfieldBlocker(0x06050d, 0.74));
     const accent = win ? COL.gold : winner === -1 ? COL.glow : COL.red;
-    const hex = `#${accent.toString(16).padStart(6, '0')}`;
     const rules = this.add.graphics();
     for (const [x, a0, a1] of [[CX - 380, 0, 1], [CX, 1, 0]] as const) {
       rules.fillGradientStyle(accent, accent, accent, accent, a0, a1, a0, a1).fillRect(x, 212, 380, 1.5).fillRect(x, 392, 380, 1.5);
     }
     layer.add(rules);
-    if (win) {
-      const glitter = motes(this, CX - 380, 180, 760, 260, COL.goldLit, 1000);
-      layer.add(glitter);
-      burst(this, CX, 280, COL.goldLit, { n: 60, speed: [80, 420], life: 1400, gravity: 120, size: 0.3, depth: 1001 });
-    }
     const title = this.add.text(CX, 282, head, { fontFamily: FONT_H, fontSize: '84px', fontStyle: 'bold', color: '#fff6e0' })
-      .setOrigin(0.5).setLetterSpacing(5).setShadow(0, 0, hex, 26, false, true);
+      .setOrigin(0.5).setLetterSpacing(5);
     const scale = Math.min(1, 700 / title.width);
     title.setScale(scale * 1.25).setAlpha(0);
     this.tweens.add({ targets: title, scale, alpha: 1, duration: 420, ease: 'Cubic.out' });

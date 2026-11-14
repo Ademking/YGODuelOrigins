@@ -95,18 +95,20 @@ export interface Trig { card: Card; idx: number; p: Side; ev: Ev; other?: Card }
 export type Action =
   | { a: 'summon' | 'mset'; card: Card; tributes: number; slot?: number; extra?: boolean; lp?: number; alt?: boolean; substitute?: Card }
   | { a: 'flip' | 'pos' | 'ss' | 'gemini'; card: Card; slot?: number }
-  | { a: 'act'; card: Card; eff: number; slot?: number }
+  | { a: 'act'; card: Card; eff: number; slot?: number; description?: string }
   | { a: 'sset'; card: Card; slot?: number }
   | { a: 'attack'; card: Card; target: Card | null }
   | { a: 'phase'; to: 'BP' | 'M2' | 'EP' };
 
 export type Purpose = 'good' | 'bad' | 'cost';
 export type Prompt =
+  | { t: 'zones'; count: number; zones: { side: Side; zone: 'mzone' | 'szone' | 'fzone'; slot: number }[] }
   | { t: 'main'; actions: Action[]; phase: Phase }
-  | { t: 'chain'; actions: Action[]; ev: Ev; text: string }
-  | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean }
+  | { t: 'chain'; actions: Action[]; ev: Ev; text: string; core?: boolean; optionalWindow?: boolean }
+  | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean; cancel?: boolean; showCardFaces?: boolean; marked?: Card[]; finish?: boolean }
   | { t: 'yesno'; text: string; card?: Card; kind: 'trigger' | 'upkeep' | 'choice'; ai?: boolean; eff?: Effect; ev?: Ev }
   | { t: 'option'; text: string; options: string[]; ai?: number }
+  | { t: 'announce'; text: string; cards: { name: string; code: number }[] }
   | { t: 'position'; card: Card }
   | { t: 'replay'; attacker: Card; targets: (Card | null)[] };
 
