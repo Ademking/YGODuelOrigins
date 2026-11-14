@@ -2325,11 +2325,16 @@ export class DuelScene extends Phaser.Scene {
     };
     resize();
     this.scale.on('resize', resize);
-    const art = this.add.image(CX, 310, `god_${god.key}`).setAlpha(0);
-    const scale = Math.min(650 / art.width, 440 / art.height);
+    const art = this.add.image(CX, 295, `god_${god.key}`).setAlpha(0);
+    const scale = Math.min(850 / art.width, 550 / art.height);
     art.setScale(scale * (this.reducedMotion ? 1 : 0.94));
-    const plate = this.add.rectangle(CX, 581, 850, 108, 0x060713, 0.95);
-    const rule = this.add.rectangle(CX, 528, 740, 2, god.color);
+    // Feather the art into the caption instead of ending it at a hard rectangular bar.
+    const plate = this.add.graphics();
+    for (let i = 0; i < 32; i++) {
+      const y = 455 + i * 6;
+      const opacity = Math.sin(Math.min(1, i / 23) * Math.PI / 2) * 0.88;
+      plate.fillStyle(0x03040c, opacity).fillRect(CX - 480, y, 960, 6);
+    }
     const subtitle = this.add.text(CX, 551, 'EGYPTIAN GOD', {
       fontFamily: FONT_H, fontSize: '15px', color: '#d6d3df',
     }).setOrigin(0.5).setLetterSpacing(5);
@@ -2337,9 +2342,9 @@ export class DuelScene extends Phaser.Scene {
       fontFamily: FONT_H, fontSize: '32px', color: god.text, fontStyle: 'bold',
     }).setOrigin(0.5).setStroke('#080914', 4);
     if (name.width > 790) name.setScale(790 / name.width);
-    const caption = this.add.container(0, this.reducedMotion ? 0 : 16, [plate, rule, subtitle, name]).setAlpha(0);
-    layer.add([shade, ...(energy ? [energy] : []), art, caption]);
-    const duration = this.reducedMotion ? 160 : 480;
+    const caption = this.add.container(0, this.reducedMotion ? 0 : 16, [subtitle, name]).setAlpha(0);
+    layer.add([shade, ...(energy ? [energy] : []), art, plate, caption]);
+    const duration = this.reducedMotion ? 200 : 800;
     try {
       this.tweens.add({ targets: shade, alpha: 1, duration: 220 });
       if (energy) {
@@ -2356,6 +2361,8 @@ export class DuelScene extends Phaser.Scene {
       if (this.dead) return true;
       await this.tw({ targets: caption, alpha: 1, y: 0, duration: 240, ease: 'Cubic.out' });
       await wait(this, this.reducedMotion ? 700 : 1500);
+      if (!this.dead) await this.tw({ targets: [art, caption], alpha: 0,
+        duration: this.reducedMotion ? 180 : 650, ease: 'Sine.inOut' });
       if (!this.dead) {
         // Phaser Shader objects do not inherit Container alpha: fade the uniform explicitly.
         if (energy) this.tweens.add({ targets: energyState, opacity: 0, duration: 320,
