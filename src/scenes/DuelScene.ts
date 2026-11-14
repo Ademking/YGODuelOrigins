@@ -2292,8 +2292,55 @@ export class DuelScene extends Phaser.Scene {
     if (!s || this.dead) return;
     await wait(this, 240 * this.spd);
     if (this.dead || !s.active) return;
+    if (how !== 'flip' && await this.godSummonFx(c)) return;
     if (how !== 'flip') this.evolveFx(c);
     await wait(this, 420 * this.spd);
+  }
+
+  /** Runs on the summon event, after the engine has paid tributes/resolved the summoning effect. */
+  private async godSummonFx(card: Card): Promise<boolean> {
+    const gods: Record<string, { key: string; color: number; text: string }> = {
+      '10000020': { key: 'slifer', color: 0xf24852, text: '#ff5964' },
+      '10000000': { key: 'obelisk', color: 0x379cff, text: '#58b6ff' },
+      '10000010': { key: 'ra', color: 0xffcd43, text: '#ffda62' },
+    };
+    const god = gods[cardImagePasscode(card.def.id) ?? ''];
+    if (!god || !this.textures.exists(`god_${god.key}`)) return false;
+    const layer = this.add.container(0, 0).setDepth(850);
+    const shade = this.add.rectangle(640, H / 2, 1280, H, 0x03040c, 0.88).setAlpha(0);
+    // A restrained geometric halo: no particles, per-frame shaders, or card resizing.
+    const halo = this.add.graphics({ x: CX, y: 300 }).setAlpha(0);
+    halo.lineStyle(1, god.color, 0.28).strokeCircle(0, 0, 210)
+      .lineStyle(3, god.color, 0.6).strokeCircle(0, 0, 202)
+      .lineStyle(1, god.color, 0.18).strokeCircle(0, 0, 226);
+    const art = this.add.image(CX, 310, `god_${god.key}`).setAlpha(0);
+    const scale = Math.min(650 / art.width, 440 / art.height);
+    art.setScale(scale * (this.reducedMotion ? 1 : 0.94));
+    const plate = this.add.rectangle(CX, 581, 850, 108, 0x060713, 0.95);
+    const rule = this.add.rectangle(CX, 528, 740, 2, god.color);
+    const subtitle = this.add.text(CX, 551, 'EGYPTIAN GOD', {
+      fontFamily: FONT_H, fontSize: '15px', color: '#d6d3df',
+    }).setOrigin(0.5).setLetterSpacing(5);
+    const name = this.add.text(CX, 592, card.def.name.toUpperCase(), {
+      fontFamily: FONT_H, fontSize: '32px', color: god.text, fontStyle: 'bold',
+    }).setOrigin(0.5).setStroke('#080914', 4);
+    if (name.width > 790) name.setScale(790 / name.width);
+    const caption = this.add.container(0, this.reducedMotion ? 0 : 16, [plate, rule, subtitle, name]).setAlpha(0);
+    layer.add([shade, halo, art, caption]);
+    const duration = this.reducedMotion ? 160 : 480;
+    try {
+      this.tweens.add({ targets: shade, alpha: 1, duration: 220 });
+      this.tweens.add({ targets: halo, alpha: 1, scale: 1.04, duration, ease: 'Sine.out' });
+      await this.tw({ targets: art, alpha: 1, scale, duration, ease: 'Cubic.out' });
+      if (this.dead) return true;
+      await this.tw({ targets: caption, alpha: 1, y: 0, duration: 240, ease: 'Cubic.out' });
+      await wait(this, this.reducedMotion ? 700 : 1100);
+      if (!this.dead) await this.tw({ targets: layer, alpha: 0, duration: 320, ease: 'Sine.in' });
+    } finally {
+      for (const object of [shade, halo, art, caption, layer]) this.tweens.killTweensOf(object);
+      layer.destroy();
+    }
+    return true;
   }
 
   private async flipFx(c: Card) {
@@ -2368,31 +2415,31 @@ export class DuelScene extends Phaser.Scene {
       await wait(this, 120 * speed);
       return;
     }
-    const origin = { x: sprite.x, y: sprite.y, scale: sprite.scale };
-    const dx = destination.x - origin.x, dy = destination.y - origin.y;
-    const length = Math.hypot(dx, dy) || 1;
-    const nx = dx / length, ny = dy / length;
-    const color = 0xffd68a;
-    const lungeDistance = Math.min(length * 0.55, 110);
-    this.tweens.killTweensOf(sprite);
-    this.busy.add(sprite);
-    sprite.setDepth(600);
+    // Keep both cards anchored to their zones while the red beam travels between them.
+    // drawActiveAttack owns the persistent outlines throughout response windows.
+    const beam = this.add.graphics().setDepth(610).setBlendMode(Phaser.BlendModes.ADD);
+    const flight = { progress: 0 };
+    const origin = { x: sprite.x, y: sprite.y };
     sfx.attack();
-
-    await this.tw({ targets: sprite, x: origin.x - nx * 9, y: origin.y - ny * 9, scale: origin.scale * 1.06, duration: 150 * speed, ease: 'Sine.out' });
-    await this.tw({ targets: sprite, x: origin.x + nx * lungeDistance, y: origin.y + ny * lungeDistance,
-      scale: origin.scale * 1.08, duration: 170 * speed, ease: 'Cubic.in' });
-    sfx.hit();
-    const slash = this.add.graphics({ x: destination.x, y: destination.y }).setDepth(612).setRotation(Math.atan2(dy, dx) + Math.PI / 3);
-    slash.fillStyle(0xff9850, 0.4).fillPoints([{ x: -36, y: 0 }, { x: 0, y: -8 }, { x: 36, y: 0 }, { x: 0, y: 8 }], true);
-    slash.fillStyle(0xfff4dc, 1).fillPoints([{ x: -32, y: 0 }, { x: 0, y: -3 }, { x: 32, y: 0 }, { x: 0, y: 3 }], true);
-    this.tweens.add({ targets: slash, scale: 1.5, alpha: 0, duration: 210 * speed, onComplete: () => slash.destroy() });
-    ring(this, destination.x, destination.y, color, { from: 12, to: 46, ms: 230 * speed });
-    this.cameras.main.shake(90, 0.003);
-    if (targetSprite) this.tweens.add({ targets: targetSprite, x: targetSprite.x + nx * 5, y: targetSprite.y + ny * 5, duration: 55 * speed, yoyo: true });
-    await this.tw({ targets: sprite, x: origin.x, y: origin.y, scale: origin.scale, duration: 180 * speed, ease: 'Sine.out' });
-    this.busy.delete(sprite);
-    this.layout();
+    try {
+      await this.tw({ targets: flight, progress: 1, duration: 280 * speed, ease: 'Cubic.in',
+        onUpdate: () => {
+          if (!beam.active) return;
+          const x = Phaser.Math.Linear(origin.x, destination.x, flight.progress);
+          const y = Phaser.Math.Linear(origin.y, destination.y, flight.progress);
+          beam.clear().lineStyle(18, 0xff182f, 0.12).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(9, 0xff182f, 0.3).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(5, 0xff2639, 0.85).lineBetween(origin.x, origin.y, x, y)
+            .lineStyle(2, 0xffc0b7, 1).lineBetween(origin.x, origin.y, x, y);
+        } });
+      if (this.dead) return;
+      sfx.hit();
+      flash(this, destination.x, destination.y, 0xff3344, 40, 200 * speed, 611);
+      ring(this, destination.x, destination.y, 0xff4654, { from: 8, to: 42, ms: 220 * speed });
+      await this.tw({ targets: beam, alpha: 0, duration: 200 * speed });
+    } finally {
+      beam.destroy();
+    }
   }
   /**
    * Destruction: the card flares white for a beat, then breaks like glass into triangular shards. Each shard keeps
