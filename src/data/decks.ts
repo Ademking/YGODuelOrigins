@@ -8,9 +8,9 @@ export interface Opponent { id: string; name: string; title: string; art: string
 // Anime debut order, with same-episode characters grouped together.
 const appearanceOrder = [
   'yugi', 'joey', 'kaiba', 'pegasus', 'weevil', 'rex', 'mai', 'bakura', 'mako', 'panik', 'keith', 'bonz',
-  'paradox', 'rebecca', 'exodia', 'marik', 'orichalcos',
+  'paradox', 'rebecca', 'exodia', 'marik', 'espa', 'odion', 'ishizu', 'orichalcos',
   'jaden', 'syrus', 'chumley', 'bastion', 'chazz', 'alexis', 'crowler', 'zane',
-  'atticus', 'camula', 'zaloog', 'aster', 'sartorius', 'tyranno', 'jaden-neos', 'jesse', 'axel',
+  'titan', 'atticus', 'camula', 'zaloog', 'amnael', 'kagemaru', 'aster', 'sartorius', 'tyranno', 'jaden-neos', 'jesse', 'axel', 'adrian',
 ];
 const appearanceRank = new Map(appearanceOrder.map((id, index) => [id, index]));
 export const OPPONENTS: Opponent[] = PREMADE.map(opponent => structuredClone(opponent))

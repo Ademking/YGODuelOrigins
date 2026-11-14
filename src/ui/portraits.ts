@@ -4,6 +4,7 @@ export const PORTRAIT_IDS = [
   'rex', 'keith', 'bonz',
   'tyranno', 'sartorius',
   'paradox', 'panik', 'rebecca', 'camula', 'chumley', 'zaloog', 'atticus',
+  'espa', 'odion', 'ishizu', 'titan', 'amnael', 'kagemaru', 'adrian',
 ] as const;
 
 export function portraitKey(opponentId: string): string | null {

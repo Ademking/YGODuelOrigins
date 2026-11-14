@@ -9,7 +9,7 @@ import { sfx } from './sfx';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
-const PER_ROW = 13;
+const PER_ROW = 14;
 
 /** A random duelist's index, avoiding `not` when there is a choice. */
 export function randomDuelist(not = RANDOM) {
@@ -58,10 +58,10 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   const faces = Array.from({ length: roster.length + 1 }, (_, n) => {
     const row = Math.floor(n / PER_ROW);
     const count = Math.min(PER_ROW, roster.length + 1 - row * PER_ROW);
-    const x = cx + (n % PER_ROW - (count - 1) / 2) * 37;
+    const x = cx + (n % PER_ROW - (count - 1) / 2) * 34;
     const y = top + 360 + row * 47;
     const index = n - 1;
-    const tile = scene.add.rectangle(x, y, 34, 43, 0x14121f).setInteractive({ useHandCursor: true });
+    const tile = scene.add.rectangle(x, y, 32, 43, 0x14121f).setInteractive({ useHandCursor: true });
     const face = index === RANDOM ? die(scene, x, y, 22) : show(scene.add.image(x, y, BACK), roster[index], 40);
     tile.on('pointerover', () => face.setAlpha(1));
     tile.on('pointerout', () => face.setAlpha(selected === index ? 1 : 0.66));
@@ -81,7 +81,7 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
     style.setText(duelist?.style ?? '');
     faces.forEach(({ face }, n) => face.setAlpha(n - 1 === selected ? 1 : 0.66));
     const { x, y } = faces[selected + 1];
-    marker.clear().lineStyle(2, COL.gold, 1).strokeRect(x - 17, y - 22, 34, 44);
+    marker.clear().lineStyle(2, COL.gold, 1).strokeRect(x - 16, y - 22, 32, 44);
   };
   if (!reduced) scene.time.addEvent({ delay: 150, loop: true, callback: () => { if (selected === RANDOM) show(avatar, anyone(), 160); } });
   /** Move through Random and then every duelist. */

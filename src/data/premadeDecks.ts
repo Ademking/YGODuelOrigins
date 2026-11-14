@@ -246,6 +246,78 @@ const recipes: Recipe[] = [
       'Negate Attack': 3, 'Mirror Force': 1, 'Sakuretsu Armor': 1,
     },
   },
+  {
+    id: 'espa', name: 'Espa Roba', title: 'Psychic Duelist', ace: 'Jinzo', style: 'Machine beatdown and Trap disruption', suggested: 'normal',
+    main: {
+      'Jinzo': 2, 'Cyber Raider': 3, 'Reflect Bounder': 2, 'Mechanicalchaser': 3,
+      'Gear Golem the Moving Fortress': 3, 'Spell Canceller': 1, 'Goblin Attack Force': 2, 'The Fiend Megacyber': 2,
+      'Cannon Soldier': 2, 'Jinzo - Returner': 2, 'Limiter Removal': 1, 'Heavy Storm': 1,
+      'Amplifier': 2, 'Brain Control': 1, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Swords of Revealing Light': 1, '7 Completed': 2,
+      'Trap Hole': 3, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'odion', name: 'Odion', title: 'Temple Guardian', ace: 'Mystical Beast of Serket', style: 'Trap Monsters and Temple of the Kings', suggested: 'hard',
+    main: {
+      'Mystical Beast of Serket': 2, 'Guardian Sphinx': 2, 'Mystic Tomato': 3, 'Nimble Momonga': 3,
+      'Gravekeeper\'s Spy': 3, 'Gravekeeper\'s Guard': 2, 'Temple of the Kings': 2, 'Pot of Greed': 1,
+      'Monster Reborn': 1, 'Swords of Revealing Light': 1, 'Mystical Space Typhoon': 2, 'Embodiment of Apophis': 3,
+      'Metal Reflect Slime': 3, 'Zoma the Spirit': 2, 'Judgment of Anubis': 2, 'Curse of Anubis': 2,
+      'Waboku': 2, 'Magic Jammer': 2, 'Mirror Force': 1, 'Call Of The Haunted': 1,
+    },
+  },
+  {
+    id: 'ishizu', name: 'Ishizu Ishtar', title: 'Gravekeeper of the Pharaoh', ace: 'Exchange of the Spirit', style: 'Fairies, Graveyard setup and deck reversal', suggested: 'hard',
+    main: {
+      'Keldo': 3, 'Mudora': 3, 'Agido': 3, 'Kelbek': 3,
+      'Zolga': 3, 'Shining Angel': 3, 'Magician of Faith': 2, 'Gravekeeper\'s Spy': 2,
+      'Graceful Charity': 1, 'Card Destruction': 1, 'Pot of Greed': 1, 'Monster Reborn': 1,
+      'Foolish Burial': 2, 'Monster Reincarnation': 2, 'Exchange of the Spirit': 1, 'Blast Held by a Tribute': 2,
+      'Compulsory Evacuation Device': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1, 'Call Of The Haunted': 1,
+    },
+  },
+  {
+    id: 'titan', name: 'Titan', title: 'Shadow Duelist', ace: 'Terrorking Archfiend', style: 'Chess Archfiends and Pandemonium', suggested: 'normal',
+    main: {
+      'Terrorking Archfiend': 3, 'Infernalqueen Archfiend': 3, 'Desrook Archfiend': 3, 'Darkbishop Archfiend': 3,
+      'Shadowknight Archfiend': 3, 'Vilepawn Archfiend': 3, 'Skull Archfiend of Lightning': 2, 'Archfiend Soldier': 3,
+      'Pandemonium': 3, 'Terraforming': 2, 'Checkmate': 2, 'Monster Reborn': 1,
+      'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Sakuretsu Armor': 3,
+      'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'amnael', name: 'Amnael', title: 'The Alchemist', ace: 'Helios - The Primordial Sun', style: 'Helios evolution and banishment', suggested: 'hard',
+    main: {
+      'Helios - The Primordial Sun': 3, 'Helios Duo Megistus': 3, 'Helios Trice Megistus': 2, 'Golden Homunculus': 2,
+      'Banisher of the Light': 3, 'Banisher of the Radiance': 3, 'D.D. Survivor': 3, 'D.D. Scout Plane': 3,
+      'Dimensional Fissure': 3, 'Grand Convergence': 3, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2,
+      'Smashing Ground': 2, 'Macro Cosmos': 3, 'Return from the Different Dimension': 1, 'Sakuretsu Armor': 2,
+      'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'kagemaru', name: 'Kagemaru', title: 'Sacred Beast Summoner', ace: 'Raviel, Lord of Phantasms', style: 'Uria, Hamon and Raviel with their summon costs', suggested: 'hard',
+    main: {
+      'Uria, Lord of Searing Flames': 1, 'Hamon, Lord of Striking Thunder': 1, 'Raviel, Lord of Phantasms': 1, 'Giant Germ': 3,
+      'Mystic Tomato': 3, 'Archfiend Soldier': 3, 'Newdoria': 2, 'Giant Orc': 3,
+      'Sangan': 1, 'Banner of Courage': 3, 'Messenger of Peace': 2, 'Swords of Revealing Light': 1,
+      'Pot of Greed': 1, 'Monster Reborn': 1, 'Mystical Space Typhoon': 2, 'Gravity Bind': 2,
+      'Metal Reflect Slime': 2, 'Embodiment of Apophis': 3, 'Zoma the Spirit': 2, 'Call Of The Haunted': 1,
+      'Mirror Force': 1, 'Magic Cylinder': 1,
+    },
+  },
+  {
+    id: 'adrian', name: 'Adrian Gecko', title: 'Cloudian Duelist', ace: 'Cloudian - Eye of the Typhoon', style: 'Cloudians and Fog Counters', suggested: 'normal',
+    main: {
+      'Cloudian - Eye of the Typhoon': 2, 'Cloudian - Altus': 3, 'Cloudian - Cirrostratus': 3, 'Cloudian - Acid Cloud': 3,
+      'Cloudian - Turbulence': 3, 'Cloudian - Smoke Ball': 3, 'Cloudian - Sheep Cloud': 3, 'Cloudian - Poison Cloud': 2,
+      'Cloudian - Nimbusman': 2, 'Cloudian Squall': 2, 'The Sanctuary in the Sky': 3, 'Terraforming': 2,
+      'Pot of Greed': 1, 'Monster Reborn': 1, 'Mystical Space Typhoon': 2, 'Fog Control': 2,
+      'Natural Disaster': 2, 'Mirror Force': 1,
+    },
+  },
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));
