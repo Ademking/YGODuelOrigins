@@ -6,18 +6,18 @@ import { DuelScene } from './scenes/DuelScene';
 import { DebugScene } from './scenes/DebugScene';
 import { DeckEditorScene } from './scenes/DeckEditorScene';
 import { WatchScene } from './scenes/WatchScene';
-import { H, RES, W } from './ui/theme';
+import { H, W } from './ui/theme';
 
 const options = new URLSearchParams(location.search);
 const game = new Phaser.Game({
-  type: options.has('compat') ? Phaser.CANVAS : Phaser.AUTO,
+  type: options.has('compat') || options.has('compact') ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   callbacks: { postBoot: (game) => {
     game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
   } },
-  // rendered at RES× and zoomed back by each scene's camera (see fitCamera) so nothing is upscaled
-  width: W * RES,
-  height: H * RES,
+  // Keep the framebuffer at the design resolution. Text retains its own raster scale.
+  width: W,
+  height: H,
   backgroundColor: '#06050d',
   antialias: true,
   dom: { createContainer: true },

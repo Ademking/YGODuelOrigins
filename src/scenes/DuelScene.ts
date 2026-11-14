@@ -114,8 +114,6 @@ export class DuelScene extends Phaser.Scene {
   private askingSurrender = false;
   /** Cards an effect (attack, flip) is moving right now: layout must not yank them away mid-animation. */
   private busy = new Set<Phaser.GameObjects.Image>();
-  private defaultBackdrop!: ReturnType<typeof duelBackground>;
-  private fieldBackdrop!: ReturnType<typeof duelBackground>;
   private fieldMatName: FieldMatName | null = null;
   private fieldMat: { object: Phaser.GameObjects.Shader | Phaser.GameObjects.Rectangle; opacity: number } | null = null;
   private skins = new Map<number, Phaser.GameObjects.Mesh>();
@@ -192,8 +190,7 @@ export class DuelScene extends Phaser.Scene {
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
     }
     const d = this.init0;
-    this.fieldBackdrop = duelBackground(this, false).setVisible(false);
-    this.defaultBackdrop = duelBackground(this);
+    duelBackground(this, false);
     this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
     this.drawBoard();
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
@@ -664,8 +661,6 @@ export class DuelScene extends Phaser.Scene {
     const name = activeFieldMat(this.duel.players.map((player) => player.f));
     if (name === this.fieldMatName) return;
     this.fieldMatName = name;
-    this.defaultBackdrop.setVisible(!name);
-    this.fieldBackdrop.setVisible(!!name);
     const previous = this.fieldMat;
     this.fieldMat = null;
     if (previous) {
@@ -977,7 +972,7 @@ export class DuelScene extends Phaser.Scene {
       const pile = (arr: Card[], z: Zone, face: boolean) => arr.forEach((c, i) => {
         const p = this.zonePos(s, z);
         // Only the exposed top and edges of a face-down stack contribute to the board.
-        const visible = face || i >= arr.length - 6;
+        const visible = i >= arr.length - 6;
         this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, visible ? dur : 0, visible);
       });
       pile(P.deck, 'deck', false);
