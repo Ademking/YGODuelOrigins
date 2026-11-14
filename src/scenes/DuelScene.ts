@@ -190,7 +190,7 @@ export class DuelScene extends Phaser.Scene {
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
     }
     const d = this.init0;
-    duelBackground(this, false);
+    duelBackground(this, !this.reducedMotion);
     this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
     this.drawBoard();
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
