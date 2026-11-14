@@ -119,10 +119,27 @@ test('private room handshake requires both players ready and delivers decisions'
     const waiting = guest.network!.exchange(prompt, false, async () => undefined);
     await host.network!.exchange(prompt, true, async () => response);
     assert.deepEqual(await waiting, response);
+    // Forfeit ends the duel but keeps the room, so both players can rematch with a fresh seed.
+    let ended = '';
+    guest.onEnd = (reason, value) => { ended = value ? reason : ''; };
+    await host.forfeit(); await flush();
+    assert.equal(ended, 'Your opponent surrendered.');
+    assert.equal(guest.rematchState.open, true);
+    const firstSeed = started[0].network.seed;
+    started.length = 0;
+    await guest.requestRematch(); await flush();
+    assert.equal(started.length, 0);
+    assert.deepEqual(host.rematchState, { mine: false, theirs: true, open: true });
+    await host.requestRematch(); await flush();
+    assert.ok(started[0] && started[1], 'both sides restart');
+    assert.deepEqual(started[0].network.seed, started[1].network.seed);
+    assert.notDeepEqual(started[0].network.seed, firstSeed);
+    assert.equal(started[0].first, 1 - started[1].first);
     let surrendered = false;
     guest.onEnd = (_, value) => { surrendered = value; };
     await host.leave(true); await flush();
     assert.equal(surrendered, true);
+    assert.equal(guest.rematchState.open, false);
   } finally { await host.leave(); await guest.leave(); }
 });
 

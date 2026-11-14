@@ -3,11 +3,20 @@ import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } from './protocol';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
-export type ChatLine = { name: string; text: string; system?: boolean; at?: number };
+export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean };
 export type PeerProfile = { name: string; busy: boolean };
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string };
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom };
-const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768 };
+/**
+ * Optional TURN relay for networks that block direct WebRTC (set at build time, e.g. a free Metered or Cloudflare TURN):
+ * VITE_TURN_URLS="turn:a.example:80,turns:a.example:443?transport=tcp", VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL.
+ */
+const turnUrls = String(import.meta.env?.VITE_TURN_URLS ?? '').split(',').map(u => u.trim()).filter(u => /^turns?:/.test(u));
+export const turnConfigured = turnUrls.length > 0;
+const turnConfig = turnConfigured
+  ? [{ urls: turnUrls, username: String(import.meta.env?.VITE_TURN_USERNAME ?? ''), credential: String(import.meta.env?.VITE_TURN_CREDENTIAL ?? '') }]
+  : undefined;
+const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, ...(turnConfig ? { turnConfig } : {}) };
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Connection failed.';
 export class Lobby {
   readonly peers = new Map<string, PeerProfile>();
@@ -90,7 +99,7 @@ export class PrivateRoom {
   opponent?: Hello;
   network?: Lockstep;
   onChange = () => {};
-  onChat = () => {};
+  onChat = (_line?: ChatLine) => {};
   onStart = (_match: Match) => {};
   onEnd = (_reason: string, _surrendered: boolean) => {};
   error = '';
@@ -99,6 +108,8 @@ export class PrivateRoom {
   private peer?: string;
   private ready = false;
   private started = false;
+  private wantRematch = false;
+  private opponentRematch = false;
   private pendingSeed?: DuelNetwork['seed'];
   private pendingFirst: 0 | 1 = 0;
   private closed = false;
@@ -114,7 +125,7 @@ export class PrivateRoom {
     this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail('Your opponent disconnected.'); });
     this.room.onError(error => { if (!this.opponent) { this.error = error.message; this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
-      if (!this.opponent) { this.error = 'Still waiting for a connection. Check the code, keep both tabs open, or try another network. Some networks require a TURN relay.'; this.onChange(); }
+      if (!this.opponent) { this.error = turnConfigured ? 'Still waiting for a connection. Check the code and keep both tabs open.' : 'Still waiting for a connection. Check the code, keep both tabs open, or try another network. Some networks require a TURN relay.'; this.onChange(); }
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList) {
@@ -126,6 +137,25 @@ export class PrivateRoom {
   get isHost() { return this.hello.host; }
   get isReady() { return this.ready; }
   get hasStarted() { return this.started; }
+  get rematchState() { return { mine: this.wantRematch, theirs: this.opponentRematch, open: !this.closed && !this.error && this.started }; }
+  /** After a finished duel: both players ask, then the host deals a fresh seed through the normal start/ack handshake. */
+  async requestRematch() {
+    if (this.closed || this.error || !this.started || this.wantRematch) return;
+    this.wantRematch = true;
+    this.onChange();
+    await this.send({ type: 'rematch' });
+    await this.dealRematch();
+  }
+  private async dealRematch() {
+    if (!this.isHost || !this.wantRematch || !this.opponentRematch) return;
+    this.wantRematch = this.opponentRematch = false;
+    this.started = false;
+    this.pendingSeed = Array.from(crypto.getRandomValues(new BigUint64Array(4)), String) as DuelNetwork['seed'];
+    this.pendingFirst = crypto.getRandomValues(new Uint8Array(1))[0] % 2 as 0 | 1;
+    this.makeNetwork(this.pendingSeed);
+    this.handshakeTimer = setTimeout(() => this.fail('Opponent did not acknowledge the rematch.'), 20000);
+    await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst, rematch: true });
+  }
   private send(value: unknown, target = this.peer) {
     if (this.closed) return Promise.reject(new Error('Room closed.'));
     if (!target) return Promise.resolve();
@@ -157,6 +187,18 @@ export class PrivateRoom {
       return;
     }
     if (!this.peer || peer !== this.peer || !this.opponent) return;
+    if (m.type === 'rematch') {
+      if (!this.started || this.opponentRematch) return;
+      this.opponentRematch = true;
+      this.onChange();
+      await this.dealRematch();
+      return;
+    }
+    // The guest accepts the host's rematch deal only after asking for one itself.
+    if (m.type === 'start' && m.rematch === true && !this.isHost && this.started && this.wantRematch && this.opponentRematch) {
+      this.wantRematch = this.opponentRematch = false;
+      this.started = false;
+    }
     if (m.type === 'start' && !this.isHost && !this.started) {
       if (!this.ready || !this.opponent.ready || !Array.isArray(m.seed) || m.seed.length !== 4
         || !m.seed.every(s => typeof s === 'string' && /^\d{1,20}$/.test(s) && BigInt(s) < (1n << 64n))
@@ -174,6 +216,10 @@ export class PrivateRoom {
       if (!text || Date.now() - this.receivedChat < 800) return;
       this.receivedChat = Date.now();
       this.addChat(this.opponent.name, text);
+    } else if (m.type === 'forfeit') {
+      const reason = m.timeout === true ? 'Your opponent ran out of time.' : 'Your opponent surrendered.';
+      this.network?.abort(reason);
+      this.onEnd(reason, true);
     } else if (m.type === 'leave') {
       this.fail(m.timeout === true ? 'Your opponent ran out of time.' : m.surrender === true ? 'Your opponent surrendered.' : 'Your opponent left the room.', m.surrender === true);
     }
@@ -195,17 +241,18 @@ export class PrivateRoom {
     // Host may be the second player to press Ready.
     if (this.isHost && this.opponent.ready) await this.receive(encode(this.opponent), this.peer!);
   }
-  private addChat(name: string, text: string) {
-    this.chat.push({ name, text, at: Date.now() });
+  private addChat(name: string, text: string, self = false) {
+    const line = { name, text, at: Date.now(), self };
+    this.chat.push(line);
     if (this.chat.length > 100) this.chat.shift();
-    this.onChat();
+    this.onChat(line);
   }
   async say(text: string) {
     text = cleanChat(text);
     if (!text || Date.now() - this.lastChat < 800 || !this.peer) return;
     this.lastChat = Date.now();
     await this.send({ type: 'chat', text });
-    this.addChat(this.hello.name, text);
+    this.addChat(this.hello.name, text, true);
   }
   fail(reason: string, surrendered = false) {
     if (this.closed) return;
@@ -213,6 +260,12 @@ export class PrivateRoom {
     this.network?.abort(reason);
     this.onChange();
     this.onEnd(reason, surrendered);
+  }
+  /** Lose the current duel (surrender or clock) without leaving the room. */
+  async forfeit(timeout = false) {
+    if (this.closed) return;
+    this.network?.abort(timeout ? 'You ran out of time.' : 'You surrendered.');
+    try { await this.send({ type: 'forfeit', timeout }); } catch {}
   }
   async leave(surrender = false, timeout = false) {
     if (this.closed) return;

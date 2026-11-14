@@ -7,6 +7,8 @@ import { fitCamera, sceneBackground } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
+/** An unanswered challenge cancels itself after this long. */
+const CHALLENGE_MS = 30000;
 
 export class MultiplayerScene extends Phaser.Scene {
   constructor() { super('Multiplayer'); }
@@ -59,6 +61,7 @@ export class MultiplayerScene extends Phaser.Scene {
     let lobby: Lobby | undefined, session: PrivateRoom | undefined, transferred = false, connecting = false, alive = true;
     /** Opponent's name when the room came from a lobby challenge: no code to share, both sides ready up automatically. */
     let challengeWith: string | undefined;
+    let challengeBar: HTMLElement | undefined;
     let outgoingInvite = false;
     const status = (message: string) => { if (alive) q('status').textContent = message; };
     const error = (e: unknown) => status(e instanceof Error ? e.message : 'Connection failed.');
@@ -69,7 +72,7 @@ export class MultiplayerScene extends Phaser.Scene {
       setTimeout(() => { span.textContent = label; }, 1500);
     };
     const leaveRoom = () => {
-      const current = session; session = undefined; challengeWith = undefined;
+      const current = session; session = undefined; challengeWith = undefined; challengeBar = undefined;
       void current?.leave(); lobby?.setBusy(false); select.disabled = false; renderRoom(); renderRoster();
       status('Back in the lobby.');
     };
@@ -100,6 +103,7 @@ export class MultiplayerScene extends Phaser.Scene {
           : !s.opponent ? `Waiting for ${challengeWith} to accept…` : 'Starting the duel…';
         actions.append(cancel);
         box.append(el('h2', 'Challenge'), el('p', hint), versus(s), err, actions);
+        if (!s.opponent && !s.error && s.isHost) box.append(challengeBar ??= expiry());
       } else {
         const copies = el('div', '', 'mp-row');
         const copyCode = btn('Copy Code', 'small'), copyLink = btn('Copy Link', 'small');
@@ -142,6 +146,16 @@ export class MultiplayerScene extends Phaser.Scene {
       } catch (e) { error(e); }
       finally { connecting = false; }
     };
+    /** Dismissable card above the player list, mirrored in the status line. */
+    const notice = (text: string) => {
+      const inner = el('div'), ok = btn('OK', 'small');
+      ok.onclick = () => q('invite').replaceChildren();
+      inner.append(el('p', text), ok);
+      q('invite').replaceChildren(frame('mp-invite', inner));
+      status(text);
+    };
+    /** Bar that drains over the challenge lifetime. */
+    const expiry = () => { const bar = el('div', '', 'mp-expire'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
     const avatar = (n: string) => frame('mp-avatar', el('div', n.slice(0, 1).toUpperCase()));
     const renderRoster = () => {
       const list = q('roster'); list.replaceChildren();
@@ -172,7 +186,15 @@ export class MultiplayerScene extends Phaser.Scene {
           outgoingInvite = true;
           const code = newCode();
           await startRoom(code, true, profile.name);
-          if (session) await lobby.invite(id, code).catch(error);
+          if (session) {
+            await lobby.invite(id, code).catch(error);
+            // A little longer than the invite card lives on their side, so a last-second Accept still connects.
+            setTimeout(() => {
+              if (!alive || !session || session.code !== code || session.opponent) return;
+              leaveRoom();
+              notice(`${profile.name} didn't answer your challenge.`);
+            }, CHALLENGE_MS + 2000);
+          }
           outgoingInvite = false; renderRoster();
         };
         row.append(avatar(profile.name), label, challenge); list.append(row);
@@ -192,19 +214,17 @@ export class MultiplayerScene extends Phaser.Scene {
         const accept = btn('Accept', 'primary'), decline = btn('Decline');
         accept.onclick = () => { box.replaceChildren(); void startRoom(code, false, from); };
         decline.onclick = () => { box.replaceChildren(); void lobby?.decline(peer, code).catch(error); };
-        inner.append(el('p', `${from} challenges you!`), accept, decline);
-        box.append(frame('mp-invite', inner));
+        inner.append(el('p', `${from} challenges you!`), accept, decline, expiry());
+        const card = frame('mp-invite', inner);
+        box.append(card);
+        setTimeout(() => { if (card.isConnected) box.replaceChildren(); }, CHALLENGE_MS);
         sfx.click();
       };
       lobby.onDecline = (peer, code) => {
         if (!session || !challengeWith || session.code !== code || session.opponent) return;
         const who = lobby!.peers.get(peer)?.name ?? challengeWith;
         leaveRoom();
-        const inner = el('div'), ok = btn('OK', 'small');
-        ok.onclick = () => q('invite').replaceChildren();
-        inner.append(el('p', `${who} declined your challenge.`), ok);
-        q('invite').replaceChildren(frame('mp-invite', inner));
-        status(`${who} declined your challenge.`);
+        notice(`${who} declined your challenge.`);
       };
       status('Connected. Challenge a player or create a private room.');
       renderRoster(); renderChat(q('messages'), lobby.chat);

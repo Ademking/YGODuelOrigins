@@ -113,6 +113,10 @@ export class DuelScene extends Phaser.Scene {
   private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
   private clockText: Phaser.GameObjects.Text[] = [];
+  /** Set while restarting into a rematch so shutdown keeps the room and lobby open. */
+  private rematching = false;
+  private updateRematch?: () => void;
+  private emoteBubble: (Phaser.GameObjects.Text | undefined)[] = [];
   private lpBar: Phaser.GameObjects.Graphics[] = [];
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
@@ -231,9 +235,14 @@ export class DuelScene extends Phaser.Scene {
     this.duel = duel;
     if (d.multiplayer) {
       const session = d.multiplayer.session;
+      this.rematching = false;
+      this.updateRematch = undefined;
+      this.emoteBubble = [];
       const removeChat = mountDuelChat(session, typing => {
         if (this.input.keyboard) this.input.keyboard.enabled = !typing;
-      });
+      }, (line, [icon, label]) => this.showEmote(line.self ? this.me : opp(this.me), `${icon}  ${label}`));
+      session.onChange = () => this.updateRematch?.();
+      session.onStart = match => { this.rematching = true; this.scene.restart({ ...this.init0, multiplayer: match }); };
       session.onEnd = (reason, surrendered) => {
         if (this.dead || this.ended) return;
         duel.stop();
@@ -242,7 +251,7 @@ export class DuelScene extends Phaser.Scene {
       };
       this.events.once('shutdown', () => {
         removeChat(); session.onEnd = () => {};
-        void session.leave(); d.lobby?.close();
+        if (!this.rematching) { void session.leave(); d.lobby?.close(); }
       });
     }
     this.layout(true);
@@ -1889,6 +1898,19 @@ export class DuelScene extends Phaser.Scene {
     if (yes === true && !this.dead) this.surrender();
   }
 
+/** Speech bubble beside a player's plate; a newer emote replaces the old one. */
+  private showEmote(side: Side, text: string) {
+    this.emoteBubble[side]?.destroy();
+    const y = (side === this.me ? PLATE.yMe : PLATE.yFoe) + PLATE.h / 2;
+    const bubble = this.add.text(PLATE.x + PLATE.w + 14 + this.sidePanelX, y, text, {
+      fontFamily: FONT_B, fontSize: '16px', fontStyle: 'bold', color: COL.goldTxt, backgroundColor: '#14121f', padding: { x: 14, y: 9 },
+    }).setOrigin(0, 0.5).setDepth(1100).setAlpha(0);
+    this.emoteBubble[side] = bubble;
+    sfx.click();
+    this.tweens.add({ targets: bubble, alpha: 1, x: bubble.x + 8, duration: 160, ease: 'Back.out' });
+    this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 300, onComplete: () => bubble.destroy() });
+  }
+
   /** Both players' thinking time on their plates; running out forfeits the duel. */
   private startClocks(clock: DuelClock) {
     const fmt = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
@@ -1899,7 +1921,7 @@ export class DuelScene extends Phaser.Scene {
           .setColor(left <= 30000 ? '#ff9aac' : running ? COL.goldTxt : COL.dim);
       }
       if (!this.ended && clock.active === 0 && clock.remaining(0) <= 0) {
-        if (this.init0.multiplayer) void this.init0.multiplayer.session.leave(true, true);
+        if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit(true);
         this.duel.stop();
         const p = this.pending;
         this.pending = null;
@@ -1913,7 +1935,7 @@ export class DuelScene extends Phaser.Scene {
 
   private surrender() {
     if (this.ended) return;
-    if (this.init0.multiplayer) void this.init0.multiplayer.session.leave(true);
+    if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit();
     this.duel.stop();
     const p = this.pending;
     this.pending = null;
@@ -2709,8 +2731,23 @@ export class DuelScene extends Phaser.Scene {
     const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: 680 } }).setOrigin(0.5);
     detail.setScale(Math.min(1, 44 / detail.height));
     layer.add(detail);
-    layer.add(button(this, CX - 128, 470, 240, 50, this.init0.multiplayer ? 'Back to lobby' : 'Rematch', () => this.init0.multiplayer ? this.scene.start('Multiplayer', { rejoin: true }) : this.scene.restart(this.init0), { size: 16, primary: true }));
-    layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
+    const online = this.init0.multiplayer?.session;
+    if (online) {
+      const rematch = button(this, CX - 250, 470, 230, 50, 'Rematch', () => void online.requestRematch(), { size: 16, primary: true });
+      const state = this.add.text(CX, 418, '', { fontFamily: FONT_B, fontSize: '13px', color: COL.goldTxt }).setOrigin(0.5);
+      this.updateRematch = () => {
+        const { mine, theirs, open } = online.rematchState;
+        rematch.setEnabled(open && !mine).setLabel(mine ? 'Waiting…' : theirs ? 'Accept Rematch' : 'Rematch');
+        state.setText(!open ? 'Rematch unavailable: the room is closed.' : mine ? `Waiting for ${this.init0.opp.name}…` : theirs ? `${this.init0.opp.name} wants a rematch!` : '');
+      };
+      this.updateRematch();
+      layer.add([rematch, state,
+        button(this, CX, 470, 230, 50, 'Back to lobby', () => this.scene.start('Multiplayer', { rejoin: true }), { size: 16 }),
+        button(this, CX + 250, 470, 230, 50, 'Home', () => this.scene.start('Title'), { size: 16 })]);
+    } else {
+      layer.add(button(this, CX - 128, 470, 240, 50, 'Rematch', () => this.scene.restart(this.init0), { size: 16, primary: true }));
+      layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
+    }
     layer.add(button(this, CX, 528, 132, 30, 'View Log', () => this.toggleLogs(), { size: 11 }));
   }
 }

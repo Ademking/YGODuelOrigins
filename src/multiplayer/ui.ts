@@ -42,6 +42,9 @@ async function klipy(query: string): Promise<string[]> {
 const EMOJI = ['😀', '😂', '🤣', '😊', '😍', '😎', '🤔', '😮', '😱', '🤯', '😢', '😭', '😡', '😈', '🥲', '😴',
   '👍', '👎', '👏', '🙌', '🙏', '💪', '🤝', '👋', '✌️', '👀', '🔥', '✨', '⚡', '💥', '💀', '💯',
   '🎉', '🏆', '🎲', '🃏', '⚔️', '🛡️', '🐉', '👑', '💎', '❤️', '💔', '⏳', '✅', '❌', 'GG'];
+/** One-click duel emotes, sent as `emote:<index>` over the duel chat. */
+export const EMOTES: [string, string][] = [['👋', 'Hello!'], ['👍', 'Nice play!'], ['🤔', 'Hmm…'], ['😮', 'Wow!'], ['😅', 'Oops!'], ['🔥', 'On fire!'], ['🤝', 'Good game!']];
+export const emoteOf = (text: string) => { const m = /^emote:(\d)$/.exec(text); return m ? EMOTES[Number(m[1])] : undefined; };
 const time = (at?: number) => at ? new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
 export function renderChat(parent: HTMLElement, lines: ChatLine[]) {
@@ -62,7 +65,7 @@ export function renderChat(parent: HTMLElement, lines: ChatLine[]) {
       img.src = gif; img.alt = 'GIF'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
       img.onload = () => { if (stick) parent.scrollTop = parent.scrollHeight; };
       row.append(img);
-    } else row.append(element('div', line.text, 'mp-msg-text'));
+    } else row.append(element('div', emoteOf(line.text)?.join(' ') ?? line.text, 'mp-msg-text'));
     return row;
   }));
   if (stick) parent.scrollTop = parent.scrollHeight;
@@ -227,7 +230,7 @@ export function picker(options: PickOption[], initial: string, caption: string) 
 }
 
 // ---------------------------------------------------------------- in-duel chat
-export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => void) {
+export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}) {
   const dock = element('details', '', 'mp-chat');
   const summary = element('summary', 'Duel chat');
   const messages = element('div', '', 'mp-messages');
@@ -239,7 +242,16 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   dock.addEventListener('focusin', () => focus(true));
   dock.addEventListener('focusout', e => { if (!dock.contains(e.relatedTarget as Node)) focus(false); });
   dock.addEventListener('keydown', e => e.stopPropagation());
-  session.onChat = () => {
+  const bar = element('div', '', 'mp-emote-bar');
+  EMOTES.forEach(([icon, label], i) => {
+    const b = element('button', icon); b.type = 'button'; b.title = label; b.setAttribute('aria-label', `Emote: ${label}`);
+    b.onclick = () => void session.say(`emote:${i}`).catch(() => {});
+    bar.append(b);
+  });
+  document.body.append(bar);
+  session.onChat = line => {
+    const emote = line && emoteOf(line.text);
+    if (line && emote) onEmote(line, emote);
     renderChat(messages, session.chat);
     summary.textContent = dock.open ? 'Duel chat' : 'Duel chat • new message';
   };
@@ -247,5 +259,5 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
     if (dock.open) { summary.textContent = 'Duel chat'; messages.scrollTop = messages.scrollHeight; input.focus(); } else focus(false);
   });
   renderChat(messages, session.chat);
-  return () => { session.onChat = () => {}; focus(false); dock.remove(); };
+  return () => { session.onChat = () => {}; focus(false); dock.remove(); bar.remove(); };
 }
