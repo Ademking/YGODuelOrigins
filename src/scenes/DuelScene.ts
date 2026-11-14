@@ -106,6 +106,8 @@ export class DuelScene extends Phaser.Scene {
   private hoverAny: Card | null = null;
   private cardPanel!: CardPanel;
   private sidePanelX = 0;
+  private revealingGod: number | null = null;
+  private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
   private lpBar: Phaser.GameObjects.Graphics[] = [];
   private lpShown = [8000, 8000];
@@ -179,6 +181,8 @@ export class DuelScene extends Phaser.Scene {
     this.overlay = this.dialog = this.logLayer = this.minimizedDialog = null;
     this.dragging = null;
     this.dead = this.ended = false;
+    this.revealingGod = null;
+    this.revealedGods.clear();
     this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
     try {
       this.chainMode = (localStorage.getItem('arcana-duel.chain') as 'auto' | 'always') ?? 'auto';
@@ -197,7 +201,7 @@ export class DuelScene extends Phaser.Scene {
     }
     const d = this.init0;
     duelBackground(this, !this.reducedMotion);
-    this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
+    this.events.once('shutdown', () => { this.dead = true; sfx.stopGodSummon(); this.pending?.resolve(SURRENDER); });
     this.drawBoard();
     this.lastZoneMask = -1;
     this.disabledZoneOverlay = this.add.graphics().setDepth(55);
@@ -1069,6 +1073,7 @@ export class DuelScene extends Phaser.Scene {
   private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, depth: number, dur: number, visible = true) {
     const s = this.sprite(c);
     if (this.busy.has(s)) return; // its effect calls layout again when it finishes
+    visible = visible && c.uid !== this.revealingGod;
     s.setVisible(visible);
     if (s.input) s.input.enabled = visible;
     if (face && s.getData('cardId') !== c.def.id) setCardTexture(s, c.def.id);
@@ -1093,7 +1098,7 @@ export class DuelScene extends Phaser.Scene {
     this.statTexts.clear();
     for (const s of [0, 1] as Side[]) {
       this.duel.players[s].m.forEach((c, i) => {
-        if (!c || (!c.faceUp && c.ctrl !== this.me)) return;
+        if (!c || c.uid === this.revealingGod || (!c.faceUp && c.ctrl !== this.me)) return;
         const p = this.zonePos(s, 'mzone', i);
         const a = this.duel.atk(c), df = this.duel.defv(c);
         const badgeAtBottom = s === this.me || (this.hologramsEnabled && c.faceUp);
@@ -1928,9 +1933,17 @@ export class DuelScene extends Phaser.Scene {
         await wait(this, 240 * s);
         return;
       }
-      case 'move': case 'stat': case 'pos':
+      case 'move':
+        if (e.to !== 'mzone') this.revealedGods.delete(e.card.uid);
+        if (e.to === 'mzone' && e.from !== 'mzone' && e.card.faceUp) {
+          if (await this.godSummonFx(e.card)) this.revealedGods.add(e.card.uid);
+        }
         this.layout();
-        await wait(this, (e.t === 'move' ? 230 : 160) * s);
+        await wait(this, 230 * s);
+        return;
+      case 'stat': case 'pos':
+        this.layout();
+        await wait(this, 160 * s);
         return;
       case 'set':
         sfx.set();
@@ -2282,6 +2295,14 @@ export class DuelScene extends Phaser.Scene {
   }
 
   private async summonFx(c: Card, how: Extract<UIEvent, { t: 'summon' }>['how']) {
+    if (how !== 'flip') {
+      const alreadyRevealed = this.revealedGods.delete(c.uid);
+      if (alreadyRevealed || await this.godSummonFx(c)) {
+        this.layout();
+        await wait(this, 260 * this.spd);
+        return;
+      }
+    }
     if (how === 'normal') sfx.summon();
     else if (how !== 'flip') sfx.specialSummon();
     this.layout();
@@ -2289,7 +2310,6 @@ export class DuelScene extends Phaser.Scene {
     if (!s || this.dead) return;
     await wait(this, 240 * this.spd);
     if (this.dead || !s.active) return;
-    if (how !== 'flip' && await this.godSummonFx(c)) return;
     if (how !== 'flip') this.evolveFx(c);
     await wait(this, 420 * this.spd);
   }
@@ -2303,6 +2323,9 @@ export class DuelScene extends Phaser.Scene {
     };
     const god = gods[cardImagePasscode(card.def.id) ?? ''];
     if (!god || !this.textures.exists(`god_${god.key}`)) return false;
+    this.revealingGod = card.uid;
+    this.layout();
+    sfx.godSummon();
     const layer = this.add.container(0, 0).setDepth(850);
     const shade = this.add.rectangle(CX, H / 2, 1, H, 0x03040c, 0.88).setAlpha(0);
     const energy = !this.reducedMotion && this.game.renderer.type === Phaser.WEBGL
@@ -2310,6 +2333,7 @@ export class DuelScene extends Phaser.Scene {
         opacity: { type: '1f', value: 0 }, surge: { type: '1f', value: 0 },
       }), CX, H / 2, 960, H) : null;
     const energyState = { opacity: 0, surge: 0 };
+    const plate = this.add.graphics();
     const mask = this.make.graphics({ x: 0, y: 0 });
     const clip = mask.createGeometryMask();
     layer.setMask(clip);
@@ -2320,6 +2344,13 @@ export class DuelScene extends Phaser.Scene {
       const right = 640 + fullWidth / 2;
       const width = Math.max(1, right - left);
       shade.setPosition((left + right) / 2, H / 2).setDisplaySize(width, height);
+      // Cover the entire duel viewport, with no fixed-width caption rectangle.
+      plate.clear();
+      const bottom = (H + height) / 2;
+      for (let y = 455; y < bottom; y += 4) {
+        const opacity = Math.sin(Math.min(1, (y - 455) / 150) * Math.PI / 2) * 0.88;
+        plate.fillStyle(0x03040c, opacity).fillRect(left, y, width, Math.min(4, bottom - y));
+      }
       energy?.setPosition((left + right) / 2, H / 2).setSize(width, height).updateDisplayOrigin();
       mask.clear().fillStyle(0xffffff).fillRect(left, (H - height) / 2, width, height);
     };
@@ -2328,13 +2359,6 @@ export class DuelScene extends Phaser.Scene {
     const art = this.add.image(CX, 295, `god_${god.key}`).setAlpha(0);
     const scale = Math.min(850 / art.width, 550 / art.height);
     art.setScale(scale * (this.reducedMotion ? 1 : 0.94));
-    // Feather the art into the caption instead of ending it at a hard rectangular bar.
-    const plate = this.add.graphics();
-    for (let i = 0; i < 32; i++) {
-      const y = 455 + i * 6;
-      const opacity = Math.sin(Math.min(1, i / 23) * Math.PI / 2) * 0.88;
-      plate.fillStyle(0x03040c, opacity).fillRect(CX - 480, y, 960, 6);
-    }
     const subtitle = this.add.text(CX, 551, 'EGYPTIAN GOD', {
       fontFamily: FONT_H, fontSize: '15px', color: '#d6d3df',
     }).setOrigin(0.5).setLetterSpacing(5);
@@ -2360,7 +2384,10 @@ export class DuelScene extends Phaser.Scene {
       await this.tw({ targets: art, alpha: 1, scale, duration, ease: 'Cubic.out' });
       if (this.dead) return true;
       await this.tw({ targets: caption, alpha: 1, y: 0, duration: 240, ease: 'Cubic.out' });
-      await wait(this, this.reducedMotion ? 700 : 1500);
+      if (!this.reducedMotion) this.tweens.add({ targets: art, scale: scale * 1.035, y: 288,
+        duration: 1850, ease: 'Sine.inOut' });
+      await wait(this, this.reducedMotion ? 700 : 1850);
+      sfx.fadeGodSummon(650);
       if (!this.dead) await this.tw({ targets: [art, caption], alpha: 0,
         duration: this.reducedMotion ? 180 : 650, ease: 'Sine.inOut' });
       if (!this.dead) {
@@ -2375,6 +2402,8 @@ export class DuelScene extends Phaser.Scene {
       layer.destroy();
       clip.destroy();
       mask.destroy();
+      sfx.stopGodSummon();
+      this.revealingGod = null;
     }
     return true;
   }
