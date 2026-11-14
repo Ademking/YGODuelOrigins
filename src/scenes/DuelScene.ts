@@ -10,6 +10,7 @@ import { cardImagePasscode } from '../data/cardImages';
 import { getCard } from '../ocgcore/catalog';
 import { loadRuntime } from '../ocgcore/runtime';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
+import type { DuelClock } from '../multiplayer/lockstep';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -111,6 +112,7 @@ export class DuelScene extends Phaser.Scene {
   private revealingGod: number | null = null;
   private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
+  private clockText: Phaser.GameObjects.Text[] = [];
   private lpBar: Phaser.GameObjects.Graphics[] = [];
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
@@ -160,7 +162,7 @@ export class DuelScene extends Phaser.Scene {
     this.statTexts = new Map();
     this.durationBadges = new Map();
     this.counts = [];
-    this.lpText = [];
+    this.lpText = []; this.clockText = [];
     this.lpBar = [];
     this.lpPlate = [];
     this.skins = new Map();
@@ -244,6 +246,7 @@ export class DuelScene extends Phaser.Scene {
       });
     }
     this.layout(true);
+    if (d.multiplayer) this.startClocks(d.multiplayer.network.clock);
     this.input.dragDistanceThreshold = 8;
     this.setupInput();
     this.input.keyboard?.on('keydown-ESC', () => {
@@ -925,7 +928,10 @@ export class DuelScene extends Phaser.Scene {
       this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
       const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
         { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
-      const room = PLATE.x + PLATE.w - 12 - PLATE.lpX;
+      if (this.init0.multiplayer) {
+        this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
+      }
+      const room = PLATE.x + PLATE.w - 12 - PLATE.lpX - (this.init0.multiplayer ? 56 : 0);
       if (name.width > room) name.setScale(room / name.width);
       this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
       this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
@@ -1881,6 +1887,28 @@ export class DuelScene extends Phaser.Scene {
     const yes = await modal(this, { title: 'Surrender?', text: 'Give up this duel? It counts as a loss.', ok: 'Surrender', cancel: 'Keep playing', danger: true });
     this.askingSurrender = false;
     if (yes === true && !this.dead) this.surrender();
+  }
+
+  /** Both players' thinking time on their plates; running out forfeits the duel. */
+  private startClocks(clock: DuelClock) {
+    const fmt = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    const tick = () => {
+      for (const s of [0, 1] as const) {
+        const who = s === this.me ? 0 : 1, left = clock.remaining(who), running = clock.active === who;
+        this.clockText[s]?.setText(`${running ? '▶ ' : ''}${fmt(left)}`)
+          .setColor(left <= 30000 ? '#ff9aac' : running ? COL.goldTxt : COL.dim);
+      }
+      if (!this.ended && clock.active === 0 && clock.remaining(0) <= 0) {
+        if (this.init0.multiplayer) void this.init0.multiplayer.session.leave(true, true);
+        this.duel.stop();
+        const p = this.pending;
+        this.pending = null;
+        p?.resolve(SURRENDER);
+        this.showEnd(opp(this.me), 'You ran out of time');
+      }
+    };
+    tick();
+    this.time.addEvent({ delay: 250, loop: true, callback: tick });
   }
 
   private surrender() {

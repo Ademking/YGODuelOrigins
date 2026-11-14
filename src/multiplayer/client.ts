@@ -3,7 +3,7 @@ import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } from './protocol';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
-export type ChatLine = { name: string; text: string; system?: boolean };
+export type ChatLine = { name: string; text: string; system?: boolean; at?: number };
 export type PeerProfile = { name: string; busy: boolean };
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string };
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom };
@@ -61,7 +61,10 @@ export class Lobby {
     this.rate.set(key, now); return true;
   }
   private addChat(line: ChatLine) {
-    this.chat.push(line);
+    const last = this.chat[this.chat.length - 1];
+    // Reconnects and duplicate tabs repeat the same join/leave line; show it once.
+    if (line.system && last?.system && last.text === line.text) { this.onChange(); return; }
+    this.chat.push({ ...line, at: Date.now() });
     if (this.chat.length > 100) this.chat.shift();
     this.onChange();
   }
@@ -172,7 +175,7 @@ export class PrivateRoom {
       this.receivedChat = Date.now();
       this.addChat(this.opponent.name, text);
     } else if (m.type === 'leave') {
-      this.fail(m.surrender === true ? 'Your opponent surrendered.' : 'Your opponent left the room.', m.surrender === true);
+      this.fail(m.timeout === true ? 'Your opponent ran out of time.' : m.surrender === true ? 'Your opponent surrendered.' : 'Your opponent left the room.', m.surrender === true);
     }
   }
   private makeNetwork(seed: DuelNetwork['seed']) {
@@ -193,7 +196,7 @@ export class PrivateRoom {
     if (this.isHost && this.opponent.ready) await this.receive(encode(this.opponent), this.peer!);
   }
   private addChat(name: string, text: string) {
-    this.chat.push({ name, text });
+    this.chat.push({ name, text, at: Date.now() });
     if (this.chat.length > 100) this.chat.shift();
     this.onChat();
   }
@@ -211,9 +214,9 @@ export class PrivateRoom {
     this.onChange();
     this.onEnd(reason, surrendered);
   }
-  async leave(surrender = false) {
+  async leave(surrender = false, timeout = false) {
     if (this.closed) return;
-    try { await this.send({ type: 'leave', surrender }); } catch {}
+    try { await this.send({ type: 'leave', surrender, timeout }); } catch {}
     this.closed = true;
     clearTimeout(this.connectionTimer);
     clearTimeout(this.handshakeTimer);

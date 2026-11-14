@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import createCore, { OcgMessageType as M, OcgResponseType as R } from 'ocgcore-wasm';
 import { OcgDuel, SURRENDER } from '../../src/ocgcore/duel';
 import { CARDS } from '../../src/ocgcore/catalog';
-import { Lockstep, type DecisionPacket } from '../../src/multiplayer/lockstep';
+import { Lockstep, DuelClock, type DecisionPacket } from '../../src/multiplayer/lockstep';
 import { cleanName, cleanChat, validDeck, encode, decode, parseCode, newCode, fingerprint } from '../../src/multiplayer/protocol';
 import { OPPONENTS } from '../../src/data/decks';
 import type { Prompt, UIEvent } from '../../src/engine/duel';
@@ -124,4 +124,20 @@ test('private room handshake requires both players ready and delivers decisions'
     await host.leave(true); await flush();
     assert.equal(surrendered, true);
   } finally { await host.leave(); await guest.leave(); }
+});
+
+test('duel clock only runs for the side being waited on', () => {
+  let now = 0;
+  const clock = new DuelClock(1000, () => now);
+  clock.start(0); now = 300;
+  assert.equal(clock.remaining(0), 700);
+  assert.equal(clock.remaining(1), 1000);
+  clock.start(1); now = 500;
+  assert.equal(clock.remaining(0), 700);
+  assert.equal(clock.remaining(1), 800);
+  clock.stop(); now = 5000;
+  assert.equal(clock.remaining(1), 800);
+  clock.start(0); now = 9000;
+  assert.equal(clock.remaining(0), 0);
+  assert.equal(clock.active, 0);
 });

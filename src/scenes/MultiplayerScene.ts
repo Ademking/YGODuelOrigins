@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../data/decks';
 import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protocol';
 import { Lobby, PrivateRoom } from '../multiplayer/client';
-import { btn, element as el, frame, renderChat } from '../multiplayer/ui';
+import { btn, chatComposer, element as el, frame, picker, renderChat } from '../multiplayer/ui';
 import { fitCamera, sceneBackground } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 
@@ -17,8 +17,8 @@ export class MultiplayerScene extends Phaser.Scene {
     root.innerHTML = `<header class="mp-top">
         <button class="mp-btn" id="mp-back"><span>‹&nbsp; Back</span></button>
         <h1>Multiplayer</h1>
-        <div class="mp-frame mp-me"><div class="mp-frame mp-avatar"><div id="mp-me-avatar">?</div></div><b id="mp-me-name">…</b>
-          <select id="mp-deck" aria-label="Your deck"></select></div>
+        <div class="mp-me"><div class="mp-frame mp-avatar"><div id="mp-me-avatar">?</div></div><b id="mp-me-name">…</b>
+          <div id="mp-deck"></div></div>
       </header>
       <div class="mp-bar">
         <div class="mp-status" id="mp-status" role="status">Connecting…</div>
@@ -31,7 +31,7 @@ export class MultiplayerScene extends Phaser.Scene {
           <div class="mp-scroll" id="mp-roster"></div></section>
         <section class="mp-frame mp-panel"><h2>Global Chat</h2>
           <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite"></div>
-          <form class="mp-compose" id="mp-chat-form"><input id="mp-chat" maxlength="350" placeholder="Say hello to the lobby…" aria-label="Chat message" autocomplete="off"><button class="mp-btn"><span>Send</span></button></form></section>
+          <div id="mp-compose"></div></section>
       </div>
       <dialog class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form">
         <h2>Enter the Lobby</h2><p>Choose the name other duelists will see.</p>
@@ -45,15 +45,14 @@ export class MultiplayerScene extends Phaser.Scene {
     root.addEventListener('keydown', e => e.stopPropagation());
     root.addEventListener('click', e => { if ((e.target as HTMLElement).closest('.mp-btn:not(:disabled)')) sfx.click(); });
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
-    const name = q<HTMLInputElement>('name'), decks = loadDecks(), select = q<HTMLSelectElement>('deck');
+    const name = q<HTMLInputElement>('name'), decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
     try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
-    for (const [title, deck] of Object.entries(decks)) {
-      if (validateDeck(deck).length) continue;
-      const option = el('option', title); option.value = title; select.append(option);
-    }
-    if (!select.options.length) select.append(el('option', 'No valid deck'));
-    if (Array.from(select.options).some(o => o.value === selectedDeck())) select.value = selectedDeck();
+    const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
+      .map(([title, deck]) => ({ value: title, label: title, detail: `${deck.main.length} · ${deck.extra.length}` })), selectedDeck(), 'Deck');
+    q('deck').replaceWith(select.el);
+    const composer = chatComposer(text => void lobby?.say(text).catch(error), 'Say hello to the lobby…');
+    q('compose').replaceWith(composer.form);
     const codeInput = q<HTMLInputElement>('code');
     const fromLink = location.hash.startsWith('#duel=') ? parseCode(location.href) : null;
     if (fromLink) codeInput.value = fromLink;
@@ -154,7 +153,13 @@ export class MultiplayerScene extends Phaser.Scene {
         me.append(avatar(lobby.name), label); list.append(me);
       }
       if (!lobby?.peers.size) {
-        list.append(el('div', lobby ? 'No other duelists yet. Create a private room and send the link to a friend.' : '', 'mp-empty'));
+        const empty = el('div', '', 'mp-empty');
+        if (lobby) {
+          const invite = btn('Invite a Friend', 'primary');
+          invite.onclick = () => void startRoom(newCode(), true);
+          empty.append(el('b', 'No other duelists online'), el('p', 'Create a private room and send the link to a friend.'), invite);
+        }
+        list.append(empty);
         return;
       }
       for (const [id, profile] of lobby.peers) {
@@ -203,7 +208,7 @@ export class MultiplayerScene extends Phaser.Scene {
       };
       status('Connected. Challenge a player or create a private room.');
       renderRoster(); renderChat(q('messages'), lobby.chat);
-      q('chat').focus();
+      composer.input.focus();
       if (fromLink) { history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
     q<HTMLFormElement>('name-form').onsubmit = e => {
@@ -224,12 +229,10 @@ export class MultiplayerScene extends Phaser.Scene {
       void startRoom(code, false);
     };
     codeInput.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('join').click(); };
-    q<HTMLFormElement>('chat-form').onsubmit = e => {
-      e.preventDefault();
-      const input = q<HTMLInputElement>('chat'), text = input.value; input.value = '';
-      void lobby?.say(text).catch(error);
-    };
-    if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else { nameModal.showModal(); name.select(); }
+    if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else {
+      nameModal.showModal();
+      name.focus(); name.setSelectionRange(name.value.length, name.value.length);
+    }
     this.events.once('shutdown', () => {
       alive = false; root.remove();
       if (!transferred) { lobby?.close(); void session?.leave(); }

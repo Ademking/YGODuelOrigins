@@ -46,3 +46,9 @@ Chat/profile text is length-limited and rendered as text, never HTML. Chat and i
 Multiplayer tests cover wire validation and BigInt values, early/duplicate decisions, synchronization mismatch, timeout/disconnect handling, the ready handshake and surrender, and two actual OCGCore engines completing a mirrored duel.
 
 Before broad release, test two browsers on separate networks for lobby discovery, challenge/accept, room-code and invite-link joins, normal gameplay, in-duel chat, surrender, tab closure, and relay/network failure. Automated in-memory transport checks do not certify real-world WebRTC reachability.
+
+## Chat extras and clocks
+
+- **Emoji:** the 😊 button in lobby and duel chat inserts emoji into the message.
+- **GIFs:** set `VITE_GIPHY_KEY` (a free GIPHY API key) in the build environment, e.g. Vercel project env vars, to show the GIF button. Without it, the button is hidden, but GIFs other players send still display. Only a GIPHY id is sent over the wire; the image URL is always built for `media.giphy.com`, and viewing a GIF loads it from GIPHY.
+- **Clocks:** each player has 10 minutes of thinking time for the whole duel (`CLOCK_MS` in `src/multiplayer/lockstep.ts`). A clock runs only while the duel waits on that player's decision. A player whose clock reaches 0:00 forfeits; their opponent sees "Your opponent ran out of time."
