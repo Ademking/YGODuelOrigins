@@ -110,6 +110,8 @@ export class DuelScene extends Phaser.Scene {
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
   private tiles: Phaser.GameObjects.Graphics[] = [];
+  private disabledZoneOverlay!: Phaser.GameObjects.Graphics;
+  private lastZoneMask = -1;
   private attackMarker!: Phaser.GameObjects.Graphics;
   private turnCount!: Phaser.GameObjects.Text;
   private shadowG!: Phaser.GameObjects.Graphics;
@@ -196,9 +198,11 @@ export class DuelScene extends Phaser.Scene {
     duelBackground(this, !this.reducedMotion);
     this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
     this.drawBoard();
+    this.lastZoneMask = -1;
+    this.disabledZoneOverlay = this.add.graphics().setDepth(55);
     this.attackMarker = this.add.graphics().setDepth(340);
-    this.turnCount = txt(this, CX, Y.phase - 28, 'Turn 0', 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
-      .setOrigin(0.5).setDepth(351);
+    this.turnCount = txt(this, proj(-EDGE_U, -EDGE_W).x + 8, proj(-EDGE_U, -EDGE_W).y - 6, 'Turn 0', 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
+      .setOrigin(0, 1).setDepth(351);
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
     const sync = () => this.syncSkins();
     this.events.on('postupdate', sync);
@@ -636,6 +640,7 @@ export class DuelScene extends Phaser.Scene {
     this.drawShadows();
     this.drawGlows();
     this.drawActiveAttack();
+    this.drawDisabledZones();
     for (const [uid, img] of this.sprites) {
       const m = this.skins.get(uid);
       const c = this.duel.byUid(uid);
@@ -682,13 +687,53 @@ export class DuelScene extends Phaser.Scene {
     if (target) outline(target, COL.red);
     const x = target?.x ?? CX;
     const y = target?.y ?? (attack.attacker.ctrl === this.me ? 42 : H - 42);
-    const angle = Math.atan2(y - attacker.y, x - attacker.x);
-    const endX = x - 22 * Math.cos(angle);
-    const endY = y - 22 * Math.sin(angle);
-    graphics.lineStyle(3, COL.gold, 0.9).lineBetween(attacker.x, attacker.y, endX, endY);
-    graphics.fillStyle(COL.gold, 1).fillTriangle(endX, endY,
-      endX - 14 * Math.cos(angle - 0.55), endY - 14 * Math.sin(angle - 0.55),
-      endX - 14 * Math.cos(angle + 0.55), endY - 14 * Math.sin(angle + 0.55));
+    const progress = (this.time.now % 750) / 750;
+    const dx = x - attacker.x;
+    const dy = y - attacker.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const tip = Math.min(progress, 0.92);
+    const tail = Math.max(0, tip - 0.32);
+    const tx = attacker.x + dx * tip;
+    const ty = attacker.y + dy * tip;
+    const bx = attacker.x + dx * tail;
+    const by = attacker.y + dy * tail;
+    graphics.lineStyle(10, 0xff773a, 0.3).lineBetween(bx, by, tx, ty);
+    graphics.lineStyle(3, 0xffe0ab, 0.95).lineBetween(bx, by, tx, ty);
+    for (const spread of [-1, 1]) {
+      const ox = -dy / distance * 7 * spread;
+      const oy = dx / distance * 7 * spread;
+      graphics.lineStyle(2, 0xffa059, 0.75).lineBetween(bx + ox, by + oy, tx + ox * 0.5, ty + oy * 0.5);
+    }
+    if (progress > 0.69) {
+      const hit = (progress - 0.69) / 0.31;
+      graphics.lineStyle(3, 0xffa059, 1 - hit).strokeCircle(x, y, 12 + 22 * hit);
+    }
+  }
+
+  private zoneOutline(side: Side, zone: Zone, slot: number) {
+    const cell = this.cell(side, zone, slot);
+    const main = zone === 'mzone' || zone === 'szone';
+    const hu = main ? ZONE_HU : cell.hu;
+    const hw = main ? ZONE_HW : cell.hw;
+    return this.quad(cell.u - hu, cell.u + hu, cell.w - hw, cell.w + hw);
+  }
+
+  private drawDisabledZones() {
+    const mask = this.duel.disabledZones;
+    if (mask === this.lastZoneMask) return;
+    this.lastZoneMask = mask;
+    const g = this.disabledZoneOverlay.clear();
+    for (const side of [0, 1] as const) {
+      for (const [zone, slots, offset] of [['mzone', 5, 0], ['szone', 5, 8], ['fzone', 1, 13]] as const) {
+        for (let slot = 0; slot < slots; slot++) {
+          if (!((mask >>> (side * 16 + offset + slot)) & 1)) continue;
+          const q = this.zoneOutline(side, zone, slot);
+          g.fillStyle(0x66243d, 0.55).fillPoints(q, true);
+          g.lineStyle(2, COL.red, 0.8).strokePoints(q, true)
+            .lineBetween(q[0].x, q[0].y, q[2].x, q[2].y).lineBetween(q[1].x, q[1].y, q[3].x, q[3].y);
+        }
+      }
+    }
   }
 
   private syncFieldMat() {
@@ -1461,6 +1506,7 @@ export class DuelScene extends Phaser.Scene {
           else void modal(this, { title: p.text, input: query, ok: 'Declare', cancel: 'Retry' }).then(resolve.bind(this));
         }.bind(this)); break;
         case 'position': this.showPosition(p.card); break;
+        case 'zones': this.showZoneSelection(p); break;
         case 'option': this.showOptions(p.text, p.options); break;
         case 'replay':
           this.showDialog('Replay', `The battle field changed. Choose a new target for ${p.attacker.def.name}, or stop the attack.`, [
@@ -1578,6 +1624,41 @@ export class DuelScene extends Phaser.Scene {
       this.minimizedDialog = null;
       this.dialog.setVisible(true);
     }
+  }
+
+  private showZoneSelection(prompt: Extract<Prompt, { t: 'zones' }>) {
+    this.closeDialog();
+    const layer = this.add.container(0, 0).setDepth(850);
+    const selected = new Set<number>();
+    const label = htxt(this, CX, Y.phase - 25, '', 12, COL.goldTxt).setOrigin(0.5);
+    layer.add(panel(this, CX - 128, Y.phase - 40, 256, 28, 0.96));
+    layer.add(label);
+    const confirm = button(this, CX, Y.phase + 16, 144, 28, 'Confirm', () => this.choose([...selected]), { size: 12, primary: true });
+    const update = () => {
+      label.setText(`Disable zones · ${selected.size}/${prompt.count}`);
+      confirm.setEnabled(selected.size === prompt.count);
+    };
+    prompt.zones.forEach(({ side, zone, slot }, index) => {
+      const points = this.zoneOutline(side, zone, slot);
+      const tile = this.add.graphics();
+      const paint = () => {
+        const chosen = selected.has(index);
+        tile.clear().fillStyle(chosen ? COL.red : COL.gold, chosen ? 0.48 : 0.18).fillPoints(points, true)
+          .lineStyle(chosen ? 4 : 2, chosen ? COL.red : COL.gold, 1).strokePoints(points, true);
+      };
+      paint();
+      tile.setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains, true);
+      tile.on('pointerup', () => {
+        if (selected.has(index)) selected.delete(index);
+        else if (selected.size < prompt.count) selected.add(index);
+        paint();
+        update();
+      });
+      layer.add(tile);
+    });
+    layer.add(confirm);
+    update();
+    this.dialog = layer;
   }
 
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {

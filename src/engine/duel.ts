@@ -102,6 +102,7 @@ export type Action =
 
 export type Purpose = 'good' | 'bad' | 'cost';
 export type Prompt =
+  | { t: 'zones'; count: number; zones: { side: Side; zone: 'mzone' | 'szone' | 'fzone'; slot: number }[] }
   | { t: 'main'; actions: Action[]; phase: Phase }
   | { t: 'chain'; actions: Action[]; ev: Ev; text: string; core?: boolean; optionalWindow?: boolean }
   | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean; cancel?: boolean; showCardFaces?: boolean; marked?: Card[]; finish?: boolean }

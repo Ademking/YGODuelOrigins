@@ -41,6 +41,7 @@ export class OcgDuel {
   turn = 0;
   phase: Phase = 'DP';
   logLines: string[] = [];
+  disabledZones = 0;
   activeAttack: { attacker: Card; target: Card | null } | null = null;
   private ids = new Map<number, Card>();
   private chain = new Map<number, Card>();
@@ -137,6 +138,20 @@ export class OcgDuel {
   private async update(message: OcgMessage) {
     let event: UIEvent | undefined;
     switch (message.type) {
+      case M.FIELD_DISABLED:
+        this.disabledZones = this.engineFirst === 0 ? message.field_mask
+          : (message.field_mask >>> 16) | (message.field_mask << 16);
+        break;
+      case M.ADD_COUNTER: case M.REMOVE_COUNTER: {
+        const card = this.lookup(message);
+        if (card) {
+          const counts = card.data.ctr ??= {};
+          const id = message.counter_type;
+          const delta = message.type === M.ADD_COUNTER ? message.count : -message.count;
+          counts[id] = Math.max(0, (counts[id] ?? 0) + delta);
+        }
+        break;
+      }
       case M.CARD_HINT: {
         const card = this.lookup(message);
         if (card && message.card_hint === OcgCardHintType.TURN) card.data.turnCounter = Number(message.description);
@@ -185,7 +200,10 @@ export class OcgDuel {
         }
         this.remove(message.from);
         delete card.equipTo;
-        if (!to || !['mzone', 'szone', 'fzone'].includes(to)) delete card.data.turnCounter;
+        if (!to || !['mzone', 'szone', 'fzone'].includes(to)) {
+          delete card.data.turnCounter;
+          delete card.data.ctr;
+        }
         if (to) this.put(card, message.to, message.card);
         else this.ids.delete(card.uid);
         if (to === 'banished' || to === 'gy') {
@@ -321,7 +339,6 @@ export class OcgDuel {
           // The WASM decoder exposes signed query values as unsigned integers.
           card.data.atk = row.attack === undefined ? undefined : row.attack | 0;
           card.data.def = row.defense === undefined ? undefined : row.defense | 0;
-          card.data.ctr = openSlots && row.counters ? row.counters : undefined;
           if (!current) this.put(card, { ...loc, position }, visible ? row.code ?? 0 : 0);
           card.faceUp ||= row.isPublic === true;
         }
@@ -583,6 +600,22 @@ export class OcgDuel {
         if (pos === SURRENDER) return;
         return { type: R.SELECT_POSITION, position: pos === 'atk' ? 1 : 4 };
       } finally { this.ids.delete(card.uid); }
+    }
+    if (message.type === M.SELECT_DISFIELD && prompt.selection) {
+      const selection = prompt.selection;
+      const response = selection.response(selection.labels.map((_, index) => index));
+      if (response.type === R.SELECT_DISFIELD) {
+        const entries = response.places.flatMap((place, index) => {
+          if (place.player !== 0 && place.player !== 1) return [];
+          const zone = zoneOf({ controller: place.player, location: place.location, sequence: place.sequence });
+          if (zone !== 'mzone' && zone !== 'szone' && zone !== 'fzone' || zone !== 'fzone' && place.sequence >= 5) return [];
+          return [{ index, side: this.side(place.player), zone, slot: place.sequence }];
+        });
+        if (entries.length >= message.count) {
+          const picked = await ask({ t: 'zones', count: message.count, zones: entries });
+          return picked === SURRENDER ? undefined : selection.response((picked as number[]).map(index => entries[index].index));
+        }
+      }
     }
     if (prompt.announce) {
       const code = await ask({ t: 'announce', text: prompt.title, cards: [...this.session!.rows.values()].map(row => ({ name: row.name, code: Number(row.id) })) });
