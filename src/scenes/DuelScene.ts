@@ -12,7 +12,7 @@ import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
-import { burst, flash, motes, ring } from '../ui/fx';
+import { burst, flash, ring } from '../ui/fx';
 import { sfx } from '../ui/sfx';
 import { volumeControls } from '../ui/settings';
 import { actionIndicator } from '../ui/actionIndicator';
@@ -2187,14 +2187,12 @@ export class DuelScene extends Phaser.Scene {
     const s = this.sprites.get(c.uid);
     if (!s || this.dead) return;
     await wait(this, 240 * this.spd);
+    if (this.dead || !s.active) return;
     if (how !== 'flip') {
       this.evolveFx(c);
       const tint = evolveColor(c.def, true);
       burst(this, s.x, s.y + 24, tint, { n: how === 'normal' ? 16 : 26, angle: [225, 315], speed: [70, 250], gravity: -80, life: 700, spread: 26, depth: 62 });
     }
-    const base = s.scale;
-    s.setScale(base * 1.5);
-    this.tweens.add({ targets: s, scale: base, duration: 300 * this.spd, ease: 'Back.out' });
     await wait(this, 420 * this.spd);
   }
 
@@ -2453,19 +2451,13 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(1000);
     layer.add(this.playfieldBlocker(0x06050d, 0.74));
     const accent = win ? COL.gold : winner === -1 ? COL.glow : COL.red;
-    const hex = `#${accent.toString(16).padStart(6, '0')}`;
     const rules = this.add.graphics();
     for (const [x, a0, a1] of [[CX - 380, 0, 1], [CX, 1, 0]] as const) {
       rules.fillGradientStyle(accent, accent, accent, accent, a0, a1, a0, a1).fillRect(x, 212, 380, 1.5).fillRect(x, 392, 380, 1.5);
     }
     layer.add(rules);
-    if (win) {
-      const glitter = motes(this, CX - 380, 180, 760, 260, COL.goldLit, 1000);
-      layer.add(glitter);
-      burst(this, CX, 280, COL.goldLit, { n: 60, speed: [80, 420], life: 1400, gravity: 120, size: 0.3, depth: 1001 });
-    }
     const title = this.add.text(CX, 282, head, { fontFamily: FONT_H, fontSize: '84px', fontStyle: 'bold', color: '#fff6e0' })
-      .setOrigin(0.5).setLetterSpacing(5).setShadow(0, 0, hex, 26, false, true);
+      .setOrigin(0.5).setLetterSpacing(5);
     const scale = Math.min(1, 700 / title.width);
     title.setScale(scale * 1.25).setAlpha(0);
     this.tweens.add({ targets: title, scale, alpha: 1, duration: 420, ease: 'Cubic.out' });
