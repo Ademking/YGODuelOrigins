@@ -5,7 +5,7 @@ import type { DeckList } from '../engine/duel';
 export const PROTOCOL = 'duel-origins-p2p-1';
 export const APP_ID = 'duelorigins.online/multiplayer-v1';
 export const cleanName = (value: unknown) => typeof value === 'string'
-  ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 24) : '';
+  ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 16) : '';
 export const cleanChat = (value: unknown) => typeof value === 'string'
   ? value.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, 350) : '';
 export function validDeck(value: unknown): value is DeckList {

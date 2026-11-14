@@ -88,8 +88,8 @@ export class TitleScene extends Phaser.Scene {
     this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
 
     const menu: [string, () => void][] = [
-      ['Duel', () => this.scene.start('Setup')],
       ['Multiplayer', () => this.scene.start('Multiplayer')],
+      ['Duel', () => this.scene.start('Setup')],
       ['Deck Editor', () => this.scene.start('DeckEditor')],
       ['Replay', () => this.scene.start('Watch')],
       ['About', () => this.showAbout()],

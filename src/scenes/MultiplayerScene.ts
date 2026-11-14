@@ -47,7 +47,6 @@ export class MultiplayerScene extends Phaser.Scene {
         <section class="mp-frame mp-panel mp-chatpanel">
           <h2>Lobby chat</h2>
           <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite"></div>
-          <div class="mp-chips" id="mp-chips"></div>
           <div id="mp-compose"></div>
         </section>
       </div>
@@ -57,7 +56,7 @@ export class MultiplayerScene extends Phaser.Scene {
         <div class="mp-license">
           <div class="mp-lic-art" id="mp-name-art"></div>
           <div class="mp-lic-body">
-            <input class="mp-lic-name" id="mp-name" maxlength="24" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+            <input class="mp-lic-name" id="mp-name" maxlength="16" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
             <div id="mp-deck"></div>
           </div>
         </div>
@@ -149,7 +148,7 @@ export class MultiplayerScene extends Phaser.Scene {
         const hint = s.error ? 'The challenge could not start.'
           : !s.opponent ? `Waiting for ${challengeWith} to accept…` : 'Starting the duel…';
         actions.append(cancel);
-        box.append(el('h2', `Duel with ${challengeWith}`), el('p', hint), versus(s), err, actions);
+        box.append(el('h2', 'Challenge'), el('p', hint), versus(s), err, actions);
         if (!s.opponent && !s.error && s.isHost) box.append(challengeBar ??= expiry());
       } else {
         const copies = el('div', '', 'mp-row');
@@ -240,22 +239,12 @@ export class MultiplayerScene extends Phaser.Scene {
         grid.append(card);
       }
     };
-    /** Ready-made openers while the lobby chat is still quiet. */
-    const renderChips = () => {
-      const box = q('chips'); box.replaceChildren();
-      if (!lobby || lobby.chat.some(line => !line.system)) return;
-      for (const text of ['Hi everyone!', 'Anyone up for a duel?', 'Looking for a rematch partner']) {
-        const chip = el('button', text, 'mp-chip'); chip.type = 'button';
-        chip.onclick = () => void lobby?.say(text).catch(error);
-        box.append(chip);
-      }
-    };
     const connect = (chosen: string) => {
       try { localStorage.setItem(NAME_KEY, chosen); } catch {}
       lobby = new Lobby(chosen, { avatar: seed, country });
       q('lic-name').textContent = chosen;
       q('lic-deck').replaceWith(select.el);
-      lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); renderChips(); };
+      lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); };
       lobby.onError = status;
       lobby.onInvite = (peer, code) => {
         if (session) return;
@@ -278,7 +267,7 @@ export class MultiplayerScene extends Phaser.Scene {
         notice(`${who} declined your challenge.`);
       };
       status('Online');
-      renderRoster(); renderChat(q('messages'), lobby.chat); renderChips();
+      renderRoster(); renderChat(q('messages'), lobby.chat);
       composer.input.focus();
       if (fromLink) { history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };

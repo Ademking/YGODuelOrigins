@@ -919,7 +919,8 @@ export class DuelScene extends Phaser.Scene {
       this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
       // portrait well
       const px = PLATE.x + 34, py = y + PLATE.h / 2;
-      g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+      if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
+      else g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
       const watched = s === this.me ? this.init0.watch : undefined;
       const online = this.init0.multiplayer;
       if (online) {
@@ -940,14 +941,17 @@ export class DuelScene extends Phaser.Scene {
         if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
         else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
       }
-      this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+      if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
       const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
         { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
       if (this.init0.multiplayer) {
         this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
       }
       const room = PLATE.x + PLATE.w - 12 - PLATE.lpX - (this.init0.multiplayer ? 56 : 0);
-      if (name.width > room) name.setScale(room / name.width);
+      if (name.width > room) {
+        name.setScale(Math.max(0.8, room / name.width));
+        while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
+      }
       this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
       this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
       this.lpBar[s] = this.add.graphics();
@@ -1915,8 +1919,8 @@ export class DuelScene extends Phaser.Scene {
       this.load.once(`filecomplete-${svg ? 'svg' : 'image'}-${key}`, () => { if (img.active) { img.setTexture(key); place(img); img.setVisible(true); } });
       this.load.start();
     };
-    show(`avatar-${avatar}`, avatarURL(avatar), true, img => img.setPosition(px, py + 3).setDisplaySize(44, 44));
-    if (country) show(`flag-${country}`, flagCanvasURL(country), false, img => img.setPosition(px - 14, py - 22).setDisplaySize(18, 12));
+    show(`avatar-${avatar}`, avatarURL(avatar), true, img => img.setPosition(px, py).setDisplaySize(48, 48));
+    if (country) show(`flag-${country}`, flagCanvasURL(country), false, img => img.setPosition(px - 15, py - 19).setDisplaySize(18, 12));
   }
 
   /** Speech bubble beside a player's plate; a newer emote replaces the old one. */
