@@ -86,7 +86,10 @@
 .mp-emoji-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
 .mp-emoji-grid button { aspect-ratio: 1; min-width: 0; padding: 0; background: transparent; border: 1px solid transparent; border-radius: 2px; font-size: 20px; cursor: pointer; color: var(--gold-txt); font-family: inherit; font-weight: bold; }
 .mp-emoji-grid button:hover { border-color: var(--gold-dim); background: #1b1830; }
-.mp-popover > input { margin-bottom: 10px; }
+.mp-gif-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.mp-gif-tabs button { background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--dim); padding: 5px 9px; font: bold 11px Michroma, Arial, sans-serif; cursor: pointer; }
+.mp-gif-tabs button:hover { border-color: var(--gold-dim); color: var(--ink); }
+.mp-gif-tabs button.on { border-color: var(--gold); color: var(--gold-txt); background: #1b1830; }
 .mp-gif-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
 .mp-gif-pick { padding: 0; border: 1px solid transparent; background: var(--field); cursor: pointer; aspect-ratio: 1; overflow: hidden; }
 .mp-gif-pick:hover { border-color: var(--gold); }

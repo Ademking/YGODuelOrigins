@@ -1,5 +1,6 @@
 import type { ChatLine, PrivateRoom } from './client';
 import './multiplayer.css';
+import { GIF_IDS, GIF_LIBRARY, gifURL } from './gifs';
 
 /** Cut-corner button matching theme.ts button(). */
 export function btn(text: string, kind: '' | 'primary' | 'small' = '') {
@@ -21,20 +22,9 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = ''
 }
 
 // ---------------------------------------------------------------- GIFs
-// Only a GIPHY id travels over the wire; the image URL is always built here, so peers cannot make us load arbitrary hosts.
-const GIPHY_KEY = (import.meta.env.VITE_GIPHY_KEY as string | undefined)?.trim();
-const GIF_ID = /^[A-Za-z0-9]{5,40}$/;
+// Only an id from the built-in library travels over the wire; anything else is shown as plain text.
 export const gifMessage = (id: string) => `gif:${id}`;
-export const gifId = (text: string) => { const id = text.startsWith('gif:') ? text.slice(4) : ''; return GIF_ID.test(id) ? id : null; };
-const gifURL = (id: string) => `https://media.giphy.com/media/${id}/200w.gif`;
-async function findGifs(query: string): Promise<string[]> {
-  const url = new URL(`https://api.giphy.com/v1/gifs/${query ? 'search' : 'trending'}`);
-  url.search = new URLSearchParams({ api_key: GIPHY_KEY!, limit: '24', rating: 'pg-13', ...(query ? { q: query } : {}) }).toString();
-  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error('GIF search failed.');
-  const body = await response.json() as { data?: { id?: unknown }[] };
-  return (body.data ?? []).map(g => String(g.id)).filter(id => GIF_ID.test(id));
-}
+export const gifId = (text: string) => { const id = text.startsWith('gif:') ? text.slice(4) : ''; return GIF_IDS.has(id) ? id : null; };
 
 // ---------------------------------------------------------------- chat
 const EMOJI = ['😀', '😂', '🤣', '😊', '😍', '😎', '🤔', '😮', '😱', '🤯', '😢', '😭', '😡', '😈', '🥲', '😴',
@@ -92,33 +82,27 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     }
     pop.replaceChildren(grid);
   };
+  let gifTab = Object.keys(GIF_LIBRARY)[0];
   const showGifs = () => {
-    const search = element('input'); search.placeholder = 'Search GIPHY…'; search.setAttribute('aria-label', 'Search GIFs');
+    const tabs = element('div', '', 'mp-gif-tabs');
     const grid = element('div', '', 'mp-gif-grid');
-    const note = element('div', 'Loading…', 'mp-pop-note');
-    let last = 0;
-    const load = async (query: string) => {
-      const mine = ++last;
-      grid.replaceChildren(); note.textContent = 'Loading…'; note.hidden = false;
-      try {
-        const ids = await findGifs(query);
-        if (mine !== last) return;
-        note.hidden = !!ids.length; note.textContent = 'No GIFs found.';
-        grid.replaceChildren(...ids.map(id => {
-          const b = element('button', '', 'mp-gif-pick'); b.type = 'button';
-          const img = element('img'); img.src = gifURL(id); img.alt = 'GIF'; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
-          b.append(img);
-          b.onclick = () => { close(); send(gifMessage(id)); input.focus(); };
-          return b;
-        }));
-      } catch { if (mine === last) note.textContent = 'Could not reach GIPHY.'; }
+    const draw = () => {
+      tabs.replaceChildren(...Object.keys(GIF_LIBRARY).map(tag => {
+        const chip = element('button', tag, tag === gifTab ? 'on' : ''); chip.type = 'button';
+        chip.onclick = () => { gifTab = tag; draw(); };
+        return chip;
+      }));
+      grid.replaceChildren(...GIF_LIBRARY[gifTab].map(id => {
+        const b = element('button', '', 'mp-gif-pick'); b.type = 'button'; b.title = `${gifTab} GIF`;
+        const img = element('img'); img.src = gifURL(id); img.alt = `${gifTab} GIF`; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+        b.append(img);
+        b.onclick = () => { close(); send(gifMessage(id)); input.focus(); };
+        return b;
+      }));
+      grid.scrollTop = 0;
     };
-    let debounce: ReturnType<typeof setTimeout> | undefined;
-    search.oninput = () => { clearTimeout(debounce); debounce = setTimeout(() => void load(search.value.trim()), 350); };
-    search.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
-    pop.replaceChildren(search, note, grid, element('div', 'Powered by GIPHY', 'mp-pop-credit'));
-    void load('');
-    queueMicrotask(() => search.focus());
+    draw();
+    pop.replaceChildren(tabs, grid, element('div', 'GIFs via GIPHY', 'mp-pop-credit'));
   };
   const toggle = (next: 'emoji' | 'gif') => {
     if (mode === next) { close(); return; }
@@ -140,7 +124,7 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     if (text.trim()) send(text);
   });
   form.append(pop, emojiButton);
-  if (GIPHY_KEY) form.append(gifButton);
+  form.append(gifButton);
   form.append(input, sendButton);
   return { form, input };
 }

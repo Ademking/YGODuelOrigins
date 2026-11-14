@@ -141,3 +141,12 @@ test('duel clock only runs for the side being waited on', () => {
   assert.equal(clock.remaining(0), 0);
   assert.equal(clock.active, 0);
 });
+
+test('chat GIFs only accept ids from the built-in library', async () => {
+  const { GIF_IDS } = await import('../../src/multiplayer/gifs');
+  const known = [...GIF_IDS][0];
+  assert.ok(GIF_IDS.size > 50);
+  assert.ok(GIF_IDS.has(known));
+  assert.ok(!GIF_IDS.has('notInTheLibrary123'));
+  assert.ok([...GIF_IDS].every(id => /^[A-Za-z0-9]{5,40}$/.test(id)));
+});

@@ -50,5 +50,5 @@ Before broad release, test two browsers on separate networks for lobby discovery
 ## Chat extras and clocks
 
 - **Emoji:** the 😊 button in lobby and duel chat inserts emoji into the message.
-- **GIFs:** set `VITE_GIPHY_KEY` (a free GIPHY API key) in the build environment, e.g. Vercel project env vars, to show the GIF button. Without it, the button is hidden, but GIFs other players send still display. Only a GIPHY id is sent over the wire; the image URL is always built for `media.giphy.com`, and viewing a GIF loads it from GIPHY.
+- **GIFs:** the GIF button opens a built-in library of about 120 reaction GIFs in tabs (`src/multiplayer/gifs.ts`). No API key is needed; images load from GIPHY's CDN (`media.giphy.com`). Chat only renders GIF ids from that library, so a modified client cannot push other GIFs. To add GIFs, append GIPHY ids to the list.
 - **Clocks:** each player has 10 minutes of thinking time for the whole duel (`CLOCK_MS` in `src/multiplayer/lockstep.ts`). A clock runs only while the duel waits on that player's decision. A player whose clock reaches 0:00 forfeits; their opponent sees "Your opponent ran out of time."
