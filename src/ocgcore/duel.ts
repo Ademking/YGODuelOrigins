@@ -1,3 +1,5 @@
+import type { DuelNetwork } from '../multiplayer/lockstep';
+import { seededRandom } from '../multiplayer/protocol';
 import { OcgCardHintType, OcgHintType, OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
 import type { Action, Card, DeckList, Phase, Player, Prompt, UIEvent } from '../engine/duel';
 import type { CardDef, Side, Zone } from '../engine/types';
@@ -660,20 +662,21 @@ export class OcgDuel {
     return atk === opposing ? (atk >= 1800 ? 300 : 0) : 2000 + opposing + (target.pos === 'atk' ? atk - opposing : 0);
   }
 
-  async run(core: OcgCoreSync, bundle: Bundle, debug?: DebugSetup, first: Side = Math.random() < 0.5 ? 0 : 1) {
+  async run(core: OcgCoreSync, bundle: Bundle, debug?: DebugSetup, first: Side = Math.random() < 0.5 ? 0 : 1, network?: DuelNetwork) {
     if (this.stopped) return;
     this.engineFirst = first;
     const { codeFor } = cardCatalog(bundle);
     const order = [this.decks[first], this.decks[opp(first)]] as const;
+    const random = network ? seededRandom(Number(BigInt(network.seed[0]) & 0xffffffffn)) : Math.random;
     const shuffled = (ids: string[]) => {
       const codes = ids.map(codeFor);
       for (let i = codes.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(random() * (i + 1));
         [codes[i], codes[j]] = [codes[j], codes[i]];
       }
       return codes;
     };
-    const seed = crypto.getRandomValues(new BigUint64Array(4));
+    const seed = network ? network.seed.map(BigInt) : crypto.getRandomValues(new BigUint64Array(4));
     const session = openDuel(core, bundle, [shuffled(order[0].main), shuffled(order[1].main)], [order[0].extra.map(codeFor), order[1].extra.map(codeFor)],
       this.startingLP, [seed[0], seed[1], seed[2], seed[3]], debug && { ...debug, codeFor });
     this.session = session;
@@ -694,11 +697,13 @@ export class OcgDuel {
           return;
         }
         if (!next.prompt || !('player' in next.prompt)) throw new Error('OCGCore did not return a player decision.');
-        const response = await this.answer(next.prompt);
+        const response = network
+          ? await network.exchange(next.prompt, this.side(next.prompt.player) === 0, () => this.answer(next.prompt! as OcgMessage & { player: number }))
+          : await this.answer(next.prompt);
         if (!response || this.stopped) break;
         session.respond(response);
       }
-      if (!this.stopped) await this.emit({ t: 'end', winner: 1, reason: 'You surrendered' });
+      if (!this.stopped) await this.emit({ t: 'end', winner: network && this.tp !== 0 ? 0 : 1, reason: network ? 'A player surrendered' : 'You surrendered' });
     } finally { session.close(); }
   }
 }

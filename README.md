@@ -14,6 +14,12 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 </div>
 
+## Multiplayer preview
+
+This branch adds **Multiplayer** to the title screen: a saved nickname, shared lobby and chat, player challenges, private room codes/links, and in-duel chat. There is no backend to deploy and players need no accounts.
+
+Peer discovery uses public relays; gameplay uses WebRTC. Some networks require a TURN relay, which is not configured by default. This is casual play, with a bounded lobby and no server-enforced anti-cheat. See [multiplayer setup and limitations](docs/MULTIPLAYER.md).
+
 ## Version 1.1.0 — OCGCore duels
 
 Duel Setup and CPU versus CPU use OCGCore WebAssembly through the original Phaser duel scene. Project Ignis Lua handles card effects and legal actions in the browser. Decks retain their existing saved IDs and are mapped to Project Ignis passcodes on duel entry. Duels use the core's GOAT rules flags with Duel Origins' existing deck pool. Card text and rulings come from the pinned Project Ignis revisions, so historical errata can differ from the original simulator.

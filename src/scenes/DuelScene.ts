@@ -1,3 +1,5 @@
+import type { Match, Lobby } from '../multiplayer/client';
+import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
@@ -31,7 +33,7 @@ import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
 /** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
-export interface DuelInit { deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
+export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
 
 // ---- board geometry: a ground plane seen in true perspective (proportions fitted to the wireframe).
 // u = column in tile widths (0 = centre), w = depth in tile depths (0 = midline, + towards you).
@@ -217,7 +219,7 @@ export class DuelScene extends Phaser.Scene {
     this.tweens.add({ targets: this.hlPulse, a: 0.55, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     const duel: OcgDuel = new OcgDuel(
-      [d.deck, d.opp.deck], [d.watch?.name ?? 'You', d.opp.name],
+      [d.deck, d.opp.deck], [d.multiplayer?.name ?? d.watch?.name ?? 'You', d.opp.name],
       d.watch ? null : (prompt, current) => this.handlePrompt(prompt, current),
       (event) => duel === this.duel ? this.onDuelEvent(event) : undefined,
       d.startingLP, 200 * this.spd, 200 * this.spd,
@@ -225,6 +227,22 @@ export class DuelScene extends Phaser.Scene {
     );
     this.events.once('shutdown', () => duel.stop());
     this.duel = duel;
+    if (d.multiplayer) {
+      const session = d.multiplayer.session;
+      const removeChat = mountDuelChat(session, typing => {
+        if (this.input.keyboard) this.input.keyboard.enabled = !typing;
+      });
+      session.onEnd = (reason, surrendered) => {
+        if (this.dead || this.ended) return;
+        duel.stop();
+        this.pending?.resolve(SURRENDER);
+        this.showEnd(surrendered ? this.me : -1, reason);
+      };
+      this.events.once('shutdown', () => {
+        removeChat(); session.onEnd = () => {};
+        void session.leave(); d.lobby?.close();
+      });
+    }
     this.layout(true);
     this.input.dragDistanceThreshold = 8;
     this.setupInput();
@@ -241,7 +259,7 @@ export class DuelScene extends Phaser.Scene {
     void (async () => {
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
-      const first = d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
+      const first = d.multiplayer ? d.multiplayer.first : d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
       if (this.dead || duel !== this.duel) return;
       if (!d.debug && !d.watch && first === null) {
         duel.log('You surrendered.');
@@ -249,9 +267,10 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       const [core, bundle] = await loadRuntime();
-      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined);
+      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined, d.multiplayer?.network);
     })().catch((error: unknown) => {
-      if (this.dead || duel !== this.duel) return;
+      if (this.dead || this.ended || duel !== this.duel) return;
+      if (d.multiplayer) void d.multiplayer.session.leave();
       const detail = error instanceof Error ? error.message : String(error);
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
       this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
@@ -901,10 +920,10 @@ export class DuelScene extends Phaser.Scene {
         const duelist = watched ?? this.init0.opp;
         const portrait = portraitKey(duelist.id);
         if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
-        else this.add.text(px, py, duelist.art, { fontSize: '22px' }).setOrigin(0.5);
+        else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
       }
       this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
-      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? watched?.name ?? 'You' : this.init0.opp.name),
+      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
         { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
       const room = PLATE.x + PLATE.w - 12 - PLATE.lpX;
       if (name.width > room) name.setScale(room / name.width);
@@ -1866,6 +1885,7 @@ export class DuelScene extends Phaser.Scene {
 
   private surrender() {
     if (this.ended) return;
+    if (this.init0.multiplayer) void this.init0.multiplayer.session.leave(true);
     this.duel.stop();
     const p = this.pending;
     this.pending = null;
@@ -2661,7 +2681,7 @@ export class DuelScene extends Phaser.Scene {
     const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: 680 } }).setOrigin(0.5);
     detail.setScale(Math.min(1, 44 / detail.height));
     layer.add(detail);
-    layer.add(button(this, CX - 128, 470, 240, 50, 'Rematch', () => this.scene.restart(this.init0), { size: 16, primary: true }));
+    layer.add(button(this, CX - 128, 470, 240, 50, this.init0.multiplayer ? 'Back to lobby' : 'Rematch', () => this.init0.multiplayer ? this.scene.start('Multiplayer') : this.scene.restart(this.init0), { size: 16, primary: true }));
     layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
     layer.add(button(this, CX, 528, 132, 30, 'View Log', () => this.toggleLogs(), { size: 11 }));
   }
