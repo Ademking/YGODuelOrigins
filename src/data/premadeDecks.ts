@@ -176,6 +176,73 @@ const recipes: Recipe[] = [
       'Sakuretsu Armor': 2, 'Compulsory Evacuation Device': 2,
     },
   },
+  {
+    id: 'paradox', name: 'Paradox Brothers', title: 'Labyrinth Duelists', ace: 'Gate Guardian', style: 'Gate Guardian and its three guardians', suggested: 'hard',
+    main: {
+      'Gate Guardian': 1, 'Sanga of the Thunder': 2, 'Kazejin': 2, 'Suijin': 2, 'Labyrinth Wall': 2,
+      'Wall Shadow': 1, 'Mystic Tomato': 3, 'Giant Rat': 3, 'Sangan': 1, 'Magical Labyrinth': 1,
+      'Double Summon': 2, 'Cost Down': 2, 'Soul Exchange': 2, 'Monster Reborn': 1, 'Pot of Greed': 1,
+      'Swords of Revealing Light': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Call Of The Haunted': 1, 'Sakuretsu Armor': 3,
+      'Trap Hole': 3, 'Mirror Force': 1, 'Compulsory Evacuation Device': 1,
+    },
+  },
+  {
+    id: 'panik', name: 'PaniK', title: 'Pegasus’s Eliminator', ace: 'Castle of Dark Illusions', style: 'Defensive Fiends and battle traps', suggested: 'normal',
+    main: {
+      'Castle of Dark Illusions': 3, 'Metal Guardian': 2, 'Dark Jeroid': 1, 'King of Yamimakai': 2, 'Dark Chimera': 2,
+      'Wall of Illusion': 3, 'Man-Eater Bug': 2, 'Mystic Tomato': 3, 'Kuriboh': 2, 'Skull Knight #2': 2,
+      'Yami': 2, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Swords of Revealing Light': 1, 'Monster Reborn': 1,
+      'Pot of Greed': 1, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Trap Hole': 3, 'Call Of The Haunted': 1,
+      'Compulsory Evacuation Device': 1,
+    },
+  },
+  {
+    id: 'rebecca', name: 'Rebecca Hawkins', title: 'Graveyard Strategist', ace: 'Shadow Ghoul', style: 'Shadow Ghoul and Graveyard setup', suggested: 'normal',
+    main: {
+      'Shadow Ghoul': 3, 'Millennium Shield': 2, 'Cannon Soldier': 2, 'Witch of the Black Forest': 1, 'Sangan': 1,
+      'Mystic Tomato': 3, 'Giant Rat': 3, 'Cyber Jar': 1, 'Morphing Jar': 1, 'Magician of Faith': 2,
+      'Man-Eater Bug': 2, 'Card Destruction': 1, 'Graceful Charity': 1, 'Pot of Greed': 1, 'Monster Reborn': 1,
+      'Foolish Burial': 2, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Swords of Revealing Light': 1, 'Call Of The Haunted': 1,
+      'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Compulsory Evacuation Device': 3,
+    },
+  },
+  {
+    id: 'camula', name: 'Camula', title: 'Shadow Rider', ace: 'Vampire Genesis', style: 'Vampires and Graveyard revival', suggested: 'hard',
+    main: {
+      'Vampire Genesis': 2, 'Vampire Lord': 3, 'Vampire Lady': 3, 'Pyramid Turtle': 3, 'Spirit Reaper': 2,
+      'Goblin Zombie': 3, 'Ryu Kokki': 2, 'Book of Life': 3, 'Call of the Mummy': 2, 'Monster Reborn': 1,
+      'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Creature Swap': 2, 'Call Of The Haunted': 1,
+      'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Compulsory Evacuation Device': 2, 'Vampire\'s Curse': 2,
+    },
+  },
+  {
+    id: 'chumley', name: 'Chumley Huffington', title: 'Beast Fusion Duelist', ace: 'Master of Oz', style: 'Koalas, Kangaroos and Beast Fusion', suggested: 'normal',
+    main: {
+      'Big Koala': 2, 'Des Kangaroo': 3, 'Des Koala': 3, 'Giant Rat': 3, 'Berserk Gorilla': 3,
+      'Enraged Battle Ox': 2, 'Nimble Momonga': 3, 'Rescue Cat': 2, 'King of the Swamp': 2, 'Polymerization': 3,
+      'Fusion Recovery': 2, 'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2,
+      'Sakuretsu Armor': 3, 'Mirror Force': 1, 'Wild Nature\'s Release': 2,
+    },
+    extra: {'Master of Oz': 2},
+  },
+  {
+    id: 'zaloog', name: 'Don Zaloog', title: 'Dark Scorpion Leader', ace: 'Don Zaloog', style: 'Dark Scorpions and battle damage effects', suggested: 'normal',
+    main: {
+      'Don Zaloog': 3, 'Dark Scorpion - Chick the Yellow': 3, 'Cliff the Trap Remover': 3, 'Dark Scorpion - Gorg the Strong': 2, 'Dark Scorpion - Meanae the Thorn': 3,
+      'Mystic Tomato': 3, 'Marauding Captain': 2, 'Exiled Force': 2, 'Mustering of the Dark Scorpions': 2, 'Reinforcement of the Army': 2,
+      'The Warrior Returning Alive': 2, 'Axe of Despair': 2, 'Mystical Space Typhoon': 2, 'Smashing Ground': 2, 'Monster Reborn': 1,
+      'Pot of Greed': 1, 'Dark Scorpion Combination': 2, 'Sakuretsu Armor': 2, 'Mirror Force': 1,
+    },
+  },
+  {
+    id: 'atticus', name: 'Atticus Rhodes / Nightshroud', title: 'Shadow Rider', ace: 'Red-Eyes Darkness Dragon', style: 'Red-Eyes Dragons and Graveyard setup', suggested: 'hard',
+    main: {
+      'Red-Eyes Darkness Dragon': 2, 'Red-Eyes B. Dragon': 3, 'Red-Eyes B. Chick': 3, 'Masked Dragon': 3, 'Troop Dragon': 3,
+      'Spear Dragon': 3, 'Luster Dragon': 3, 'Twin-Headed Behemoth': 1, 'Armed Dragon LV3': 2, 'Armed Dragon LV5': 2,
+      'Stamping Destruction': 2, 'Foolish Burial': 2, 'Monster Reborn': 1, 'Pot of Greed': 1, 'Mystical Space Typhoon': 2,
+      'Call Of The Haunted': 1, 'Mirror Force': 1, 'Sakuretsu Armor': 3, 'Smashing Ground': 2,
+    },
+  },
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));
