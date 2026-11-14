@@ -30,7 +30,7 @@ function die(scene: Phaser.Scene, x: number, y: number, size: number) {
 function show(image: Phaser.GameObjects.Image, duelist: Pick<Opponent, 'id' | 'ace'>, height: number) {
   const portrait = portraitKey(duelist.id);
   const ace = CARDS.find((card) => card.name === duelist.ace);
-  if (portrait) return image.setData('cardId', null).setTexture(portrait).setDisplaySize(height * 118 / 141, height);
+  if (portrait && image.scene.textures.exists(portrait)) return image.setData('cardId', null).setTexture(portrait).setDisplaySize(height * 118 / 141, height);
   if (ace) return setCardTexture(image, ace.id).setDisplaySize(height * 300 / 438, height);
   return image.setData('cardId', null).setTexture(BACK).setDisplaySize(height * 300 / 438, height);
 }
@@ -47,27 +47,26 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
   panel(scene, cx - 260, top, 520, 506, 0.9, 10);
   caption(scene, cx - 236, top + 20, label, COL.goldTxt, 10);
   const position = txt(scene, cx + 236, top + 26, '', 11, COL.dim).setOrigin(1, 0.5);
-  const avatar = scene.add.image(cx, top + 156, BACK);
-  const mystery = htxt(scene, cx, top + 156, '?', 120).setOrigin(0.5);
-  const name = htxt(scene, cx, top + 292, '', 23).setOrigin(0.5);
-  const title = txt(scene, cx, top + 322, '', 13, COL.goldTxt).setOrigin(0.5);
-  const style = txt(scene, cx, top + 344, '', 12, COL.dim, { align: 'center', wordWrap: { width: 440 } }).setOrigin(0.5, 0);
+  const avatar = scene.add.image(cx, top + 137, BACK);
+  const mystery = htxt(scene, cx, top + 137, '?', 85).setOrigin(0.5);
+  const name = htxt(scene, cx, top + 244, '', 23).setOrigin(0.5);
+  const title = txt(scene, cx, top + 273, '', 13, COL.goldTxt).setOrigin(0.5);
+  const style = txt(scene, cx, top + 295, '', 12, COL.dim, { align: 'center', wordWrap: { width: 440 } }).setOrigin(0.5, 0);
 
-  // Keep the portrait grid at two rows, paging with the selected duelist.
-  const pageSize = PER_ROW * 2;
   const marker = scene.add.graphics().setDepth(1);
   const choose = (index: number) => { selected = index; refresh(); onChange(index); };
-  const faces = Array.from({ length: Math.min(pageSize, roster.length + 1) }, (_, n) => {
-    const x = cx + (n % PER_ROW - (PER_ROW - 1) / 2) * 37;
-    const y = top + 409 + Math.floor(n / PER_ROW) * 47;
+  const faces = Array.from({ length: roster.length + 1 }, (_, n) => {
+    const row = Math.floor(n / PER_ROW);
+    const count = Math.min(PER_ROW, roster.length + 1 - row * PER_ROW);
+    const x = cx + (n % PER_ROW - (count - 1) / 2) * 37;
+    const y = top + 360 + row * 47;
+    const index = n - 1;
     const tile = scene.add.rectangle(x, y, 34, 43, 0x14121f).setInteractive({ useHandCursor: true });
-    const random = n === 0 ? die(scene, x, y, 22) : null;
-    const face = scene.add.image(x, y, BACK);
-    const index = () => Math.floor((selected + 1) / pageSize) * pageSize + n - 1;
-    tile.on('pointerover', () => { face.setAlpha(1); random?.setAlpha(1); });
-    tile.on('pointerout', () => { const alpha = selected === index() ? 1 : 0.5; face.setAlpha(alpha); random?.setAlpha(alpha); });
-    tile.on('pointerup', () => { sfx.click(); choose(index()); });
-    return { x, y, tile, face, random, index };
+    const face = index === RANDOM ? die(scene, x, y, 22) : show(scene.add.image(x, y, BACK), roster[index], 40);
+    tile.on('pointerover', () => face.setAlpha(1));
+    tile.on('pointerout', () => face.setAlpha(selected === index ? 1 : 0.66));
+    tile.on('pointerup', () => { sfx.click(); choose(index); });
+    return { x, y, face };
   });
 
   const refresh = () => {
@@ -75,41 +74,23 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
     position.setText(duelist ? `${selected + 1} / ${roster.length}` : '');
     // Random: a question mark over a faint portrait (which keeps changing, see the timer below)
     mystery.setVisible(!duelist);
-    show(avatar, duelist ?? anyone(), 215).setAlpha(duelist ? 1 : 0.25);
+    show(avatar, duelist ?? anyone(), 160).setAlpha(duelist ? 1 : 0.25);
     name.setText(duelist?.name ?? 'Random').setScale(1);
     name.setScale(Math.min(1, 460 / name.width));
     title.setText(duelist?.title ?? 'A surprise duelist, picked when the duel starts');
     style.setText(duelist?.style ?? '');
-    for (const { x, y, tile, face, random, index } of faces) {
-      const i = index();
-      const entry = roster[i];
-      const visible = i === RANDOM || !!entry;
-      const alpha = i === selected ? 1 : 0.5;
-      tile.setVisible(visible);
-      tile.input!.enabled = visible;
-      random?.setVisible(i === RANDOM).setAlpha(alpha);
-      face.setVisible(!!entry).setAlpha(alpha);
-      if (entry) show(face, entry, 40);
-      if (i === selected) marker.clear().lineStyle(2, COL.gold, 1).strokeRect(x - 17, y - 22, 34, 44);
-    }
+    faces.forEach(({ face }, n) => face.setAlpha(n - 1 === selected ? 1 : 0.66));
+    const { x, y } = faces[selected + 1];
+    marker.clear().lineStyle(2, COL.gold, 1).strokeRect(x - 17, y - 22, 34, 44);
   };
-  if (!reduced) scene.time.addEvent({ delay: 150, loop: true, callback: () => { if (selected === RANDOM) show(avatar, anyone(), 215); } });
+  if (!reduced) scene.time.addEvent({ delay: 150, loop: true, callback: () => { if (selected === RANDOM) show(avatar, anyone(), 160); } });
   /** Move through Random and then every duelist. */
   const step = (direction: number) => {
     const count = roster.length + 1;
     choose(((selected + 1 + direction + count) % count) - 1);
   };
-  if (roster.length + 1 > pageSize) {
-    const page = (direction: number) => {
-      const pages = Math.ceil((roster.length + 1) / pageSize);
-      const current = Math.floor((selected + 1) / pageSize);
-      choose(((current + direction + pages) % pages) * pageSize - 1);
-    };
-    button(scene, cx - 48, top + 486, 82, 22, 'Prev page', () => page(-1), { size: 9 });
-    button(scene, cx + 48, top + 486, 82, 22, 'Next page', () => page(1), { size: 9 });
-  }
-  button(scene, cx - 150, top + 156, 40, 48, '‹', () => step(-1), { size: 22 });
-  button(scene, cx + 150, top + 156, 40, 48, '›', () => step(1), { size: 22 });
+  button(scene, cx - 150, top + 137, 40, 48, '‹', () => step(-1), { size: 22 });
+  button(scene, cx + 150, top + 137, 40, 48, '›', () => step(1), { size: 22 });
   refresh();
   return { step };
 }

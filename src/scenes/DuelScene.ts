@@ -839,7 +839,7 @@ export class DuelScene extends Phaser.Scene {
       } else {
         const duelist = watched ?? this.init0.opp;
         const portrait = portraitKey(duelist.id);
-        if (portrait) this.add.image(px, py, portrait).setDisplaySize(46, 55);
+        if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
         else this.add.text(px, py, duelist.art, { fontSize: '22px' }).setOrigin(0.5);
       }
       this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
