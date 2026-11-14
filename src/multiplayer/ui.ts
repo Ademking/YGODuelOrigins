@@ -182,10 +182,11 @@ export function picker(options: PickOption[], initial: string, caption: string) 
   button.setAttribute('aria-haspopup', 'listbox'); button.setAttribute('aria-expanded', 'false');
   const label = element('b');
   button.append(element('small', caption), label, element('i', '▾'));
+  // The list floats in the nearest dialog or screen root, so cut-corner (clipped) parents never hide it.
   const pop = element('div', '', 'mp-pick-pop'); pop.hidden = true;
-  const search = element('input'); search.placeholder = `Search ${options.length} decks…`; search.setAttribute('aria-label', 'Search decks');
+  const search = element('input'); search.placeholder = `Search ${options.length} decks`; search.setAttribute('aria-label', 'Search decks');
   const list = element('div', '', 'mp-pick-list'); list.setAttribute('role', 'listbox');
-  pop.append(search, list); wrap.append(button, pop);
+  pop.append(search, list); wrap.append(button);
   let value = options.some(o => o.value === initial) ? initial : options[0]?.value ?? '';
   let active = 0, shown: PickOption[] = [];
   const sync = () => { label.textContent = options.find(o => o.value === value)?.label ?? 'No valid deck'; };
@@ -201,24 +202,35 @@ export function picker(options: PickOption[], initial: string, caption: string) 
       row.onpointerdown = e => { e.preventDefault(); choose(o.value); };
       return row;
     }));
-    if (!shown.length) list.append(element('div', 'No matching deck', 'mp-pop-note'));
+    if (!shown.length) list.append(element('div', 'No deck matches that name.', 'mp-pop-note'));
     list.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
   };
+  const place = () => {
+    const r = button.getBoundingClientRect(), width = Math.max(r.width, 340);
+    const below = innerHeight - r.bottom, up = below < 320 && r.top > below;
+    pop.style.width = `${width}px`;
+    pop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - width - 8))}px`;
+    pop.style.top = up ? '' : `${r.bottom + 6}px`;
+    pop.style.bottom = up ? `${innerHeight - r.top + 6}px` : '';
+    pop.style.setProperty('--room', `${Math.max(160, (up ? r.top : below) - 90)}px`);
+  };
   const open = (yes: boolean) => {
+    if (yes) (button.closest('dialog') ?? button.closest('.mp-root') ?? document.body).append(pop);
     pop.hidden = !yes; button.setAttribute('aria-expanded', String(yes)); wrap.classList.toggle('open', yes);
-    if (yes) { search.value = ''; active = Math.max(0, options.findIndex(o => o.value === value)); draw(); search.focus(); }
+    if (yes) { place(); search.value = ''; active = Math.max(0, options.findIndex(o => o.value === value)); draw(); search.focus(); }
   };
   const choose = (v: string) => { value = v; sync(); open(false); button.focus(); };
   button.onclick = () => open(pop.hidden);
   search.oninput = () => { active = 0; draw(); };
+  pop.addEventListener('keydown', e => e.stopPropagation());
   search.onkeydown = e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); active += e.key === 'ArrowDown' ? 1 : -1; draw(); }
     else if (e.key === 'Enter') { e.preventDefault(); if (shown[active]) choose(shown[active].value); }
     else if (e.key === 'Escape') { e.preventDefault(); open(false); button.focus(); }
   };
   const outside = (e: PointerEvent) => {
-    if (!wrap.isConnected) document.removeEventListener('pointerdown', outside);
-    else if (!wrap.contains(e.target as Node)) open(false);
+    if (!wrap.isConnected) { document.removeEventListener('pointerdown', outside); pop.remove(); }
+    else if (!wrap.contains(e.target as Node) && !pop.contains(e.target as Node)) open(false);
   };
   document.addEventListener('pointerdown', outside);
   sync();
@@ -229,35 +241,68 @@ export function picker(options: PickOption[], initial: string, caption: string) 
   };
 }
 
-// ---------------------------------------------------------------- in-duel chat
+// ---------------------------------------------------------------- in-duel comms
+// A slim rail on the right edge, clear of the hand: chat opens a drawer beside it, emotes open a short list.
+const CHAT_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>';
+const EMOTE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.5c1.9 2 5.1 2 7 0"/><path d="M9 9.5h.01M15 9.5h.01" stroke-width="2.6"/></svg>';
+const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
 export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}) {
-  const dock = element('details', '', 'mp-chat');
-  const summary = element('summary', 'Duel chat');
-  const messages = element('div', '', 'mp-messages');
-  messages.setAttribute('role', 'log');
-  const { form, input } = chatComposer(text => {
-    void session.say(text).catch(() => { summary.textContent = 'Chat disconnected'; });
-  }, 'Message your opponent…');
-  dock.append(summary, messages, form); document.body.append(dock);
-  dock.addEventListener('focusin', () => focus(true));
-  dock.addEventListener('focusout', e => { if (!dock.contains(e.relatedTarget as Node)) focus(false); });
-  dock.addEventListener('keydown', e => e.stopPropagation());
-  const bar = element('div', '', 'mp-emote-bar');
-  EMOTES.forEach(([icon, label], i) => {
-    const b = element('button', icon); b.type = 'button'; b.title = label; b.setAttribute('aria-label', `Emote: ${label}`);
-    b.onclick = () => void session.say(`emote:${i}`).catch(() => {});
-    bar.append(b);
+  const shell = element('div', '', 'mp-duel');
+  const rail = element('nav', '', 'mp-rail'); rail.setAttribute('aria-label', 'Duel chat and emotes');
+  const railButton = (svg: string, label: string) => {
+    const b = element('button', '', 'mp-rail-btn'); b.type = 'button'; b.title = label;
+    b.setAttribute('aria-label', label); b.setAttribute('aria-expanded', 'false'); b.innerHTML = svg;
+    return b;
+  };
+  const chatButton = railButton(CHAT_ICON, 'Duel chat'), emoteButton = railButton(EMOTE_ICON, 'Emotes');
+  const badge = element('span', '', 'mp-badge'); badge.hidden = true; chatButton.append(badge);
+  rail.append(chatButton, emoteButton);
+
+  const emotes = element('div', '', 'mp-emote-pop'); emotes.hidden = true; emotes.setAttribute('role', 'menu');
+  EMOTES.forEach(([glyph, label], i) => {
+    const b = element('button', '', 'mp-emote'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+    b.append(element('span', glyph, 'mp-emote-glyph'), element('span', label));
+    b.onclick = () => { show(null); void session.say(`emote:${i}`).catch(() => {}); };
+    emotes.append(b);
   });
-  document.body.append(bar);
+
+  const drawer = element('section', '', 'mp-drawer'); drawer.hidden = true; drawer.setAttribute('aria-label', 'Duel chat');
+  const head = element('header');
+  const close = element('button', '', 'mp-rail-btn small'); close.type = 'button'; close.innerHTML = CLOSE_ICON; close.setAttribute('aria-label', 'Close chat');
+  head.append(element('h2', `Chat with ${session.opponent?.name ?? 'your opponent'}`), close);
+  const messages = element('div', '', 'mp-scroll mp-messages'); messages.setAttribute('role', 'log');
+  const { form, input } = chatComposer(text => {
+    void session.say(text).catch(() => { messages.append(element('div', 'Chat is disconnected.', 'mp-message sys')); });
+  }, 'Say something');
+  drawer.append(head, messages, form);
+  shell.append(rail, emotes, drawer);
+  document.body.append(shell);
+
+  let unread = 0;
+  const show = (what: 'chat' | 'emote' | null) => {
+    drawer.hidden = what !== 'chat'; emotes.hidden = what !== 'emote';
+    chatButton.setAttribute('aria-expanded', String(what === 'chat')); emoteButton.setAttribute('aria-expanded', String(what === 'emote'));
+    chatButton.classList.toggle('on', what === 'chat'); emoteButton.classList.toggle('on', what === 'emote');
+    if (what === 'chat') { unread = 0; badge.hidden = true; messages.scrollTop = messages.scrollHeight; input.focus(); }
+    else if (what === 'emote') (emotes.firstElementChild as HTMLElement | null)?.focus();
+    else focus(false);
+  };
+  chatButton.onclick = () => show(drawer.hidden ? 'chat' : null);
+  emoteButton.onclick = () => show(emotes.hidden ? 'emote' : null);
+  close.onclick = () => { show(null); chatButton.focus(); };
+  shell.addEventListener('focusin', e => { if (drawer.contains(e.target as Node)) focus(true); });
+  shell.addEventListener('focusout', e => { if (!drawer.contains(e.relatedTarget as Node)) focus(false); });
+  shell.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Escape' && (!drawer.hidden || !emotes.hidden)) { e.preventDefault(); show(null); chatButton.focus(); }
+  });
   session.onChat = line => {
     const emote = line && emoteOf(line.text);
     if (line && emote) onEmote(line, emote);
     renderChat(messages, session.chat);
-    summary.textContent = dock.open ? 'Duel chat' : 'Duel chat • new message';
+    if (line && !line.self && !emote && drawer.hidden) { unread++; badge.textContent = String(Math.min(unread, 9)); badge.hidden = false; }
   };
-  dock.addEventListener('toggle', () => {
-    if (dock.open) { summary.textContent = 'Duel chat'; messages.scrollTop = messages.scrollHeight; input.focus(); } else focus(false);
-  });
   renderChat(messages, session.chat);
-  return () => { session.onChat = () => {}; focus(false); dock.remove(); bar.remove(); };
+  return () => { session.onChat = () => {}; focus(false); shell.remove(); };
 }

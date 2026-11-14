@@ -1,165 +1,228 @@
-/* Multiplayer DOM screens, styled after the Phaser theme (src/ui/theme.ts): Michroma, brass, cut corners. */
-.mp-root, .mp-chat, .mp-modal {
-  --gold: #d8b25e; --gold-lit: #f2d48c; --gold-txt: #f0d08a; --gold-dim: #7c6638;
-  --ink: #f1ebdc; --dim: #9a93ae; --line: #3a3456; --field: #0a0916; --green: #5ee0a0;
+/*
+ * Multiplayer DOM screens, styled after the Phaser theme (src/ui/theme.ts): Michroma, brass on indigo, cut corners.
+ * One loud element, the Duelist license (embossed monogram card); everything around it stays quiet.
+ * Type scale: 12 / 14 / 18 / 28.
+ */
+.mp-root, .mp-modal, .mp-duel, .mp-pick-pop {
+  --brass: #d8b25e; --brass-lit: #f2d48c; --brass-txt: #f0d08a; --brass-dim: #7c6638;
+  --ink: #f1ebdc; --dim: #9a93ae; --faint: #6f6886; --line: #3a3456; --field: #0a0916;
+  --panel: #0e0c1be6; --glow: #7fdcea; --green: #5ee0a0;
   --cut: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)),
     calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
-  font: 15px/1.7 Michroma, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
+  font: 14px/1.6 Michroma, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
 }
-.mp-root *, .mp-chat *, .mp-modal * { box-sizing: border-box; font-family: inherit; }
+.mp-root *, .mp-modal *, .mp-duel *, .mp-pick-pop * { box-sizing: border-box; font-family: inherit; }
+.mp-duel { display: contents; }
 
+/* ---------------------------------------------------------------- screen frame */
 /* Transparent so the scene's smoke background shows through. */
-.mp-root { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; gap: 18px; padding: 26px clamp(16px, 3vw, 48px) 28px; overflow: hidden; }
-.mp-top, .mp-bar, .mp-grid { width: 100%; max-width: 1600px; align-self: center; }
-.mp-top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.mp-top h1 { font-size: 32px; margin: 0; color: var(--gold-txt); flex: 1; white-space: nowrap; }
+.mp-root { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; gap: 20px; padding: 24px clamp(16px, 3vw, 44px); overflow: hidden; }
+.mp-top, .mp-grid { width: 100%; max-width: 1480px; align-self: center; }
+.mp-top { display: flex; align-items: center; gap: 20px; }
+.mp-top h1 { font-size: 28px; line-height: 1.1; margin: 0; color: var(--brass-txt); flex: 1; white-space: nowrap; }
+.mp-status { margin: 0; font-size: 12px; color: var(--dim); text-align: right; overflow-wrap: anywhere; }
+.mp-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 10px; vertical-align: 1px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
 
-/* Cut-corner frame: line colour shows through a 1px gap around the inner fill. */
+.mp-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(330px, 400px) 1fr; gap: 20px; }
+.mp-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+
+/* Cut-corner frame: the line colour shows through a 1px gap around the inner fill. */
 .mp-frame { --c: 10px; position: relative; clip-path: var(--cut); background: var(--line); padding: 1px; }
-.mp-frame::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: var(--fill, #0e0c1be6); }
+.mp-frame::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: var(--fill, var(--panel)); }
 .mp-frame > * { position: relative; }
 
-.mp-me { display: flex; align-items: center; gap: 12px; padding: 7px 8px; background: #0e0c1be6; border: 1px solid var(--line); }
-.mp-me b { max-width: 220px; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-txt); }
-
-.mp-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.mp-bar input { width: 300px; flex: 0 1 300px; text-transform: uppercase; letter-spacing: 1px; }
-.mp-status { flex: 1; min-width: 200px; color: var(--dim); overflow-wrap: anywhere; }
-.mp-status::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 12px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
-
-.mp-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 20px; }
 .mp-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.mp-panel > h2 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold-txt); margin: 0; padding: 18px 22px 14px; border-bottom: 1px solid #2a2540; }
-.mp-scroll { flex: 1; overflow: auto; padding: 8px 22px; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
+.mp-panel > h2 { display: flex; align-items: center; gap: 10px; margin: 0; padding: 16px 20px 12px; font-size: 14px; color: var(--brass-txt); }
+.mp-scroll { flex: 1; overflow: auto; padding: 4px 20px 12px; scrollbar-width: thin; scrollbar-color: var(--brass-dim) transparent; }
+.mp-count { min-width: 26px; padding: 0 8px; font-size: 12px; line-height: 22px; text-align: center; color: var(--ink); background: #1f1b33; border: 1px solid var(--line); border-radius: 11px; }
 
-/* Buttons: same shape and states as theme.ts button(). */
-.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: bold 15px Michroma, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
-.mp-btn > span { display: block; padding: 13px 22px; background: #14121ff5; clip-path: var(--cut); }
-.mp-btn:hover:not(:disabled) { background: var(--gold); color: var(--gold-txt); transform: scale(1.03); }
-.mp-btn:hover:not(:disabled) > span { background: #242039; }
-.mp-btn:active:not(:disabled) { transform: scale(.97); }
-.mp-btn:focus-visible { outline: none; background: var(--gold-lit); }
-.mp-btn:disabled { opacity: .4; cursor: default; }
-.mp-btn.primary:disabled { background: var(--line); color: var(--dim); opacity: 1; }
-.mp-btn.primary:disabled > span { background: #1b1830; }
-.mp-btn.primary { background: #fff1c9e6; color: #1d1505; }
-.mp-btn.primary > span { background: var(--gold); }
-.mp-btn.primary:hover:not(:disabled) { color: #1d1505; }
-.mp-btn.primary:hover:not(:disabled) > span { background: var(--gold-lit); }
-.mp-btn.small > span { padding: 10px 16px; font-size: 13px; }
-
-.mp-root input, .mp-root select, .mp-modal input, .mp-chat input {
-  width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 2px;
-  padding: 12px 16px; font: 15px Michroma, Arial, sans-serif; outline: none;
+/* ---------------------------------------------------------------- the Duelist license */
+.mp-license {
+  --c: 12px; position: relative; display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center;
+  padding: 14px; clip-path: var(--cut);
+  background: linear-gradient(var(--brass-dim), var(--brass-dim)) padding-box;
 }
-.mp-root select { width: auto; max-width: 280px; cursor: pointer; }
-.mp-root input::placeholder, .mp-modal input::placeholder, .mp-chat input::placeholder { color: #5f5975; }
-.mp-root input:focus, .mp-root select:focus, .mp-modal input:focus, .mp-chat input:focus { border-color: var(--gold); }
+.mp-license::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: linear-gradient(155deg, #221c3f 0%, #120f26 55%, #0c0a18 100%); }
+.mp-license > * { position: relative; }
+.mp-lic-art {
+  display: grid; place-items: center; aspect-ratio: 1 / 1.15; overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, #3d3274 0%, #1a1636 55%, #0d0b1c 100%);
+  border: 1px solid var(--brass-dim); box-shadow: inset 0 0 0 3px #0d0b1c, inset 0 0 0 4px #7c663866, 0 6px 18px #0008;
+}
+.mp-mono {
+  font-size: 54px; line-height: 1; padding-top: 4px;
+  background: linear-gradient(#fff3cf 10%, var(--brass) 55%, #8a6a2c 95%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #000a);
+}
+.mp-lic-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mp-lic-name { display: block; font-size: 18px; line-height: 1.3; color: var(--brass-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 8px; border-bottom: 1px solid #7c663888; }
+input.mp-lic-name { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--brass-dim); border-radius: 0; padding: 4px 0 8px; outline: none; font: 18px Michroma, Arial, sans-serif; color: var(--brass-txt); }
+input.mp-lic-name::placeholder { color: #6b5f45; }
+input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 var(--glow); }
+.mp-lic-art.mini { width: 40px; flex: none; aspect-ratio: 1 / 1.15; box-shadow: inset 0 0 0 2px #0d0b1c; }
+.mp-lic-art.mini .mp-mono { font-size: 18px; padding-top: 2px; filter: none; }
 
-.mp-peer { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #1d1930; }
+/* ---------------------------------------------------------------- play a friend */
+.mp-friend { flex: none; }
+.mp-friend > p { margin: 0; padding: 0 20px 14px; font-size: 12px; color: var(--dim); max-width: 46ch; }
+.mp-friend > .mp-btn { margin: 0 20px; }
+.mp-join { display: flex; gap: 8px; padding: 12px 20px 18px; }
+.mp-join input { flex: 1; min-width: 0; }
+.mp-join input:not(:placeholder-shown) { text-transform: uppercase; letter-spacing: 1px; }
+
+/* ---------------------------------------------------------------- duelists online */
+.mp-players { flex: 1; }
+.mp-peer { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1d1930; }
 .mp-peer:last-child { border-bottom: 0; }
-.mp-peer > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
-.mp-peer small { display: block; font-size: 12px; font-weight: normal; color: var(--dim); }
-.mp-peer small::before { content: '◆ '; color: var(--green); }
-.mp-peer.busy small::before { color: var(--gold); }
-.mp-peer.you > span { color: var(--gold-txt); }
-.mp-avatar { --c: 6px; --fill: #191630; flex: none; width: 44px; height: 44px; font-size: 18px; background: var(--gold-dim); color: var(--gold-txt); font-weight: bold; }
-.mp-avatar > div { height: 100%; display: grid; place-items: center; }
-.mp-empty { text-align: center; padding: 48px 12px; color: var(--dim); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.mp-empty b { color: var(--ink); font-size: 15px; }
-.mp-empty p { margin: 0 0 14px; max-width: 280px; }
+.mp-peer > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-peer small { display: block; font-size: 12px; color: var(--dim); }
+.mp-peer small::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: 1px; background: var(--green); transform: rotate(45deg); }
+.mp-peer.busy { opacity: .7; }
+.mp-peer.busy small::before { background: var(--brass); }
+.mp-empty { padding: 28px 6px; color: var(--dim); font-size: 12px; }
+.mp-empty b { display: block; margin-bottom: 6px; font-size: 14px; color: var(--ink); }
+.mp-empty p { margin: 0; max-width: 34ch; }
 
-.mp-messages { overflow-wrap: anywhere; }
-.mp-root .mp-messages:empty::before { content: 'No messages yet. Say hello!'; display: block; text-align: center; padding: 40px 8px; color: var(--dim); font-size: 13px; }
+.mp-invite { --fill: #241d14f2; margin: 0 16px 8px; background: var(--brass); }
+.mp-invite > div { padding: 14px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mp-invite p { flex: 1 1 100%; margin: 0 0 4px; color: var(--brass-txt); }
+.mp-expire { flex: 1 1 100%; height: 3px; margin-top: 10px; background: var(--brass); transform-origin: left; animation: mp-drain linear forwards; }
+@keyframes mp-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ---------------------------------------------------------------- chat */
+.mp-chatpanel .mp-scroll { padding-top: 8px; }
+.mp-messages { overflow-wrap: anywhere; display: flex; flex-direction: column; }
+.mp-messages > :first-child { margin-top: auto; }
+.mp-messages > * { max-width: 72ch; }
+.mp-root .mp-messages:empty::before { content: 'Nothing said yet.'; display: block; padding: 28px 0; color: var(--faint); font-size: 12px; }
 .mp-message { padding: 10px 0 2px; white-space: pre-wrap; color: #ddd6e8; }
 .mp-message.cont { padding-top: 2px; }
 .mp-msg-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
-.mp-msg-head b { color: var(--gold-txt); }
-.mp-msg-head time { color: #5f5975; font-size: 11px; }
+.mp-msg-head b { font-weight: normal; color: var(--brass-txt); }
+.mp-msg-head time { color: var(--faint); font-size: 12px; }
 .mp-gif { display: block; width: 200px; max-width: 100%; min-height: 60px; margin: 4px 0; border: 1px solid var(--line); background: var(--field); }
-.mp-message.sys { color: #6f6886; font-size: 11px; letter-spacing: 1px; padding: 6px 0; text-align: center; }
-.mp-compose { position: relative; display: flex; align-items: center; gap: 8px; padding: 16px 22px 20px; border-top: 1px solid #2a2540; }
-.mp-icon { flex: none; width: 46px; height: 46px; display: grid; place-items: center; background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--ink); font-size: 20px; cursor: pointer; }
-.mp-icon.gif { font: bold 12px Michroma, Arial, sans-serif; color: var(--gold-txt); }
-.mp-icon:hover, .mp-icon.on { border-color: var(--gold); background: #1b1830; }
-.mp-popover { position: absolute; left: 22px; bottom: calc(100% - 6px); z-index: 5; width: min(420px, calc(100% - 44px)); background: #0e0c1bfa; border: 1px solid var(--gold-dim); padding: 12px; box-shadow: 0 12px 40px #000a; }
+.mp-message.sys { color: var(--faint); font-size: 12px; padding: 6px 0; }
+.mp-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 4px; }
+.mp-chips:empty { display: none; }
+.mp-chip { padding: 8px 14px; font: 12px Michroma, Arial, sans-serif; color: var(--ink); background: #17142a; border: 1px solid var(--line); border-radius: 18px; cursor: pointer; }
+.mp-chip:hover { border-color: var(--brass); color: var(--brass-txt); }
+.mp-compose { position: relative; display: flex; align-items: center; gap: 8px; padding: 12px 20px 18px; }
+.mp-icon { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--ink); font-size: 18px; cursor: pointer; }
+.mp-icon.gif { font: 12px Michroma, Arial, sans-serif; color: var(--brass-txt); }
+.mp-icon:hover, .mp-icon.on { border-color: var(--brass); background: #1b1830; }
+.mp-compose > input { flex: 1; min-width: 0; }
+.mp-popover { position: absolute; left: 20px; bottom: calc(100% - 6px); z-index: 5; width: min(420px, calc(100% - 40px)); background: #0e0c1bfa; border: 1px solid var(--brass-dim); padding: 12px; box-shadow: 0 12px 40px #000a; }
 .mp-emoji-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
-.mp-emoji-grid button { aspect-ratio: 1; min-width: 0; padding: 0; background: transparent; border: 1px solid transparent; border-radius: 2px; font-size: 20px; cursor: pointer; color: var(--gold-txt); font-family: inherit; font-weight: bold; }
-.mp-emoji-grid button:hover { border-color: var(--gold-dim); background: #1b1830; }
+.mp-emoji-grid button { aspect-ratio: 1; min-width: 0; padding: 0; background: transparent; border: 1px solid transparent; border-radius: 2px; font-size: 20px; cursor: pointer; color: var(--brass-txt); }
+.mp-emoji-grid button:hover { border-color: var(--brass-dim); background: #1b1830; }
 .mp-popover > input { margin-bottom: 10px; }
 .mp-gif-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-.mp-gif-tabs button { background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--dim); padding: 5px 9px; font: bold 11px Michroma, Arial, sans-serif; cursor: pointer; }
-.mp-gif-tabs button:hover { border-color: var(--gold-dim); color: var(--ink); }
-.mp-gif-tabs button.on { border-color: var(--gold); color: var(--gold-txt); background: #1b1830; }
-.mp-gif-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
+.mp-gif-tabs button { background: var(--field); border: 1px solid var(--line); border-radius: 12px; color: var(--dim); padding: 4px 10px; font: 12px Michroma, Arial, sans-serif; cursor: pointer; }
+.mp-gif-tabs button:hover { border-color: var(--brass-dim); color: var(--ink); }
+.mp-gif-tabs button.on { border-color: var(--brass); color: var(--brass-txt); background: #1b1830; }
+.mp-gif-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--brass-dim) transparent; }
 .mp-gif-pick { padding: 0; border: 1px solid transparent; background: var(--field); cursor: pointer; aspect-ratio: 1; overflow: hidden; }
-.mp-gif-pick:hover { border-color: var(--gold); }
+.mp-gif-pick:hover { border-color: var(--brass); }
 .mp-gif-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mp-pop-note { color: var(--dim); text-align: center; padding: 18px 6px; font-size: 12px; }
-.mp-pop-credit { color: #5f5975; font-size: 10px; text-align: right; margin-top: 8px; }
+.mp-pop-credit { color: var(--faint); font-size: 12px; text-align: right; margin-top: 8px; }
 
-/* Deck picker. */
-.mp-pick { position: relative; }
-.mp-pick-btn { display: flex; align-items: center; gap: 12px; min-width: 260px; padding: 9px 14px; background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--ink); cursor: pointer; font: inherit; text-align: left; }
-.mp-pick-btn small { color: var(--dim); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; }
-.mp-pick-btn b { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mp-pick-btn i { font-style: normal; color: var(--gold-txt); transition: transform .15s; }
+/* ---------------------------------------------------------------- controls */
+/* Buttons: same shape and states as theme.ts button(). */
+.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: 14px Michroma, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
+.mp-btn > span { display: block; padding: 12px 20px; background: #14121ff5; clip-path: var(--cut); }
+.mp-btn:hover:not(:disabled) { background: var(--brass); color: var(--brass-txt); transform: scale(1.03); }
+.mp-btn:hover:not(:disabled) > span { background: #242039; }
+.mp-btn:active:not(:disabled) { transform: scale(.97); }
+.mp-btn:focus-visible { outline: none; background: var(--glow); }
+.mp-btn:disabled { opacity: .4; cursor: default; }
+.mp-btn.primary { background: #fff1c9e6; color: #1d1505; }
+.mp-btn.primary > span { background: var(--brass); }
+.mp-btn.primary:hover:not(:disabled) { color: #1d1505; }
+.mp-btn.primary:hover:not(:disabled) > span { background: var(--brass-lit); }
+.mp-btn.primary:disabled { background: var(--line); color: var(--dim); opacity: 1; }
+.mp-btn.primary:disabled > span { background: #1b1830; }
+.mp-btn.small > span { padding: 9px 14px; font-size: 12px; }
+
+.mp-root input:not(.mp-lic-name), .mp-duel input, .mp-pick-pop input {
+  width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 2px;
+  padding: 11px 14px; font: 14px Michroma, Arial, sans-serif; outline: none;
+}
+.mp-root input::placeholder, .mp-modal input::placeholder, .mp-duel input::placeholder, .mp-pick-pop input::placeholder { color: #5f5975; }
+.mp-root input:not(.mp-lic-name):focus, .mp-modal input:not(.mp-lic-name):focus, .mp-duel input:focus, .mp-pick-pop input:focus { border-color: var(--glow); }
+.mp-icon:focus-visible, .mp-chip:focus-visible, .mp-pick-btn:focus-visible, .mp-rail-btn:focus-visible, .mp-emote:focus-visible,
+.mp-gif-pick:focus-visible, .mp-emoji-grid button:focus-visible, .mp-gif-tabs button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+
+/* Deck picker: the button sits on the license; its list floats in the nearest dialog or screen root. */
+.mp-pick-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; background: #0a0916cc; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); cursor: pointer; font: 14px Michroma, Arial, sans-serif; text-align: left; }
+.mp-pick-btn small { color: var(--dim); font-size: 12px; }
+.mp-pick-btn b { flex: 1; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-pick-btn i { font-style: normal; color: var(--brass-txt); transition: transform .15s; }
 .mp-pick.open .mp-pick-btn i { transform: rotate(180deg); }
-.mp-pick-btn:hover:not(:disabled), .mp-pick.open .mp-pick-btn { border-color: var(--gold); }
+.mp-pick-btn:hover:not(:disabled), .mp-pick.open .mp-pick-btn { border-color: var(--brass); }
 .mp-pick-btn:disabled { opacity: .5; cursor: default; }
-.mp-pick-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: max(100%, 340px); background: #0e0c1bfa; border: 1px solid var(--gold-dim); padding: 10px; box-shadow: 0 16px 40px #000c; }
-.mp-pick-list { max-height: min(420px, 60vh); overflow: auto; margin-top: 8px; scrollbar-width: thin; scrollbar-color: var(--gold-dim) var(--field); }
-.mp-pick-opt { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-left: 2px solid transparent; }
+.mp-pick-pop { position: fixed; z-index: 200; background: #0e0c1bfc; border: 1px solid var(--brass-dim); padding: 10px; box-shadow: 0 16px 40px #000c; }
+.mp-pick-list { max-height: min(400px, var(--room, 60vh)); overflow: auto; margin-top: 8px; scrollbar-width: thin; scrollbar-color: var(--brass-dim) transparent; }
+.mp-pick-opt { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; border-left: 2px solid transparent; }
 .mp-pick-opt span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mp-pick-opt small { color: #5f5975; font-size: 11px; }
+.mp-pick-opt small { color: var(--faint); font-size: 12px; }
 .mp-pick-opt.active { background: #1f1b33; }
-.mp-pick-opt.chosen { border-left-color: var(--gold); color: var(--gold-txt); }
+.mp-pick-opt.chosen { border-left-color: var(--brass); color: var(--brass-txt); }
 
-.mp-invite { --fill: #241d14f0; margin: 14px 18px 0; background: var(--gold); }
-.mp-invite > div { padding: 16px 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.mp-expire { flex: 1 1 100%; height: 3px; margin-top: 10px; background: var(--gold); transform-origin: left; animation: mp-drain linear forwards; }
-@keyframes mp-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-.mp-invite p { flex: 1 1 100%; margin: 0 0 4px; color: var(--gold-txt); font-weight: bold; }
-
-/* Modals: the same cut-corner panel as theme.ts modal(). */
-.mp-modal { --c: 10px; border: 0; padding: 1px; background: var(--gold-dim); clip-path: var(--cut); width: min(560px, calc(100vw - 32px)); max-width: none; color: var(--ink); }
-.mp-modal > * { display: block; background: #0e0c1bfa; clip-path: var(--cut); padding: 34px 38px; }
-.mp-modal::backdrop { background: #00000099; }
-.mp-modal h2 { margin: 0 0 10px; font-size: 26px; color: var(--gold-txt); text-align: center; }
-.mp-modal p { color: var(--dim); margin: 0 0 22px; text-align: center; }
-.mp-row { display: flex; gap: 12px; margin-top: 20px; }
+/* ---------------------------------------------------------------- popups */
+/* The dialog itself is unclipped so floating lists can escape; the sheet inside carries the cut corners. */
+.mp-modal { border: 0; padding: 0; background: transparent; width: min(560px, calc(100vw - 32px)); max-width: none; overflow: visible; color: var(--ink); }
+.mp-modal::backdrop { background: #04030acc; }
+.mp-sheet { --c: 12px; position: relative; display: block; padding: 30px 32px; clip-path: var(--cut); background: var(--brass-dim); }
+.mp-sheet::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: #0e0c1bfb; }
+.mp-sheet > * { position: relative; }
+.mp-modal h2 { margin: 0 0 6px; font-size: 28px; line-height: 1.2; color: var(--brass-txt); }
+.mp-modal p { color: var(--dim); margin: 0 0 22px; font-size: 14px; }
+.mp-row { display: flex; gap: 12px; margin-top: 18px; }
 .mp-row .mp-btn { flex: 1; }
-.mp-err { color: #ffb3c0; font-size: 13px; min-height: 18px; margin-top: 8px; text-align: center; }
-.mp-code { font-size: 30px; font-weight: bold; letter-spacing: 4px; color: var(--gold-txt); text-align: center; padding: 18px; background: var(--field); border: 1px dashed var(--gold-dim); overflow-wrap: anywhere; }
+.mp-err { color: #ffb3c0; font-size: 12px; min-height: 18px; margin-top: 10px; }
+.mp-code { font-size: 28px; letter-spacing: 4px; color: var(--brass-txt); text-align: center; padding: 16px; background: var(--field); border: 1px dashed var(--brass-dim); overflow-wrap: anywhere; }
 .mp-versus { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin-top: 18px; }
 .mp-versus > .mp-frame { --c: 7px; --fill: #14121f; text-align: center; min-width: 0; }
-.mp-versus > .mp-frame > div { padding: 16px 10px; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: bold; }
-.mp-versus small { display: block; font-size: 12px; font-weight: normal; color: var(--dim); }
+.mp-versus > .mp-frame > div { padding: 14px 10px; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-versus small { display: block; font-size: 12px; color: var(--dim); }
 .mp-versus .ok { color: var(--green); }
-.mp-versus > b { font-size: 26px; color: var(--gold-txt); }
+.mp-versus > b { font-size: 18px; font-weight: normal; color: var(--brass-txt); }
 
-/* In-duel emote bar, left of the chat dock. */
-.mp-emote-bar { position: fixed; right: 410px; bottom: 18px; z-index: 110; display: flex; gap: 6px; padding: 6px; background: #0e0c1bf0; border: 1px solid var(--gold-dim); }
-.mp-emote-bar button { width: 40px; height: 40px; border: 1px solid transparent; background: transparent; font-size: 22px; cursor: pointer; border-radius: 2px; transition: transform .09s; }
-.mp-emote-bar button:hover { border-color: var(--gold); background: #1b1830; transform: scale(1.12); }
-.mp-emote-bar button:active { transform: scale(.94); }
-@media (max-width: 1100px) { .mp-emote-bar { right: auto; left: 18px; } }
+/* ---------------------------------------------------------------- in-duel comms */
+/* A slim rail on the right edge, clear of the hand and the field. */
+.mp-rail { position: fixed; right: 14px; top: 50%; transform: translateY(-50%); z-index: 110; display: flex; flex-direction: column; gap: 8px; }
+.mp-rail-btn { position: relative; width: 50px; height: 50px; display: grid; place-items: center; padding: 0; color: var(--ink); background: #0e0c1bf2; border: 1px solid var(--line); border-radius: 2px; cursor: pointer; box-shadow: 0 6px 18px #0008; }
+.mp-rail-btn:hover, .mp-rail-btn.on { color: var(--brass-txt); border-color: var(--brass); }
+.mp-rail-btn.small { width: 36px; height: 36px; box-shadow: none; background: transparent; }
+.mp-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; font-size: 12px; line-height: 1; color: #1d1505; background: var(--brass); border-radius: 10px; }
+.mp-drawer, .mp-emote-pop { position: fixed; right: 76px; top: 50%; transform: translateY(-50%); z-index: 110; background: #0e0c1bf7; border: 1px solid var(--brass-dim); box-shadow: 0 16px 50px #000b; animation: mp-slide .16s ease-out; }
+.mp-drawer { width: min(380px, calc(100vw - 100px)); height: min(560px, 82vh); display: flex; flex-direction: column; }
+.mp-drawer > header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 8px 18px; border-bottom: 1px solid #2a2540; }
+.mp-drawer h2 { flex: 1; margin: 0; font-size: 14px; color: var(--brass-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-drawer .mp-scroll { padding: 4px 18px 10px; }
+.mp-drawer .mp-messages:empty::before { content: 'Say hello, or send an emote from the rail.'; display: block; padding: 24px 0; color: var(--faint); font-size: 12px; }
+.mp-drawer .mp-compose { padding: 10px 12px 12px; border-top: 1px solid #2a2540; }
+.mp-drawer .mp-compose .mp-btn > span { padding: 12px 14px; }
+.mp-drawer .mp-popover { left: 12px; width: calc(100% - 24px); }
+.mp-emote-pop { display: flex; flex-direction: column; padding: 6px; min-width: 210px; }
+.mp-emote { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font: 14px Michroma, Arial, sans-serif; color: var(--ink); text-align: left; background: transparent; border: 1px solid transparent; border-radius: 2px; cursor: pointer; }
+.mp-emote:hover { background: #1b1830; border-color: var(--brass-dim); color: var(--brass-txt); }
+.mp-emote-glyph { font-size: 20px; width: 26px; text-align: center; }
+.mp-drawer[hidden], .mp-emote-pop[hidden], .mp-badge[hidden] { display: none; }
+@keyframes mp-slide { from { opacity: 0; transform: translate(10px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
 
-/* In-duel chat dock. */
-.mp-chat { position: fixed; right: 18px; bottom: 18px; z-index: 110; width: 380px; border: 1px solid var(--gold-dim); background: #0e0c1bf5; box-shadow: 0 8px 30px #0007; }
-.mp-chat summary { cursor: pointer; padding: 14px 18px; color: var(--gold-txt); list-style: none; font-size: 14px; font-weight: bold; }
-.mp-chat .mp-messages { height: 240px; overflow: auto; padding: 0 14px; }
-.mp-chat form { display: flex; padding: 10px; gap: 6px; }
-.mp-chat input { min-width: 0; }
-.mp-chat button { background: #14121f; color: var(--ink); border: 1px solid var(--line); padding: 10px 14px; font: bold 13px Michroma, Arial, sans-serif; cursor: pointer; }
-.mp-chat button:hover { border-color: var(--gold); color: var(--gold-txt); }
-
-@media (max-width: 760px) {
-  .mp-root { overflow: auto; }
-  .mp-grid { flex: none; grid-template-columns: 1fr; grid-template-rows: auto 420px; }
-  .mp-players .mp-scroll { flex: none; max-height: 300px; }
-  .mp-bar input { flex: 1 1 140px; width: auto; }
-  .mp-me { width: 100%; }
-  .mp-root select { flex: 1; max-width: none; }
-  .mp-chat { width: min(380px, 92vw); }
+/* ---------------------------------------------------------------- small screens and motion */
+@media (max-width: 860px) {
+  .mp-root { overflow: auto; gap: 16px; }
+  .mp-grid { flex: none; grid-template-columns: 1fr; }
+  .mp-players .mp-scroll { max-height: 280px; }
+  .mp-chatpanel { height: 460px; }
+  .mp-top h1 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp-btn, .mp-pick-btn i { transition: none; }
+  .mp-btn:hover:not(:disabled), .mp-btn:active:not(:disabled) { transform: none; }
+  .mp-drawer, .mp-emote-pop { animation: none; }
+  .mp-expire { animation: none; }
 }
