@@ -10,11 +10,11 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 ![Phaser](https://img.shields.io/badge/Phaser-3.90-FF4F00)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 
-**[Play now](https://duelorigins.online)** · [Discord](https://discord.gg/VYfWyXyRuf) · [Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts)
+**[Play now](https://duelorigins.online)** · [Discord](https://discord.gg/VYfWyXyRuf) · [Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts) · [Changelog](CHANGELOG.md)
 
 </div>
 
-## OCGCore browser branch
+## Version 1.1.0 — OCGCore duels
 
 Duel Setup and CPU versus CPU use OCGCore WebAssembly through the original Phaser duel scene. Project Ignis Lua handles card effects and legal actions in the browser. Decks retain their existing saved IDs and are mapped to Project Ignis passcodes on duel entry. Duels use the core's GOAT rules flags with Duel Origins' existing deck pool. Card text and rulings come from the pinned Project Ignis revisions, so historical errata can differ from the original simulator.
 
@@ -36,8 +36,8 @@ The original board, card controls, and debug setup are connected to OCGCore thro
 
 - **Duel against the CPU** with a rules engine and AI that follow 2004-era rules. Both players start with five cards. The first player draws during their first Draw Phase but cannot attack on the first turn.
 - **Deck editor** with paged card browsing and decks saved in the browser.
-- **About 3,150 playable cards.** Each card's effect is implemented in TypeScript. [`docs/EFFECTS.md`](docs/EFFECTS.md) tracks coverage and remaining gaps.
-- **Premade decks for 19 duelists**, inspired by Yugi, Kaiba, Joey, Mai, Pegasus, Bakura, Marik, Mako, Weevil, Jaden, Zane, Syrus, Crowler, Chazz, Aster, Jesse, Axel, Bastion, and Alexis, plus Gravekeeper and Exodia archetypes.
+- **About 3,150 playable cards.** Live duels use Project Ignis Lua card scripts through OCGCore. [`docs/EFFECTS.md`](docs/EFFECTS.md) documents the legacy TypeScript simulator.
+- **41 CPU opponent presets**, spanning Duel Monsters and GX characters plus archetype decks, with character portraits and revised themed deck recipes.
 - **Holograms** for face-up monsters, toggled from **Menu → Holograms** during a duel.
 - **Sound and visual effects**, including a Fusion vortex, Ritual circle, Exodia effects, and a 3D dice roll.
 
@@ -47,7 +47,7 @@ The default duel uses 2004-era mechanics, including the first-turn draw and turn
 
 The pool includes cards from 2006 sets such as Cyber Dragon Fusion support in Cyberdark Impact and Destiny HERO support in Enemy of Justice and Power of the Duelist. The original Six Samurai from Strike of Neos are playable. Search for Irou, Kamon, Nisashi, Yaichi, Yariza, or Zanji in the Deck Editor. Grandmaster, Spirit, Chamberlain, Return, Cunning and Six Samurai United are also available.
 
-A Goat preset would use the April 2005 Forbidden and Limited List, the Goat card pool through The Lost Millennium and cards legal at the 2005 World Championship, and period-specific rulings. An Edison fork would use the April 2010 SJC Edison card pool and March 2010 list. The card catalog and deck validator are in `src/data/cards.ts` and `src/data/decks.ts`. Timing, summoning mechanics and the first-turn draw are in `src/engine/duel.ts`. Implement Synchro Summons and historical card-text variants before treating an Edison fork as format-compatible.
+A Goat preset would use the April 2005 Forbidden and Limited List, the Goat card pool through The Lost Millennium and cards legal at the 2005 World Championship, and period-specific rulings. An Edison fork would use the April 2010 SJC Edison card pool and March 2010 list. The card catalog and deck validator are in `src/data/cards.ts` and `src/data/decks.ts`. Live duel timing and summoning legality are handled by OCGCore through `src/ocgcore/`; `src/engine/duel.ts` contains the legacy simulator. Implement Synchro Summons and historical card-text variants before treating an Edison fork as format-compatible.
 
 ## Getting started
 
