@@ -53,6 +53,29 @@ test('CPU goes to Main Phase 2 when its only attack would lose', async () => {
   assert.deepEqual(attacks, []);
 });
 
+test('CPU chooses the weaker legal defender instead of attacking the first slot', { timeout: 5000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Burst Stream of Destruction')), extra: [] };
+  const targets: string[] = [];
+  let main2 = false;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (main2) return SURRENDER;
+    if (prompt.t === 'main') return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => {
+    if (event.t === 'phase' && event.phase === 'M2') main2 = true;
+    if (event.t === 'attack' && event.target) targets.push(event.target.def.name);
+  }, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [id('Blue-Eyes White Dragon'), id('Saggi the Dark Clown')],
+    opponentMonsters: [id('Battle Ox')], traps: [], extra: [],
+  }, 0);
+  assert.deepEqual(targets, ['Saggi the Dark Clown']);
+});
+
 test('OCGCore choices show coin calls and card effect descriptions in response order', () => {
   const bundle = readBundle();
   const { rows } = cardCatalog(bundle);

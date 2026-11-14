@@ -1,4 +1,4 @@
-import { OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
+import { OcgHintType, OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
 import type { Action, Card, DeckList, Phase, Player, Prompt, UIEvent } from '../engine/duel';
 import type { CardDef, Side, Zone } from '../engine/types';
 import type { DebugSetup } from '../engine/debug';
@@ -48,6 +48,9 @@ export class OcgDuel {
   private stopped = false;
   private nextId = 1;
   private slot?: number;
+  private cpuAttacker?: Card;
+  private readonly cancelledCpuAttacks = new Set<number>();
+  private selectionHint?: { player: number; id: bigint };
   private cpuAttackCostPaid = false;
   private attackTarget?: Card | null;
   private choosingAttack = false;
@@ -133,7 +136,12 @@ export class OcgDuel {
   private async update(message: OcgMessage) {
     let event: UIEvent | undefined;
     switch (message.type) {
+      case M.HINT:
+        if (message.hint_type === OcgHintType.SELECTMSG) this.selectionHint = { player: message.player, id: message.hint };
+        break;
       case M.NEW_TURN:
+        this.cpuAttacker = undefined;
+        this.cancelledCpuAttacks.clear();
         this.tp = this.side(message.player);
         this.phase = 'DP';
         event = { t: 'turn', player: this.tp, turn: ++this.turn };
@@ -372,6 +380,8 @@ export class OcgDuel {
 
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
     const side = this.side(message.player);
+    const hint = this.selectionHint?.player === message.player ? this.selectionHint.id : undefined;
+    this.selectionHint = undefined;
     const prompt = decision(message, code => this.definition(code).name, this.session?.describe);
     if (message.type === M.SELECT_CHAIN && !message.forced && !message.selects.length) return { type: R.SELECT_CHAIN, index: null };
     if (message.type === M.SELECT_PLACE) {
@@ -385,11 +395,14 @@ export class OcgDuel {
     if (side !== 0 || !this.ask) {
       if (message.type === M.SELECT_IDLECMD) this.rankIdleChoices(message, side, prompt.choices);
       if (message.type === M.SELECT_BATTLECMD) {
+        this.cpuAttacker = undefined;
+        this.choosingAttack = false;
+        this.attackTarget = undefined;
         const opponent = this.players[opp(side)];
         const defenders = opponent.m.filter((card): card is Card => card !== null);
         const attacks = message.attacks.flatMap((loc, index) => {
           const attacker = this.lookup(loc);
-          if (!attacker) return [];
+          if (!attacker || this.cancelledCpuAttacks.has(attacker.uid)) return [];
           const atk = this.atk(attacker);
           const options: { index: number; target: Card | null; score: number }[] = [];
           if (loc.can_direct && atk > 0) options.push({ index, target: null, score: atk >= opponent.lp ? 1e6 : 1000 + atk });
@@ -403,6 +416,7 @@ export class OcgDuel {
         if (attack) {
           await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
           if (this.stopped) return;
+          this.cpuAttacker = this.lookup(message.attacks[attack.index]) ?? undefined;
           this.cpuAttackCostPaid = false;
           this.attackTarget = attack.target;
           this.choosingAttack = true;
@@ -416,11 +430,28 @@ export class OcgDuel {
         this.cpuAttackCostPaid = true;
         return { type: R.SELECT_UNSELECT_CARD, index: 0 };
       }
-      if (message.type === M.SELECT_CARD && this.choosingAttack && prompt.selection) {
+      const attacker = this.cpuAttacker;
+      if (attacker && message.type === M.SELECT_YESNO) {
+        if (message.description === 31n) {
+          return { type: R.SELECT_YESNO, yes: this.attackTarget === null || !this.choosingAttack };
+        }
+        if (message.description === 30n) {
+          const defenders = this.players[opp(side)].m.filter((card): card is Card => card !== null);
+          return { type: R.SELECT_YESNO, yes: !defenders.length || defenders.some(card => this.battleScore(this.atk(attacker), card) > 0) };
+        }
+      }
+      if (attacker && message.type === M.SELECT_CARD && hint === 549n) {
+        const ranked = message.selects.map((loc, index) => {
+          const target = this.lookup(loc);
+          return { index, score: target ? this.battleScore(this.atk(attacker), target) : -Infinity };
+        }).sort((a, b) => b.score - a.score);
         this.choosingAttack = false;
-        const preferred = message.selects.findIndex(loc => this.lookup(loc) === this.attackTarget);
         this.attackTarget = undefined;
-        if (preferred >= 0 && prompt.selection.valid([preferred])) return prompt.selection.response([preferred]);
+        if (ranked[0]?.score <= 0 && message.can_cancel) {
+          this.cancelledCpuAttacks.add(attacker.uid);
+          return { type: R.SELECT_CARD, indicies: null };
+        }
+        if (ranked.length) return { type: R.SELECT_CARD, indicies: [ranked[0].index] };
       }
       await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
       return this.stopped ? undefined : cpuChoice(prompt);
@@ -569,10 +600,12 @@ export class OcgDuel {
   }
 
   private battleScore(atk: number, target: Card) {
-    if (!target.faceUp) return atk >= 1500 ? atk - 1400 : 0;
+    if (!target.faceUp) return atk - 1499;
     const opposing = target.pos === 'atk' ? this.atk(target) : this.defv(target);
-    if (opposing < 0 || atk < opposing || atk === opposing && (target.pos === 'def' || atk === 0)) return 0;
-    return atk === opposing ? 300 : 2000 + opposing + (target.pos === 'atk' ? atk - opposing : 0);
+    if (opposing < 0) return -1;
+    if (atk < opposing) return atk - opposing;
+    if (atk === opposing && (target.pos === 'def' || atk === 0)) return 0;
+    return atk === opposing ? (atk >= 1800 ? 300 : 0) : 2000 + opposing + (target.pos === 'atk' ? atk - opposing : 0);
   }
 
   async run(core: OcgCoreSync, bundle: Bundle, debug?: DebugSetup, first: Side = Math.random() < 0.5 ? 0 : 1) {
