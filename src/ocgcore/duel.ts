@@ -311,6 +311,65 @@ export class OcgDuel {
     }
   }
 
+  private rankIdleChoices(message: Extract<OcgMessage, { type: M.SELECT_IDLECMD }>, side: Side, choices: Choice[]) {
+    const player = this.players[side];
+    const opponent = this.players[opp(side)];
+    const monsters = player.m.filter((card): card is Card => card !== null);
+    const defenders = opponent.m.filter((card): card is Card => card !== null);
+    const threat = Math.max(0, ...defenders.filter(card => card.faceUp && card.pos === 'atk').map(card => this.atk(card)));
+    const canPressure = monsters.some(card => card.pos === 'atk' && (defenders.length
+      ? defenders.some(target => this.battleScore(this.atk(card), target) > 0) : this.atk(card) > 0));
+    for (const choice of choices) {
+      const response = choice.response;
+      if (response.type !== R.SELECT_IDLECMD) continue;
+      const index = response.index ?? -1;
+      switch (response.action) {
+        case I.SELECT_ACTIVATE: {
+          const card = this.definition(message.activates[index].code);
+          choice.score = card.kind === 'spell' && card.stype !== 'quick' ? 24 : card.kind === 'monster' ? 14 : -2;
+          break;
+        }
+        case I.SELECT_SPELL_SET: {
+          const card = this.definition(message.spell_sets[index].code);
+          choice.score = card.kind === 'trap' || card.stype === 'quick' ? 2 : -10;
+          break;
+        }
+        case I.SELECT_SUMMON:
+        case I.SELECT_SPECIAL_SUMMON: {
+          const special = response.action === I.SELECT_SPECIAL_SUMMON;
+          const card = this.definition((special ? message.special_summons : message.summons)[index].code);
+          const atk = Math.max(0, card.atk ?? 0);
+          const tributes = special ? 0 : (card.lv ?? 0) >= 7 ? 2 : (card.lv ?? 0) >= 5 ? 1 : 0;
+          const existingATK = Math.max(0, ...monsters.map(monster => this.atk(monster)));
+          choice.score = 8 + atk / 300 + (special ? 3 : 0) - tributes * 3;
+          if (tributes && existingATK >= atk && monsters.length <= tributes + 1) choice.score = -4;
+          if (!special && atk < threat && (card.def ?? 0) >= atk) choice.score -= 6;
+          break;
+        }
+        case I.SELECT_MONSTER_SET: {
+          const card = this.definition(message.monster_sets[index].code);
+          const defense = Math.max(0, card.def ?? 0);
+          const lowLevel = (card.lv ?? 0) < 5;
+          choice.score = lowLevel && monsters.length === 0 ? 5 + defense / 400 : -3;
+          break;
+        }
+        case I.SELECT_POS_CHANGE: {
+          const card = this.lookup(message.pos_changes[index]);
+          if (card?.faceUp && card.pos === 'atk' && this.atk(card) < threat && this.defv(card) > this.atk(card)) {
+            choice.score = 4;
+          } else if (card?.pos === 'def' && message.to_bp && this.atk(card) > 0 &&
+            (!defenders.length || defenders.some(target => this.battleScore(this.atk(card), target) > 0))) {
+            choice.score = 5;
+          }
+          break;
+        }
+        case I.TO_BP:
+          choice.score = canPressure ? 6 : monsters.some(card => card.pos === 'atk') ? 1 : -1;
+          break;
+      }
+    }
+  }
+
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
     const side = this.side(message.player);
     const prompt = decision(message, code => this.definition(code).name, this.session?.describe);
@@ -324,6 +383,7 @@ export class OcgDuel {
       return cpuChoice(prompt);
     }
     if (side !== 0 || !this.ask) {
+      if (message.type === M.SELECT_IDLECMD) this.rankIdleChoices(message, side, prompt.choices);
       if (message.type === M.SELECT_BATTLECMD) {
         const opponent = this.players[opp(side)];
         const defenders = opponent.m.filter((card): card is Card => card !== null);

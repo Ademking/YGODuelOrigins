@@ -207,3 +207,21 @@ test('Gravity Bind blocks Necroshade while Wildheart can attack', async () => {
   }, 0);
   assert.ok(checked);
 });
+
+test('CPU activates Pot of Greed from hand and sets its Trap', { timeout: 5000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(16).fill(id('Battle Ox')), extra: [] };
+  const events: string[] = [];
+  const opponent = new OcgDuel([deck, deck], ['You', 'CPU'], async () => SURRENDER, event => {
+    if (event.t === 'set' || event.t === 'activate') events.push(`${event.t}:${event.card.def.name}`);
+  }, 8000, 0, 0);
+  await opponent.run(core, readBundle(), {
+    hand: [id('Pot of Greed'), id('Mirror Force')], monsters: [], opponentMonsters: [], traps: [], extra: [],
+  }, 1);
+  assert.ok(events.includes('activate:Pot of Greed'));
+  assert.equal(events.filter(event => event.startsWith('set:')).length, 1);
+  assert.ok(opponent.players[1].s.some(card => card && !card.faceUp));
+  assert.ok(!events.includes('set:Pot of Greed'));
+});
