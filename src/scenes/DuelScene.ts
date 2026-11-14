@@ -11,6 +11,7 @@ import { getCard } from '../ocgcore/catalog';
 import { loadRuntime } from '../ocgcore/runtime';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import type { DuelClock } from '../multiplayer/lockstep';
+import { avatarURL, flagCanvasURL } from '../multiplayer/profile';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -920,7 +921,12 @@ export class DuelScene extends Phaser.Scene {
       const px = PLATE.x + 34, py = y + PLATE.h / 2;
       g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
       const watched = s === this.me ? this.init0.watch : undefined;
-      if (s === this.me && !watched) {
+      const online = this.init0.multiplayer;
+      if (online) {
+        // online duels show each player's lobby avatar and flag
+        const look = online.looks[s === this.me ? 0 : 1];
+        this.plateLook(px, py, look.avatar ?? (s === this.me ? online.name : online.opponent), look.country);
+      } else if (s === this.me && !watched) {
         // your side shows the art of your deck's strongest monster
         const deck = this.init0.deck;
         const ace = [...deck.main, ...deck.extra].map(getCard).filter((card) => card.kind === 'monster').sort((a, b) => (b.atk ?? 0) - (a.atk ?? 0))[0];
@@ -1898,7 +1904,22 @@ export class DuelScene extends Phaser.Scene {
     if (yes === true && !this.dead) this.surrender();
   }
 
-/** Speech bubble beside a player's plate; a newer emote replaces the old one. */
+  /** Online plate portrait: DiceBear avatar with a flag badge, loaded into textures on first use. */
+  private plateLook(px: number, py: number, avatar: string, country?: string) {
+    const show = (key: string, url: string, svg: boolean, place: (img: Phaser.GameObjects.Image) => void) => {
+      const img = this.add.image(px, py, this.textures.exists(key) ? key : '__DEFAULT');
+      if (this.textures.exists(key)) { place(img); return; }
+      img.setVisible(false);
+      this.load.setCORS('anonymous');
+      if (svg) this.load.svg(key, url, { width: 128, height: 128 }); else this.load.image(key, url);
+      this.load.once(`filecomplete-${svg ? 'svg' : 'image'}-${key}`, () => { if (img.active) { img.setTexture(key); place(img); img.setVisible(true); } });
+      this.load.start();
+    };
+    show(`avatar-${avatar}`, avatarURL(avatar), true, img => img.setPosition(px, py + 3).setDisplaySize(44, 44));
+    if (country) show(`flag-${country}`, flagCanvasURL(country), false, img => img.setPosition(px - 14, py - 22).setDisplaySize(18, 12));
+  }
+
+  /** Speech bubble beside a player's plate; a newer emote replaces the old one. */
   private showEmote(side: Side, text: string) {
     this.emoteBubble[side]?.destroy();
     const y = (side === this.me ? PLATE.yMe : PLATE.yFoe) + PLATE.h / 2;

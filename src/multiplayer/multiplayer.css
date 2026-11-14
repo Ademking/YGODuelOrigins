@@ -24,7 +24,7 @@
 .mp-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 10px; vertical-align: 1px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
 
 .mp-grid { flex: 1; min-height: 0; display: grid; gap: 20px;
-  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(360px, 420px); grid-template-areas: "side duelists chat"; }
+  grid-template-columns: minmax(300px, 340px) minmax(280px, 0.8fr) minmax(380px, 1.2fr); grid-template-areas: "side duelists chat"; }
 .mp-side { grid-area: side; }
 .mp-players { grid-area: duelists; }
 .mp-chatpanel { grid-area: chat; }
@@ -82,20 +82,33 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-join input { flex: 1; min-width: 0; }
 .mp-join input:not(:placeholder-shown) { text-transform: uppercase; letter-spacing: 1px; }
 
+.mp-discord {
+  --c: 10px; position: relative; flex: none; display: flex; align-items: center; gap: 14px; padding: 14px 16px; clip-path: var(--cut);
+  color: var(--ink); text-decoration: none; background: #5865f2; transition: filter .15s;
+}
+.mp-discord::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: linear-gradient(135deg, #2a2b6b 0%, #191a45 100%); }
+.mp-discord > * { position: relative; }
+.mp-discord svg { flex: none; color: #b9bfff; }
+.mp-discord b { display: block; font-size: 14px; font-weight: normal; color: #fff; }
+.mp-discord small { display: block; margin-top: 2px; font-size: 12px; color: #b9bfff; }
+.mp-discord:hover { filter: brightness(1.15); }
+.mp-discord:focus-visible { outline: 2px solid var(--glow); outline-offset: 3px; }
+
 /* ---------------------------------------------------------------- duelists online */
-.mp-duelists { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; padding-top: 4px; }
+.mp-duelists { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; padding-top: 2px; }
 .mp-duelist {
-  --c: 10px; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 14px;
-  clip-path: var(--cut); background: var(--line); text-align: center; transition: background .15s;
+  --c: 7px; position: relative; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-areas: "art name btn" "art status btn";
+  column-gap: 12px; align-items: center; padding: 8px 10px 8px 8px; clip-path: var(--cut); background: var(--line); transition: background .15s;
 }
 .mp-duelist::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: linear-gradient(170deg, #1d1838 0%, #110e22 70%); }
 .mp-duelist > * { position: relative; }
 .mp-duelist:hover { background: var(--brass-dim); }
-.mp-duelist .mp-art { width: 100%; aspect-ratio: 1; background: radial-gradient(circle at 50% 35%, #3d3274 0%, #1a1636 60%, #0d0b1c 100%); border: 1px solid #2a2540; }
-.mp-duelist .mp-flag { width: 28px; }
-.mp-duelist > b { max-width: 100%; font-size: 14px; font-weight: normal; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-duelist > .mp-btn { width: 100%; }
-.mp-duelist > small { padding: 9px 0; font-size: 12px; color: var(--brass-txt); }
+.mp-duelist .mp-art { grid-area: art; width: 48px; aspect-ratio: 1; background: radial-gradient(circle at 50% 35%, #3d3274 0%, #1a1636 60%, #0d0b1c 100%); border: 1px solid #2a2540; }
+.mp-duelist .mp-flag { left: -5px; top: auto; bottom: -4px; width: 20px; }
+.mp-duelist > b { grid-area: name; align-self: end; font-size: 14px; font-weight: normal; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-duelist > small { grid-area: status; align-self: start; font-size: 12px; color: var(--dim); }
+.mp-duelist.busy > small { color: var(--brass-txt); }
+.mp-duelist > .mp-btn { grid-area: btn; }
 .mp-duelist.busy .mp-art { filter: grayscale(.6) brightness(.7); }
 .mp-empty { grid-column: 1 / -1; padding: 48px 6px; color: var(--dim); font-size: 12px; text-align: center; }
 .mp-empty b { display: block; margin-bottom: 6px; font-size: 14px; color: var(--ink); }
@@ -117,6 +130,10 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-message.cont { padding-top: 2px; }
 .mp-msg-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
 .mp-msg-head b { font-weight: normal; color: var(--brass-txt); }
+.mp-msg-face { position: relative; flex: none; width: 26px; height: 26px; align-self: center; border: 1px solid var(--line); border-radius: 2px; background: radial-gradient(circle at 50% 35%, #3d3274, #14112a 70%); }
+.mp-msg-face > img:first-child { width: 100%; height: 100%; display: block; }
+.mp-msg-flag { position: absolute; right: -6px; bottom: -3px; width: 14px; height: auto; filter: drop-shadow(0 1px 1px #000c); }
+.mp-message > :not(.mp-msg-head) { margin-left: 38px; }
 .mp-msg-head time { color: var(--faint); font-size: 12px; }
 .mp-gif { display: block; width: 200px; max-width: 100%; min-height: 60px; margin: 4px 0; border: 1px solid var(--line); background: var(--field); }
 .mp-message.sys { color: var(--faint); font-size: 12px; padding: 6px 0; }

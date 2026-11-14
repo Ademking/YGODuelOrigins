@@ -1,5 +1,6 @@
 import type { ChatLine, PrivateRoom } from './client';
 import './multiplayer.css';
+import { avatarURL, flagURL } from './profile';
 import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';
 
 /** Cut-corner button matching theme.ts button(). */
@@ -56,7 +57,11 @@ export function renderChat(parent: HTMLElement, lines: ChatLine[]) {
     const row = element('div', '', 'mp-message');
     if (!prev || prev.system || prev.name !== line.name) {
       const head = element('div', '', 'mp-msg-head');
-      head.append(element('b', line.name), element('time', time(line.at)));
+      const face = element('span', '', 'mp-msg-face');
+      const img = element('img'); img.src = avatarURL(line.avatar ?? line.name); img.alt = ''; img.referrerPolicy = 'no-referrer';
+      face.append(img);
+      if (line.country) { const flag = element('img', '', 'mp-msg-flag'); flag.src = flagURL(line.country); flag.alt = line.country; flag.title = line.country; flag.referrerPolicy = 'no-referrer'; face.append(flag); }
+      head.append(face, element('b', line.name), element('time', time(line.at)));
       row.append(head);
     } else row.classList.add('cont');
     const gif = gifSrc(line.text);

@@ -64,4 +64,5 @@ Before broad release, test two browsers on separate networks for lobby discovery
 
 - **Avatar:** each player gets a random [DiceBear](https://www.dicebear.com/) "dylan" avatar seed, saved in localStorage (`duel-origins.multiplayer.avatar`). The die button on your license rolls a new one. The image loads from `api.dicebear.com`.
 - **Country flag:** on first visit the game asks `api.country.is` for the country of the player's IP address and caches the two-letter code in localStorage (`duel-origins.multiplayer.country`). That service sees the IP; the IP itself is never stored or shared with other players. Flags load from `flagsapi.com`. If the lookup fails, no flag is shown.
-- Both values are sent in the lobby profile. Receivers accept only a 4 to 32 character lowercase seed and an uppercase two-letter code, so peers cannot inject other URLs.
+- Both values are sent in the lobby profile and the private-room hello, and appear on duelist tiles, beside chat messages and on the duel plates. Receivers accept only a 4 to 32 character lowercase seed and an uppercase two-letter code, so peers cannot inject other URLs.
+- The duel canvas needs CORS-enabled images; flagsapi.com sends no CORS header, so in-duel flags load from `flagcdn.com` instead (`flagCanvasURL`).

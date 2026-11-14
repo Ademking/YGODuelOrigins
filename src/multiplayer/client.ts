@@ -4,10 +4,11 @@ import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } fro
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
-export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean };
+export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
 export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
-type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string };
-export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom };
+type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
+/** `looks` is [yours, opponent's]; a missing avatar falls back to the player's name as the DiceBear seed. */
+export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>] };
 /**
  * Optional TURN relay for networks that block direct WebRTC (set at build time, e.g. a free Metered or Cloudflare TURN):
  * VITE_TURN_URLS="turn:a.example:80,turns:a.example:443?transport=tcp", VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL.
@@ -54,7 +55,7 @@ export class Lobby {
     this.chatAction.onMessage((raw, { peerId }) => {
       if (!this.allow(peerId + ':chat', 800)) return;
       const text = cleanChat(raw), peer = this.peers.get(peerId);
-      if (text && peer) this.addChat({ name: peer.name, text });
+      if (text && peer) this.addChat({ name: peer.name, text, avatar: peer.avatar, country: peer.country });
     });
     this.invites.onMessage((raw, { peerId }) => {
       if (!this.peers.has(peerId) || typeof raw !== 'string' || !/^[A-HJ-NP-Z2-9]{12}$/.test(raw)) return;
@@ -90,7 +91,7 @@ export class Lobby {
     text = cleanChat(text);
     if (!text || Date.now() - this.lastChat < 800) return;
     this.lastChat = Date.now();
-    this.addChat({ name: this.name, text });
+    this.addChat({ name: this.name, text, self: true, ...this.look });
     await this.chatAction.send(text);
   }
   async invite(peer: string, code: string) { await this.invites.send(code, { target: peer }); }
@@ -132,11 +133,11 @@ export class PrivateRoom {
       if (!this.opponent) { this.error = turnConfigured ? 'Still waiting for a connection. Check the code and keep both tabs open.' : 'Still waiting for a connection. Check the code, keep both tabs open, or try another network. Some networks require a TURN relay.'; this.onChange(); }
     }, 30000);
   }
-  static async create(code: string, host: boolean, name: string, deck: DeckList) {
+  static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
     const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error('Could not verify the duel engine version. Reload and try again.');
     const revision = (await response.text()).trim();
-    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false });
+    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look });
   }
   get isHost() { return this.hello.host; }
   get isReady() { return this.ready; }
@@ -176,7 +177,7 @@ export class PrivateRoom {
       if (!cleanName(m.name) || !validDeck(m.deck) || typeof m.ready !== 'boolean') throw new Error('Opponent sent invalid deck or profile data.');
       const firstHello = !this.peer;
       this.peer = peer;
-      this.opponent = { ...m, name: cleanName(m.name) } as Hello;
+      this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country) } as Hello;
       this.error = '';
       clearTimeout(this.connectionTimer);
       if (firstHello) await this.send({ ...this.hello, ready: this.ready });
@@ -235,7 +236,8 @@ export class PrivateRoom {
     if (!this.network || !this.opponent || this.started) return;
     this.started = true;
     this.onStart({ name: this.hello.name, opponent: this.opponent.name, deck: this.hello.deck,
-      opponentDeck: this.opponent.deck, first, network: this.network, session: this });
+      opponentDeck: this.opponent.deck, first, network: this.network, session: this,
+      looks: [{ avatar: this.hello.avatar, country: this.hello.country }, { avatar: this.opponent.avatar, country: this.opponent.country }] });
   }
   async setReady() {
     if (this.started || !this.opponent || this.ready) return;
@@ -246,7 +248,8 @@ export class PrivateRoom {
     if (this.isHost && this.opponent.ready) await this.receive(encode(this.opponent), this.peer!);
   }
   private addChat(name: string, text: string, self = false) {
-    const line = { name, text, at: Date.now(), self };
+    const who = self ? this.hello : this.opponent;
+    const line = { name, text, at: Date.now(), self, avatar: who?.avatar, country: who?.country };
     this.chat.push(line);
     if (this.chat.length > 100) this.chat.shift();
     this.onChat(line);

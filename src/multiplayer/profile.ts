@@ -7,6 +7,8 @@ export type Look = { avatar: string; country?: string };
 
 export const avatarURL = (seed: string) => `https://api.dicebear.com/10.x/dylan/svg?seed=${encodeURIComponent(seed)}&backgroundColor=00000000`;
 export const flagURL = (country: string) => `https://flagsapi.com/${country}/flat/64.png`;
+/** flagsapi.com sends no CORS header, so the game canvas (WebGL needs CORS) draws flags from flagcdn.com instead. */
+export const flagCanvasURL = (country: string) => `https://flagcdn.com/w80/${country.toLowerCase()}.png`;
 export const cleanSeed = (value: unknown) => typeof value === 'string' && SEED.test(value) ? value : undefined;
 export const cleanCountry = (value: unknown) => typeof value === 'string' && COUNTRY.test(value) ? value : undefined;
 
