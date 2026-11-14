@@ -1,3 +1,5 @@
+import type { Match, Lobby } from '../multiplayer/client';
+import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
@@ -8,6 +10,7 @@ import { cardImagePasscode } from '../data/cardImages';
 import { getCard } from '../ocgcore/catalog';
 import { loadRuntime } from '../ocgcore/runtime';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
+import type { DuelClock } from '../multiplayer/lockstep';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -31,7 +34,7 @@ import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
 /** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
-export interface DuelInit { deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
+export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
 
 // ---- board geometry: a ground plane seen in true perspective (proportions fitted to the wireframe).
 // u = column in tile widths (0 = centre), w = depth in tile depths (0 = midline, + towards you).
@@ -109,6 +112,11 @@ export class DuelScene extends Phaser.Scene {
   private revealingGod: number | null = null;
   private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
+  private clockText: Phaser.GameObjects.Text[] = [];
+  /** Set while restarting into a rematch so shutdown keeps the room and lobby open. */
+  private rematching = false;
+  private updateRematch?: () => void;
+  private emoteBubble: (Phaser.GameObjects.Text | undefined)[] = [];
   private lpBar: Phaser.GameObjects.Graphics[] = [];
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
@@ -158,7 +166,7 @@ export class DuelScene extends Phaser.Scene {
     this.statTexts = new Map();
     this.durationBadges = new Map();
     this.counts = [];
-    this.lpText = [];
+    this.lpText = []; this.clockText = [];
     this.lpBar = [];
     this.lpPlate = [];
     this.skins = new Map();
@@ -217,7 +225,7 @@ export class DuelScene extends Phaser.Scene {
     this.tweens.add({ targets: this.hlPulse, a: 0.55, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
 
     const duel: OcgDuel = new OcgDuel(
-      [d.deck, d.opp.deck], [d.watch?.name ?? 'You', d.opp.name],
+      [d.deck, d.opp.deck], [d.multiplayer?.name ?? d.watch?.name ?? 'You', d.opp.name],
       d.watch ? null : (prompt, current) => this.handlePrompt(prompt, current),
       (event) => duel === this.duel ? this.onDuelEvent(event) : undefined,
       d.startingLP, 200 * this.spd, 200 * this.spd,
@@ -225,7 +233,29 @@ export class DuelScene extends Phaser.Scene {
     );
     this.events.once('shutdown', () => duel.stop());
     this.duel = duel;
+    if (d.multiplayer) {
+      const session = d.multiplayer.session;
+      this.rematching = false;
+      this.updateRematch = undefined;
+      this.emoteBubble = [];
+      const removeChat = mountDuelChat(session, typing => {
+        if (this.input.keyboard) this.input.keyboard.enabled = !typing;
+      }, (line, [icon, label]) => this.showEmote(line.self ? this.me : opp(this.me), `${icon}  ${label}`));
+      session.onChange = () => this.updateRematch?.();
+      session.onStart = match => { this.rematching = true; this.scene.restart({ ...this.init0, multiplayer: match }); };
+      session.onEnd = (reason, surrendered) => {
+        if (this.dead || this.ended) return;
+        duel.stop();
+        this.pending?.resolve(SURRENDER);
+        this.showEnd(surrendered ? this.me : -1, reason);
+      };
+      this.events.once('shutdown', () => {
+        removeChat(); session.onEnd = () => {};
+        if (!this.rematching) { void session.leave(); d.lobby?.close(); }
+      });
+    }
     this.layout(true);
+    if (d.multiplayer) this.startClocks(d.multiplayer.network.clock);
     this.input.dragDistanceThreshold = 8;
     this.setupInput();
     this.input.keyboard?.on('keydown-ESC', () => {
@@ -241,7 +271,7 @@ export class DuelScene extends Phaser.Scene {
     void (async () => {
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
-      const first = d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
+      const first = d.multiplayer ? d.multiplayer.first : d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
       if (this.dead || duel !== this.duel) return;
       if (!d.debug && !d.watch && first === null) {
         duel.log('You surrendered.');
@@ -249,9 +279,10 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       const [core, bundle] = await loadRuntime();
-      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined);
+      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined, d.multiplayer?.network);
     })().catch((error: unknown) => {
-      if (this.dead || duel !== this.duel) return;
+      if (this.dead || this.ended || duel !== this.duel) return;
+      if (d.multiplayer) void d.multiplayer.session.leave();
       const detail = error instanceof Error ? error.message : String(error);
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
       this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
@@ -901,12 +932,15 @@ export class DuelScene extends Phaser.Scene {
         const duelist = watched ?? this.init0.opp;
         const portrait = portraitKey(duelist.id);
         if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
-        else this.add.text(px, py, duelist.art, { fontSize: '22px' }).setOrigin(0.5);
+        else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
       }
       this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
-      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? watched?.name ?? 'You' : this.init0.opp.name),
+      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
         { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
-      const room = PLATE.x + PLATE.w - 12 - PLATE.lpX;
+      if (this.init0.multiplayer) {
+        this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
+      }
+      const room = PLATE.x + PLATE.w - 12 - PLATE.lpX - (this.init0.multiplayer ? 56 : 0);
       if (name.width > room) name.setScale(room / name.width);
       this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
       this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
@@ -1864,8 +1898,44 @@ export class DuelScene extends Phaser.Scene {
     if (yes === true && !this.dead) this.surrender();
   }
 
+/** Speech bubble beside a player's plate; a newer emote replaces the old one. */
+  private showEmote(side: Side, text: string) {
+    this.emoteBubble[side]?.destroy();
+    const y = (side === this.me ? PLATE.yMe : PLATE.yFoe) + PLATE.h / 2;
+    const bubble = this.add.text(PLATE.x + PLATE.w + 14 + this.sidePanelX, y, text, {
+      fontFamily: FONT_B, fontSize: '16px', fontStyle: 'bold', color: COL.goldTxt, backgroundColor: '#14121f', padding: { x: 14, y: 9 },
+    }).setOrigin(0, 0.5).setDepth(1100).setAlpha(0);
+    this.emoteBubble[side] = bubble;
+    sfx.click();
+    this.tweens.add({ targets: bubble, alpha: 1, x: bubble.x + 8, duration: 160, ease: 'Back.out' });
+    this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 300, onComplete: () => bubble.destroy() });
+  }
+
+  /** Both players' thinking time on their plates; running out forfeits the duel. */
+  private startClocks(clock: DuelClock) {
+    const fmt = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+    const tick = () => {
+      for (const s of [0, 1] as const) {
+        const who = s === this.me ? 0 : 1, left = clock.remaining(who), running = clock.active === who;
+        this.clockText[s]?.setText(`${running ? '▶ ' : ''}${fmt(left)}`)
+          .setColor(left <= 30000 ? '#ff9aac' : running ? COL.goldTxt : COL.dim);
+      }
+      if (!this.ended && clock.active === 0 && clock.remaining(0) <= 0) {
+        if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit(true);
+        this.duel.stop();
+        const p = this.pending;
+        this.pending = null;
+        p?.resolve(SURRENDER);
+        this.showEnd(opp(this.me), 'You ran out of time');
+      }
+    };
+    tick();
+    this.time.addEvent({ delay: 250, loop: true, callback: tick });
+  }
+
   private surrender() {
     if (this.ended) return;
+    if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit();
     this.duel.stop();
     const p = this.pending;
     this.pending = null;
@@ -2661,8 +2731,23 @@ export class DuelScene extends Phaser.Scene {
     const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: 680 } }).setOrigin(0.5);
     detail.setScale(Math.min(1, 44 / detail.height));
     layer.add(detail);
-    layer.add(button(this, CX - 128, 470, 240, 50, 'Rematch', () => this.scene.restart(this.init0), { size: 16, primary: true }));
-    layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
+    const online = this.init0.multiplayer?.session;
+    if (online) {
+      const rematch = button(this, CX - 250, 470, 230, 50, 'Rematch', () => void online.requestRematch(), { size: 16, primary: true });
+      const state = this.add.text(CX, 418, '', { fontFamily: FONT_B, fontSize: '13px', color: COL.goldTxt }).setOrigin(0.5);
+      this.updateRematch = () => {
+        const { mine, theirs, open } = online.rematchState;
+        rematch.setEnabled(open && !mine).setLabel(mine ? 'Waiting…' : theirs ? 'Accept Rematch' : 'Rematch');
+        state.setText(!open ? 'Rematch unavailable: the room is closed.' : mine ? `Waiting for ${this.init0.opp.name}…` : theirs ? `${this.init0.opp.name} wants a rematch!` : '');
+      };
+      this.updateRematch();
+      layer.add([rematch, state,
+        button(this, CX, 470, 230, 50, 'Back to lobby', () => this.scene.start('Multiplayer', { rejoin: true }), { size: 16 }),
+        button(this, CX + 250, 470, 230, 50, 'Home', () => this.scene.start('Title'), { size: 16 })]);
+    } else {
+      layer.add(button(this, CX - 128, 470, 240, 50, 'Rematch', () => this.scene.restart(this.init0), { size: 16, primary: true }));
+      layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
+    }
     layer.add(button(this, CX, 528, 132, 30, 'View Log', () => this.toggleLogs(), { size: 11 }));
   }
 }

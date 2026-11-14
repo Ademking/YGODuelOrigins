@@ -89,13 +89,14 @@ export class TitleScene extends Phaser.Scene {
 
     const menu: [string, () => void][] = [
       ['Duel', () => this.scene.start('Setup')],
+      ['Multiplayer', () => this.scene.start('Multiplayer')],
       ['Deck Editor', () => this.scene.start('DeckEditor')],
       ['Replay', () => this.scene.start('Watch')],
       ['About', () => this.showAbout()],
       ['Changelog', () => this.showChangelog()],
     ];
     menu.forEach(([label, run], index) => {
-      button(this, 640, 346 + index * 60, 320, 48, label, run, { size: 17, primary: index === 0 });
+      button(this, 640, 318 + index * 54, 320, 48, label, run, { size: 17, primary: index === 0 });
     });
     button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
     button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });

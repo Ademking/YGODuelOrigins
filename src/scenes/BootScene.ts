@@ -52,7 +52,7 @@ export class BootScene extends Phaser.Scene {
       this.screen.progress(1);
       await new Promise((resolve) => setTimeout(resolve, 350));
       await this.screen.close();
-      this.scene.start('Title');
+      this.scene.start(location.hash.startsWith('#duel=') ? 'Multiplayer' : 'Title');
     }).catch((error: unknown) => {
       console.error(error);
       document.dispatchEvent(new Event('duel-origins:boot-error'));

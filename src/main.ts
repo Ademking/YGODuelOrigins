@@ -1,3 +1,4 @@
+import { MultiplayerScene } from './scenes/MultiplayerScene';
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
   disableContextMenu: true,
   // ?st runs the loop on timers instead of rAF (useful in background/headless tabs)
   fps: { forceSetTimeOut: options.has('st'), target: 60 },
-  scene: [BootScene, TitleScene, SetupScene, DuelScene, DeckEditorScene, DebugScene, WatchScene],
+  scene: [BootScene, MultiplayerScene, TitleScene, SetupScene, DuelScene, DeckEditorScene, DebugScene, WatchScene],
 });
 
 // Dev-only handle for debugging in the browser console.

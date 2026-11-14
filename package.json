@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "ocgcore-wasm": "0.1.6",
-    "phaser": "^3.90.0"
+    "phaser": "^3.90.0",
+    "trystero": "0.27.0"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
