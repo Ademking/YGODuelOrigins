@@ -150,3 +150,12 @@ test('chat GIFs only accept ids from the built-in library', async () => {
   assert.ok(!GIF_IDS.has('notInTheLibrary123'));
   assert.ok([...GIF_IDS].every(id => /^[A-Za-z0-9]{5,40}$/.test(id)));
 });
+
+test('chat GIF messages only resolve to the GIPHY library or media.tenor.com', async () => {
+  const { gifSrc, GIF_IDS } = await import('../../src/multiplayer/gifs');
+  const id = [...GIF_IDS][0];
+  assert.equal(gifSrc(`gif:${id}`), `https://media.giphy.com/media/${id}/200w.gif`);
+  assert.equal(gifSrc('tenor:AbC123xyzAAAAM/good-game.gif'), 'https://media.tenor.com/AbC123xyzAAAAM/good-game.gif');
+  for (const bad of ['gif:notInTheLibrary123', 'tenor:../../evil.gif', 'tenor://evil.example/x.gif', 'tenor:AbC123xyzAAAAM/x.gif?y=1',
+    'tenor:AbC123xyzAAAAM/a/b.gif', 'tenor:AbC123xyzAAAAM/x.png', 'hello']) assert.equal(gifSrc(bad), null, bad);
+});

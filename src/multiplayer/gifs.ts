@@ -22,3 +22,14 @@ export const GIF_LIBRARY: Record<string, string[]> = {
 };
 export const GIF_IDS = new Set(Object.values(GIF_LIBRARY).flat());
 export const gifURL = (id: string, still = false) => `https://media.giphy.com/media/${id}/200w${still ? '_s' : ''}.gif`;
+
+/** A Tenor media path like `AbC123xyzAAAAM/name.gif`, always loaded from media.tenor.com. */
+export const TENOR_PATH = /^[A-Za-z0-9_-]{8,64}\/[A-Za-z0-9._-]{1,120}\.gif$/;
+export const gifMessage = (id: string) => `gif:${id}`;
+export const tenorMessage = (path: string) => `tenor:${path}`;
+/** Image URL for a GIF chat message, or null when the text is not one. */
+export function gifSrc(text: string) {
+  if (text.startsWith('gif:') && GIF_IDS.has(text.slice(4))) return gifURL(text.slice(4));
+  if (text.startsWith('tenor:') && TENOR_PATH.test(text.slice(6))) return `https://media.tenor.com/${text.slice(6)}`;
+  return null;
+}
