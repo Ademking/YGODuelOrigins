@@ -333,6 +333,9 @@ const additions: Record<string, Record<string, number>> = {
   crowler: { 'Ancient Gear Knight': 2, 'Ancient Gear Gadjiltron Dragon': 1, 'Ancient Gear Gadjiltron Chimera': 1, 'Gear Golem the Moving Fortress': 2 },
 };
 const revisions: Record<string, { main: Record<string, number>; extra: Record<string, number> }> = {
+  yugi: { main: { 'Slifer the Sky Dragon': 1 }, extra: {} },
+  kaiba: { main: { 'Obelisk the Tormentor': 1 }, extra: {} },
+  marik: { main: { 'The Winged Dragon of Ra': 1 }, extra: {} },
   jaden: {
     main: { 'Elemental Hero Neos': 2, 'Neo-Spacian Air Hummingbird': 1, 'Neo-Spacian Aqua Dolphin': 1, 'Neo-Spacian Grand Mole': 1, 'Neo Space': 1, 'Common Soul': 1 },
     extra: { 'Elemental Hero Air Neos': 1, 'Elemental Hero Aqua Neos': 1, 'Elemental Hero Grand Neos': 1 },

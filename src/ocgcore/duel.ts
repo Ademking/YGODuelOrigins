@@ -1,4 +1,4 @@
-import { OcgHintType, OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
+import { OcgCardHintType, OcgHintType, OcgHintTiming as T, OcgLocation as L, OcgMessageType as M, OcgPhase as P, OcgPosition, OcgResponseType as R, SelectIdleCMDAction as I, SelectBattleCMDAction as B, type OcgCardLoc, type OcgLocPos, type OcgMessage, type OcgResponse } from 'ocgcore-wasm';
 import type { Action, Card, DeckList, Phase, Player, Prompt, UIEvent } from '../engine/duel';
 import type { CardDef, Side, Zone } from '../engine/types';
 import type { DebugSetup } from '../engine/debug';
@@ -41,6 +41,7 @@ export class OcgDuel {
   turn = 0;
   phase: Phase = 'DP';
   logLines: string[] = [];
+  activeAttack: { attacker: Card; target: Card | null } | null = null;
   private ids = new Map<number, Card>();
   private chain = new Map<number, Card>();
   private session?: ReturnType<typeof openDuel>;
@@ -136,10 +137,16 @@ export class OcgDuel {
   private async update(message: OcgMessage) {
     let event: UIEvent | undefined;
     switch (message.type) {
+      case M.CARD_HINT: {
+        const card = this.lookup(message);
+        if (card && message.card_hint === OcgCardHintType.TURN) card.data.turnCounter = Number(message.description);
+        break;
+      }
       case M.HINT:
         if (message.hint_type === OcgHintType.SELECTMSG) this.selectionHint = { player: message.player, id: message.hint };
         break;
       case M.NEW_TURN:
+        this.activeAttack = null;
         this.cpuAttacker = undefined;
         this.cancelledCpuAttacks.clear();
         this.tp = this.side(message.player);
@@ -150,6 +157,7 @@ export class OcgDuel {
       case M.NEW_PHASE:
         if (phases[message.phase] && this.phase !== phases[message.phase]) {
           this.phase = phases[message.phase]!;
+          if (this.phase !== 'BP') this.activeAttack = null;
           this.log(({ DP: 'Draw Phase', SP: 'Standby Phase', M1: 'Main Phase 1', BP: 'Battle Phase', M2: 'Main Phase 2', EP: 'End Phase' })[this.phase] + '.');
           event = { t: 'phase', phase: this.phase };
         }
@@ -177,6 +185,7 @@ export class OcgDuel {
         }
         this.remove(message.from);
         delete card.equipTo;
+        if (!to || !['mzone', 'szone', 'fzone'].includes(to)) delete card.data.turnCounter;
         if (to) this.put(card, message.to, message.card);
         else this.ids.delete(card.uid);
         if (to === 'banished' || to === 'gy') {
@@ -235,12 +244,16 @@ export class OcgDuel {
           }
         }
         break;
+      case M.ATTACK_DISABLED: case M.DAMAGE_STEP_END:
+        this.activeAttack = null;
+        break;
       case M.ATTACK: {
         this.choosingAttack = false;
         this.attackTarget = undefined;
         const attacker = this.lookup(message.card);
         if (attacker) {
           const target = message.target ? this.lookup(message.target) ?? null : null;
+          this.activeAttack = { attacker, target };
           this.log(`${attacker.def.name} attacks ${target ? target.faceUp ? target.def.name : 'a face-down monster' : 'directly'}.`);
           event = { t: 'attack', attacker, target };
         }
@@ -308,6 +321,7 @@ export class OcgDuel {
           // The WASM decoder exposes signed query values as unsigned integers.
           card.data.atk = row.attack === undefined ? undefined : row.attack | 0;
           card.data.def = row.defense === undefined ? undefined : row.defense | 0;
+          card.data.ctr = openSlots && row.counters ? row.counters : undefined;
           if (!current) this.put(card, { ...loc, position }, visible ? row.code ?? 0 : 0);
           card.faceUp ||= row.isPublic === true;
         }

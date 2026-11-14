@@ -13,6 +13,7 @@ import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
 import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
 import { burst, flash, ring } from '../ui/fx';
+import { debugModeEnabled } from '../ui/debugMode';
 import { sfx } from '../ui/sfx';
 import { volumeControls } from '../ui/settings';
 import { actionIndicator } from '../ui/actionIndicator';
@@ -109,6 +110,8 @@ export class DuelScene extends Phaser.Scene {
   private lpShown = [8000, 8000];
   private phaseBtns = {} as Record<Phase, Button>;
   private tiles: Phaser.GameObjects.Graphics[] = [];
+  private attackMarker!: Phaser.GameObjects.Graphics;
+  private turnCount!: Phaser.GameObjects.Text;
   private shadowG!: Phaser.GameObjects.Graphics;
   private zoneIcons: (Phaser.GameObjects.Mesh | Phaser.GameObjects.Image)[][] = [[], []];
   private askingSurrender = false;
@@ -184,7 +187,7 @@ export class DuelScene extends Phaser.Scene {
 
   create() {
     fitCamera(this);
-    this.createFpsCounter();
+    if (debugModeEnabled()) this.createFpsCounter();
     if (this.game.renderer.type === Phaser.WEBGL) {
       const pipelines = (this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).pipelines;
       if (!pipelines.has('HologramPipeline')) pipelines.add('HologramPipeline', new HologramPipeline(this.game));
@@ -193,6 +196,9 @@ export class DuelScene extends Phaser.Scene {
     duelBackground(this, !this.reducedMotion);
     this.events.once('shutdown', () => { this.dead = true; this.pending?.resolve(SURRENDER); });
     this.drawBoard();
+    this.attackMarker = this.add.graphics().setDepth(340);
+    this.turnCount = txt(this, CX, Y.phase - 28, 'Turn 0', 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
+      .setOrigin(0.5).setDepth(351);
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
     const sync = () => this.syncSkins();
     this.events.on('postupdate', sync);
@@ -629,6 +635,7 @@ export class DuelScene extends Phaser.Scene {
     this.syncFieldMat();
     this.drawShadows();
     this.drawGlows();
+    this.drawActiveAttack();
     for (const [uid, img] of this.sprites) {
       const m = this.skins.get(uid);
       const c = this.duel.byUid(uid);
@@ -655,6 +662,33 @@ export class DuelScene extends Phaser.Scene {
     }
     this.drawEquipBadge();
     this.syncDurationBadges();
+  }
+
+  private drawActiveAttack() {
+    const graphics = this.attackMarker;
+    graphics.clear();
+    const attack = this.duel.activeAttack;
+    if (!attack || this.ended) return;
+    const attacker = this.sprites.get(attack.attacker.uid);
+    const target = attack.target ? this.sprites.get(attack.target.uid) : undefined;
+    if (!attacker?.visible || !this.duel.onField(attack.attacker)
+      || attack.target && (!target?.visible || !this.duel.onField(attack.target))) return;
+    const outline = (sprite: Phaser.GameObjects.Image, color: number) => {
+      const quad = this.cardQuad({ x: sprite.x, y: sprite.y, angle: sprite.angle, sx: sprite.scaleX, sy: sprite.scaleY },
+        sprite.width, sprite.height, 10, true);
+      graphics.lineStyle(3, color, 1).strokePoints(quad, true);
+    };
+    outline(attacker, COL.gold);
+    if (target) outline(target, COL.red);
+    const x = target?.x ?? CX;
+    const y = target?.y ?? (attack.attacker.ctrl === this.me ? 42 : H - 42);
+    const angle = Math.atan2(y - attacker.y, x - attacker.x);
+    const endX = x - 22 * Math.cos(angle);
+    const endY = y - 22 * Math.sin(angle);
+    graphics.lineStyle(3, COL.gold, 0.9).lineBetween(attacker.x, attacker.y, endX, endY);
+    graphics.fillStyle(COL.gold, 1).fillTriangle(endX, endY,
+      endX - 14 * Math.cos(angle - 0.55), endY - 14 * Math.sin(angle - 0.55),
+      endX - 14 * Math.cos(angle + 0.55), endY - 14 * Math.sin(angle + 0.55));
   }
 
   private syncFieldMat() {
@@ -721,7 +755,7 @@ export class DuelScene extends Phaser.Scene {
     for (const side of [0, 1] as Side[]) {
       for (const card of this.duel.fieldCards(side)) {
         const counters = Object.values(card.data.ctr ?? {}).reduce<number>((sum, count) => sum + (typeof count === 'number' ? count : 0), 0);
-        if (!card.faceUp || (!card.def.lifetime && !counters)) continue;
+        if (!card.faceUp || (!card.def.lifetime && card.data.turnCounter === undefined && !counters)) continue;
         const sprite = this.sprites.get(card.uid);
         if (!sprite?.visible || sprite.alpha <= 0) continue;
         visible.add(card.uid);
@@ -738,7 +772,7 @@ export class DuelScene extends Phaser.Scene {
         const x = Math.min(...corners.map((point) => point.x)) + 10;
         const y = Math.min(...corners.map((point) => point.y)) + 10;
         badge.container.setPosition(x, y).setAlpha(sprite.alpha);
-        const remaining = [card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
+        const remaining = [card.data.turnCounter !== undefined ? String(card.data.turnCounter) : card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
         if (badge.label.text !== remaining) badge.label.setText(remaining);
       }
     }
@@ -1143,8 +1177,9 @@ export class DuelScene extends Phaser.Scene {
       if (eq.length) notes.push(`Equipped: ${eq.join(', ')}`);
       if (c.equipTo !== undefined) { const t = this.duel.byUid(c.equipTo); if (t) notes.push(`Equipped to: ${t.def.name}`); }
       if (!c.faceUp) notes.push('(Set face-down)');
-      if (c.def.lifetime) notes.push(`Turns remaining: ${c.def.lifetime - c.counter}`);
-      if (c.faceUp) for (const [kind, count] of Object.entries(c.data.ctr ?? {})) if (typeof count === 'number' && count > 0) notes.push(`${kind} counters: ${count}`);
+      if (c.data.turnCounter !== undefined) notes.push(`Turn counter: ${c.data.turnCounter}`);
+      else if (c.def.lifetime) notes.push(`Turns remaining: ${c.def.lifetime - c.counter}`);
+      if (c.faceUp) for (const [kind, count] of Object.entries(c.data.ctr ?? {})) if (typeof count === 'number' && count > 0) notes.push(`${kind === '1' ? 'Spell Counter' : /^\d+$/.test(kind) ? 'Counter' : kind}: ${count}`);
     }
     const onM = c.zone === 'mzone' && c.faceUp;
     if (vis && c.zone === 'mzone' && c.data.nameAs?.turn === this.duel.turn) {
@@ -1397,7 +1432,12 @@ export class DuelScene extends Phaser.Scene {
         case 'chain': {
           const opts = p.actions.filter((a): a is Extract<Action, { a: 'act' }> => a.a === 'act');
           sfx.chain();
-          this.showDialog('Chain?', p.text ? `${p.text}\nActivate a card in response?` : 'Activate a card in response?', [
+          const attack = this.duel.activeAttack;
+          const target = attack?.target;
+          const context = attack
+            ? `${attack.attacker.def.name} → ${target ? target.faceUp || target.ctrl === this.me ? target.def.name : 'Face-down monster' : 'Direct attack'}`
+            : '';
+          this.showDialog('Chain?', [context, p.text, 'Activate a card in response?'].filter(Boolean).join('\n'), [
             ...opts.map((a) => ({ label: `Activate ${a.card.def.name}`, run: () => this.choose(a), hover: a.card })),
             { label: 'No', run: () => this.choose(null) },
           ]);
@@ -1812,6 +1852,7 @@ export class DuelScene extends Phaser.Scene {
         await this.ritualFx(e.card);
         return;
       case 'turn':
+        this.turnCount.setText(`Turn ${e.turn}`);
         this.drawTurnGlow(e.player);
         sfx.turn();
         await this.banner(this.init0.watch ? `${this.duel.name(e.player)}'s Turn` : e.player === this.me ? 'Your Turn' : "Opponent's Turn", 750 * s, this.init0.watch ? 30 : 46);
@@ -2188,11 +2229,7 @@ export class DuelScene extends Phaser.Scene {
     if (!s || this.dead) return;
     await wait(this, 240 * this.spd);
     if (this.dead || !s.active) return;
-    if (how !== 'flip') {
-      this.evolveFx(c);
-      const tint = evolveColor(c.def, true);
-      burst(this, s.x, s.y + 24, tint, { n: how === 'normal' ? 16 : 26, angle: [225, 315], speed: [70, 250], gravity: -80, life: 700, spread: 26, depth: 62 });
-    }
+    if (how !== 'flip') this.evolveFx(c);
     await wait(this, 420 * this.spd);
   }
 

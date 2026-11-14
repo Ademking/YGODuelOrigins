@@ -4,6 +4,7 @@ import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
 import { button, caption, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';
+import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
 
 const open = (url: string) => () => { window.open(url, '_blank', 'noopener'); };
@@ -98,6 +99,20 @@ export class TitleScene extends Phaser.Scene {
     });
     button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
     button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });
+    const debug = button(this, 98, 640, 148, 36, 'Debug Duel', () => this.scene.start('Debug'), { size: 13 });
+    const showDebug = (visible: boolean) => {
+      debug.setVisible(visible);
+      debug.setEnabled(visible);
+      if (debug.input) debug.input.enabled = visible;
+    };
+    showDebug(debugModeEnabled());
+    const shortcut = (event: KeyboardEvent) => {
+      if (event.repeat || event.code !== 'KeyD' || !event.altKey || !event.shiftKey) return;
+      event.preventDefault();
+      showDebug(toggleDebugMode());
+    };
+    this.input.keyboard?.on('keydown', shortcut);
+    this.events.once('shutdown', () => this.input.keyboard?.off('keydown', shortcut));
     caption(this, 24, 683, `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`, COL.dim, 9);
     document.dispatchEvent(new Event('duel-origins:ready'));
   }
