@@ -4,6 +4,7 @@ import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protoco
 import { Lobby, PrivateRoom } from '../multiplayer/client';
 import { btn, chatComposer, element as el, frame, picker, renderChat } from '../multiplayer/ui';
 import { fitCamera, sceneBackground } from '../ui/theme';
+import { avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
 import { sfx } from '../ui/sfx';
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
@@ -24,7 +25,7 @@ export class MultiplayerScene extends Phaser.Scene {
       <div class="mp-grid">
         <aside class="mp-side">
           <div class="mp-license">
-            <div class="mp-lic-art"><span class="mp-mono" id="mp-lic-mono">?</span></div>
+            <div class="mp-lic-art" id="mp-lic-art"></div>
             <div class="mp-lic-body"><b class="mp-lic-name" id="mp-lic-name">…</b><div id="mp-lic-deck"></div></div>
           </div>
           <section class="mp-frame mp-panel mp-friend">
@@ -33,12 +34,12 @@ export class MultiplayerScene extends Phaser.Scene {
             <button class="mp-btn primary" id="mp-create"><span>Create room</span></button>
             <div class="mp-join"><input id="mp-code" placeholder="Room code or link" aria-label="Room code or invite link"><button class="mp-btn" id="mp-join"><span>Join</span></button></div>
           </section>
-          <section class="mp-frame mp-panel mp-players">
-            <h2>Duelists online <span class="mp-count" id="mp-count">0</span></h2>
-            <div id="mp-invite"></div>
-            <div class="mp-scroll" id="mp-roster"></div>
-          </section>
         </aside>
+        <section class="mp-frame mp-panel mp-players">
+          <h2>Duelists online <span class="mp-count" id="mp-count">0</span></h2>
+          <div id="mp-invite"></div>
+          <div class="mp-scroll"><div class="mp-duelists" id="mp-roster"></div></div>
+        </section>
         <section class="mp-frame mp-panel mp-chatpanel">
           <h2>Lobby chat</h2>
           <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite"></div>
@@ -50,7 +51,7 @@ export class MultiplayerScene extends Phaser.Scene {
         <h2>Enter the lobby</h2>
         <p>This is how other duelists will see you.</p>
         <div class="mp-license">
-          <div class="mp-lic-art"><span class="mp-mono" id="mp-name-mono">?</span></div>
+          <div class="mp-lic-art" id="mp-name-art"></div>
           <div class="mp-lic-body">
             <input class="mp-lic-name" id="mp-name" maxlength="24" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
             <div id="mp-deck"></div>
@@ -71,10 +72,31 @@ export class MultiplayerScene extends Phaser.Scene {
     const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: `${deck.main.length} cards` })), selectedDeck(), 'Deck');
     q('deck').replaceWith(select.el);
-    const mono = (n: string) => (cleanName(n).slice(0, 1) || '?').toUpperCase();
-    name.addEventListener('input', () => { q('name-mono').textContent = mono(name.value); });
-    q('name-mono').textContent = mono(name.value);
-    const composer = chatComposer(text => void lobby?.say(text).catch(error), 'Say hello to the lobby…');
+    let seed = savedSeed(), country: string | undefined;
+    /** Avatar with an optional flag badge. */
+    const portrait = (avatar: string, flag?: string, label = '') => {
+      const art = el('div', '', 'mp-art');
+      const img = el('img'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+      art.append(img);
+      if (flag) { const f = el('img', '', 'mp-flag'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+      return art;
+    };
+    /** Your portrait on both licenses (popup and lobby), with a button that rolls a new avatar. */
+    const renderLooks = () => {
+      for (const id of ['name-art', 'lic-art']) {
+        const shuffle = el('button', '', 'mp-shuffle'); shuffle.type = 'button';
+        shuffle.title = 'New avatar'; shuffle.setAttribute('aria-label', 'New avatar');
+        shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
+        shuffle.onclick = () => { seed = randomSeed(); saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
+        q(id).replaceChildren(portrait(seed, country, 'Your avatar'), shuffle);
+      }
+    };
+    renderLooks();
+    void lookupCountry().then(found => {
+      if (!alive || !found) return;
+      country = found; renderLooks(); lobby?.setLook({ country });
+    });
+    const composer = chatComposer(text => void lobby?.say(text).catch(error), 'Message the lobby');
     q('compose').replaceWith(composer.form);
     const codeInput = q<HTMLInputElement>('code');
     const fromLink = location.hash.startsWith('#duel=') ? parseCode(location.href) : null;
@@ -177,21 +199,20 @@ export class MultiplayerScene extends Phaser.Scene {
     };
     /** Bar that drains over the challenge lifetime. */
     const expiry = () => { const bar = el('div', '', 'mp-expire'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
-    const avatar = (n: string) => { const art = el('div', '', 'mp-lic-art mini'); art.append(el('span', mono(n), 'mp-mono')); return art; };
     const renderRoster = () => {
-      const list = q('roster'); list.replaceChildren();
-      q('count').textContent = String((lobby?.peers.size ?? 0) + (lobby ? 1 : 0));
+      const grid = q('roster'); grid.replaceChildren();
+      q('count').textContent = String(lobby?.peers.size ?? 0);
       if (!lobby?.peers.size) {
         const empty = el('div', '', 'mp-empty');
         if (lobby) empty.append(el('b', 'Nobody else is here yet'), el('p', 'Duelists appear here when they open Multiplayer. Create a room to invite a friend directly.'));
-        list.append(empty);
+        grid.append(empty);
         return;
       }
       for (const [id, profile] of lobby.peers) {
-        const row = el('div', '', profile.busy ? 'mp-peer busy' : 'mp-peer');
-        const label = el('span', profile.name); label.append(el('small', profile.busy ? 'In a duel' : 'Available'));
-        row.append(avatar(profile.name), label);
-        if (!profile.busy) {
+        const card = el('article', '', profile.busy ? 'mp-duelist busy' : 'mp-duelist');
+        card.append(portrait(profile.avatar ?? profile.name, profile.country, `${profile.name}'s avatar`), el('b', profile.name));
+        if (profile.busy) card.append(el('small', 'In a duel'));
+        else {
           const challenge = btn('Challenge', 'small');
           challenge.disabled = !!session || outgoingInvite;
           challenge.onclick = async () => {
@@ -210,9 +231,9 @@ export class MultiplayerScene extends Phaser.Scene {
             }
             outgoingInvite = false; renderRoster();
           };
-          row.append(challenge);
+          card.append(challenge);
         }
-        list.append(row);
+        grid.append(card);
       }
     };
     /** Ready-made openers while the lobby chat is still quiet. */
@@ -227,8 +248,8 @@ export class MultiplayerScene extends Phaser.Scene {
     };
     const connect = (chosen: string) => {
       try { localStorage.setItem(NAME_KEY, chosen); } catch {}
-      lobby = new Lobby(chosen);
-      q('lic-name').textContent = chosen; q('lic-mono').textContent = mono(chosen);
+      lobby = new Lobby(chosen, { avatar: seed, country });
+      q('lic-name').textContent = chosen;
       q('lic-deck').replaceWith(select.el);
       lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); renderChips(); };
       lobby.onError = status;

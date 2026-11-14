@@ -177,3 +177,14 @@ test('chat GIF messages only resolve to the GIPHY library or static.klipy.com', 
   for (const bad of ['gif:notInTheLibrary123', 'klipy:../../evil.gif', 'klipy://evil.example/x.gif', `klipy:${path}?y=1`, 'klipy:ii/../../../../evil.gif',
     'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/a/b.gif', 'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/x.png', `tenor:${path}`, 'hello']) assert.equal(gifSrc(bad), null, bad);
 });
+
+test('lobby profiles only accept a plain avatar seed and a two-letter country', async () => {
+  const { cleanSeed, cleanCountry, avatarURL, flagURL, randomSeed } = await import('../../src/multiplayer/profile');
+  const seed = randomSeed();
+  assert.equal(cleanSeed(seed), seed);
+  for (const bad of ['', 'abc', 'A'.repeat(8), 'x"><img', '../../evil', 'a'.repeat(40), 42]) assert.equal(cleanSeed(bad), undefined, String(bad));
+  assert.equal(cleanCountry('TN'), 'TN');
+  for (const bad of ['tn', 'TUN', 'T', '../', null]) assert.equal(cleanCountry(bad), undefined, String(bad));
+  assert.ok(avatarURL(seed).startsWith('https://api.dicebear.com/10.x/dylan/svg?seed='));
+  assert.equal(flagURL('TN'), 'https://flagsapi.com/TN/flat/64.png');
+});

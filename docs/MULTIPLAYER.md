@@ -59,3 +59,9 @@ Before broad release, test two browsers on separate networks for lobby discovery
 - **Rematch:** surrender and running out of time now send `forfeit`, which ends the duel but keeps the private room open. On the end screen both players press **Rematch**; the host deals a fresh seed through the normal `start`/`ack` handshake and both boards restart. **Back to lobby** or **Home** leaves the room, which disables Rematch for the other player.
 - **Emotes:** the bar left of the duel chat sends one-click emotes (Hello!, Nice play!, Hmm…, Wow!, Oops!, On fire!, Good game!) as `emote:<n>` duel-chat messages. They pop up as a bubble beside the sender's player plate and appear in the chat log.
 - **TURN relay:** set `VITE_TURN_URLS` (comma-separated `turn:`/`turns:` URLs), `VITE_TURN_USERNAME` and `VITE_TURN_CREDENTIAL` at build time to relay connections that cannot go direct. Metered (free tier) and Cloudflare Realtime TURN both work. Static credentials end up in the browser bundle, so use a provider-side usage limit. Without these variables, only public STUN is used.
+
+## Avatars and flags
+
+- **Avatar:** each player gets a random [DiceBear](https://www.dicebear.com/) "dylan" avatar seed, saved in localStorage (`duel-origins.multiplayer.avatar`). The die button on your license rolls a new one. The image loads from `api.dicebear.com`.
+- **Country flag:** on first visit the game asks `api.country.is` for the country of the player's IP address and caches the two-letter code in localStorage (`duel-origins.multiplayer.country`). That service sees the IP; the IP itself is never stored or shared with other players. Flags load from `flagsapi.com`. If the lookup fails, no flag is shown.
+- Both values are sent in the lobby profile. Receivers accept only a 4 to 32 character lowercase seed and an uppercase two-letter code, so peers cannot inject other URLs.

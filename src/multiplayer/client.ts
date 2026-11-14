@@ -1,10 +1,11 @@
 import { joinRoom, type Room } from 'trystero';
 import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } from './protocol';
+import { cleanCountry, cleanSeed, type Look } from './profile';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
 export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean };
-export type PeerProfile = { name: string; busy: boolean };
+export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string };
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom };
 /**
@@ -33,7 +34,7 @@ export class Lobby {
   onInvite = (_peer: string, _code: string) => {};
   onDecline = (_peer: string, _code: string) => {};
   onError = (_message: string) => {};
-  constructor(public name: string) {
+  constructor(public name: string, private look: Look) {
     this.room = joinRoom({ ...config, maxUsers: 64 }, 'lobby');
     this.profile = this.room.makeAction('profile');
     this.chatAction = this.room.makeAction('chat');
@@ -46,7 +47,7 @@ export class Lobby {
       const p = raw as PeerProfile;
       if (!p || !cleanName(p.name) || typeof p.busy !== 'boolean') return;
       const known = this.peers.has(peerId);
-      this.peers.set(peerId, { name: cleanName(p.name), busy: p.busy });
+      this.peers.set(peerId, { name: cleanName(p.name), busy: p.busy, avatar: cleanSeed(p.avatar), country: cleanCountry(p.country) });
       if (!known) this.addChat({ name: '', text: `${cleanName(p.name)} joined`, system: true });
       else this.onChange();
     });
@@ -78,10 +79,13 @@ export class Lobby {
     this.onChange();
   }
   private async announce(target?: string) {
-    try { await this.profile.send({ name: this.name, busy: this.busy }, target ? { target } : undefined); }
+    try { await this.profile.send({ name: this.name, busy: this.busy, ...this.look }, target ? { target } : undefined); }
     catch (e) { this.onError(errorText(e)); }
   }
   setBusy(busy: boolean) { this.busy = busy; void this.announce(); }
+  get avatar() { return this.look.avatar; }
+  /** Change avatar or country and tell everyone. */
+  setLook(look: Partial<Look>) { this.look = { ...this.look, ...look }; void this.announce(); }
   async say(text: string) {
     text = cleanChat(text);
     if (!text || Date.now() - this.lastChat < 800) return;

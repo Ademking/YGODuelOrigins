@@ -23,7 +23,14 @@
 .mp-status { margin: 0; font-size: 12px; color: var(--dim); text-align: right; overflow-wrap: anywhere; }
 .mp-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 10px; vertical-align: 1px; background: var(--green); transform: rotate(45deg); box-shadow: 0 0 8px var(--green); }
 
-.mp-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(330px, 400px) 1fr; gap: 20px; }
+.mp-grid { flex: 1; min-height: 0; display: grid; gap: 20px;
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(360px, 420px); grid-template-areas: "side duelists chat"; }
+.mp-side { grid-area: side; }
+.mp-players { grid-area: duelists; }
+.mp-chatpanel { grid-area: chat; }
+@media (max-width: 1280px) {
+  .mp-grid { grid-template-columns: minmax(300px, 340px) minmax(0, 1fr); grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: "side duelists" "side chat"; }
+}
 .mp-side { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
 
 /* Cut-corner frame: the line colour shows through a 1px gap around the inner fill. */
@@ -45,22 +52,27 @@
 .mp-license::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: linear-gradient(155deg, #221c3f 0%, #120f26 55%, #0c0a18 100%); }
 .mp-license > * { position: relative; }
 .mp-lic-art {
-  display: grid; place-items: center; aspect-ratio: 1 / 1.15; overflow: hidden;
+  position: relative; display: grid; aspect-ratio: 1;
   background: radial-gradient(circle at 50% 30%, #3d3274 0%, #1a1636 55%, #0d0b1c 100%);
   border: 1px solid var(--brass-dim); box-shadow: inset 0 0 0 3px #0d0b1c, inset 0 0 0 4px #7c663866, 0 6px 18px #0008;
 }
-.mp-mono {
-  font-size: 54px; line-height: 1; padding-top: 4px;
-  background: linear-gradient(#fff3cf 10%, var(--brass) 55%, #8a6a2c 95%); -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 2px 0 #000a);
+.mp-shuffle {
+  position: absolute; right: -8px; bottom: -8px; width: 32px; height: 32px; display: grid; place-items: center; padding: 0;
+  color: #1d1505; background: var(--brass); border: 1px solid #fff1c9; border-radius: 50%; cursor: pointer; box-shadow: 0 3px 10px #000a;
+  transition: transform .15s;
 }
+.mp-shuffle:hover { background: var(--brass-lit); transform: rotate(-20deg) scale(1.08); }
+.mp-shuffle:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+
+/* Portrait: DiceBear avatar with the country flag pinned to its corner. */
+.mp-art { position: relative; display: grid; place-items: end center; overflow: visible; }
+.mp-art > img:first-child { width: 100%; height: 100%; object-fit: contain; object-position: bottom; display: block; }
+.mp-flag { position: absolute; left: 6px; top: 6px; width: 26px; height: auto; filter: drop-shadow(0 1px 2px #000c); }
 .mp-lic-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .mp-lic-name { display: block; font-size: 18px; line-height: 1.3; color: var(--brass-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 8px; border-bottom: 1px solid #7c663888; }
 input.mp-lic-name { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--brass-dim); border-radius: 0; padding: 4px 0 8px; outline: none; font: 18px Michroma, Arial, sans-serif; color: var(--brass-txt); }
 input.mp-lic-name::placeholder { color: #6b5f45; }
 input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 var(--glow); }
-.mp-lic-art.mini { width: 40px; flex: none; aspect-ratio: 1 / 1.15; box-shadow: inset 0 0 0 2px #0d0b1c; }
-.mp-lic-art.mini .mp-mono { font-size: 18px; padding-top: 2px; filter: none; }
 
 /* ---------------------------------------------------------------- play a friend */
 .mp-friend { flex: none; }
@@ -71,17 +83,23 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-join input:not(:placeholder-shown) { text-transform: uppercase; letter-spacing: 1px; }
 
 /* ---------------------------------------------------------------- duelists online */
-.mp-players { flex: 1; }
-.mp-peer { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1d1930; }
-.mp-peer:last-child { border-bottom: 0; }
-.mp-peer > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mp-peer small { display: block; font-size: 12px; color: var(--dim); }
-.mp-peer small::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: 1px; background: var(--green); transform: rotate(45deg); }
-.mp-peer.busy { opacity: .7; }
-.mp-peer.busy small::before { background: var(--brass); }
-.mp-empty { padding: 28px 6px; color: var(--dim); font-size: 12px; }
+.mp-duelists { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; padding-top: 4px; }
+.mp-duelist {
+  --c: 10px; position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 12px 14px;
+  clip-path: var(--cut); background: var(--line); text-align: center; transition: background .15s;
+}
+.mp-duelist::before { content: ''; position: absolute; inset: 1px; clip-path: var(--cut); background: linear-gradient(170deg, #1d1838 0%, #110e22 70%); }
+.mp-duelist > * { position: relative; }
+.mp-duelist:hover { background: var(--brass-dim); }
+.mp-duelist .mp-art { width: 100%; aspect-ratio: 1; background: radial-gradient(circle at 50% 35%, #3d3274 0%, #1a1636 60%, #0d0b1c 100%); border: 1px solid #2a2540; }
+.mp-duelist .mp-flag { width: 28px; }
+.mp-duelist > b { max-width: 100%; font-size: 14px; font-weight: normal; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-duelist > .mp-btn { width: 100%; }
+.mp-duelist > small { padding: 9px 0; font-size: 12px; color: var(--brass-txt); }
+.mp-duelist.busy .mp-art { filter: grayscale(.6) brightness(.7); }
+.mp-empty { grid-column: 1 / -1; padding: 48px 6px; color: var(--dim); font-size: 12px; text-align: center; }
 .mp-empty b { display: block; margin-bottom: 6px; font-size: 14px; color: var(--ink); }
-.mp-empty p { margin: 0; max-width: 34ch; }
+.mp-empty p { margin: 0 auto; max-width: 40ch; }
 
 .mp-invite { --fill: #241d14f2; margin: 0 16px 8px; background: var(--brass); }
 .mp-invite > div { padding: 14px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -216,7 +234,8 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 @media (max-width: 860px) {
   .mp-root { overflow: auto; gap: 16px; }
   .mp-grid { flex: none; grid-template-columns: 1fr; }
-  .mp-players .mp-scroll { max-height: 280px; }
+  .mp-grid { grid-template-rows: none; grid-template-areas: "side" "duelists" "chat"; }
+  .mp-players .mp-scroll { max-height: 520px; }
   .mp-chatpanel { height: 460px; }
   .mp-top h1 { font-size: 18px; }
 }
