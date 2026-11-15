@@ -10,7 +10,7 @@ import { byName, mulberry } from '../helpers';
 test('every opponent has a legal deck and an included ace', () => {
   assert.equal(new Set(OPPONENTS.map(opponent => opponent.id)).size, OPPONENTS.length);
   for (const opponent of OPPONENTS) {
-    assert.deepEqual(validateDeck(opponent.deck), [], opponent.name);
+    assert.deepEqual(validateDeck(opponent.deck, { enforceBanlist: false }), [], opponent.name);
     assert.ok([...opponent.deck.main, ...opponent.deck.extra].some(id => liveCard(id).name === opponent.ace), opponent.name);
   }
 });
@@ -51,7 +51,7 @@ const THEMES: Record<string, DeckList> = {
 };
 
 test('themed decks are legal', () => {
-  for (const [name, d] of Object.entries(THEMES)) assert.deepEqual(validateDeck(d).filter((e) => !e.includes('minimum')), [], name);
+  for (const [name, d] of Object.entries(THEMES)) assert.deepEqual(validateDeck(d, { enforceBanlist: false }).filter((e) => !e.includes('minimum')), [], name);
 });
 
 test('new GX opponents complete CPU duels', async () => {

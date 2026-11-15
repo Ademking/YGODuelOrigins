@@ -117,7 +117,7 @@ function mulberry(seed: number) {
 
 const decks: [string, DeckList][] = [...Object.entries(STARTERS), ...OPPONENTS.map((o) => [o.name, o.deck] as [string, DeckList])];
 for (const [name, d] of decks) {
-  const errs = validateDeck(d);
+  const errs = validateDeck(d, { enforceBanlist: false });
   if (errs.length) throw new Error(`Deck ${name} invalid: ${errs.join(' ')}`);
 }
 // every ritual spell must point at a real ritual monster, every fusion material at a real card

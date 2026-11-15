@@ -78,7 +78,7 @@ export class MultiplayerScene extends Phaser.Scene {
     const name = q<HTMLInputElement>('name'), decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
     try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
-    const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
+    const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck, { enforceBanlist: false }).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: `${deck.main.length} cards` })), selectedDeck(), 'Deck');
     q('deck').replaceWith(select.el);
     let seed = savedSeed(), country: string | undefined;

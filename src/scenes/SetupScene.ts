@@ -63,7 +63,7 @@ export class SetupScene extends Phaser.Scene {
     button(this, cx - 92, 520, 172, 40, 'Edit Deck', () => edit(false), { size: 13 });
     button(this, cx + 92, 520, 172, 40, '+ New Deck', () => edit(true), { size: 13 });
 
-    const cpuDecks = names.filter((name) => !validateDeck(decks[name]).length);
+    const cpuDecks = names.filter((name) => !validateDeck(decks[name], { enforceBanlist: false }).length);
     let cpuIndex = cpuDecks.indexOf(store.get('arcana-duel.cpu-deck') ?? '');
     const cpuLabel = () => cpuIndex >= 0 ? `${cpuDecks[cpuIndex]} ▾`
       : cpuDecks.length ? 'Choose CPU Deck ▾' : 'No valid saved decks';
@@ -92,7 +92,7 @@ export class SetupScene extends Phaser.Scene {
       const opp = opponentIndex === customIndex
         ? cpuDeck && { ...custom, deck: cpuDeck }
         : OPPONENTS[opponentIndex === RANDOM ? randomDuelist() : opponentIndex];
-      if (!deckName || !opp || validateDeck(decks[deckName]).length) return;
+      if (!deckName || !opp || validateDeck(decks[deckName], { enforceBanlist: false }).length) return;
       const data: DuelInit = { deck: decks[deckName], deckName, opp, level: opp.suggested, startingLP };
       setSelectedDeck(deckName);
       this.scene.start('Duel', data);
@@ -108,7 +108,7 @@ export class SetupScene extends Phaser.Scene {
       deckTitle.setText(deckName ?? 'No deck selected').setScale(1);
       deckTitle.setScale(Math.min(1, 460 / deckTitle.width));
       deckCount.setText(deck ? `${deck.main.length} main cards  /  ${deck.extra.length} fusion cards` : 'Create a deck to begin');
-      const errors = deck ? validateDeck(deck) : ['Create a deck to begin.'];
+      const errors = deck ? validateDeck(deck, { enforceBanlist: false }) : ['Create a deck to begin.'];
       deckStatus.setColor(errors.length ? '#ff8a8a' : '#9fe0a8').setText(errors[0] ?? 'Ready to duel');
       const isCustom = opponentIndex === customIndex;
       cpuSelect.setVisible(isCustom).setEnabled(isCustom && cpuDecks.length > 0);

@@ -13,7 +13,7 @@ export function validDeck(value: unknown): value is DeckList {
   const d = value as DeckList;
   return Array.isArray(d.main) && Array.isArray(d.extra) && d.main.length <= 60 && d.extra.length <= 15
     && [...d.main, ...d.extra].every(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARD_MAP, id))
-    && !validateDeck(d).length;
+    && !validateDeck(d, { enforceBanlist: false }).length;
 }
 export function newCode() {
   return Array.from(crypto.getRandomValues(new Uint8Array(12)), n => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n % 32]).join('');

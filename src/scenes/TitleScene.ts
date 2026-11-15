@@ -132,12 +132,17 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showChangelog() {
-    this.showInfo('What’s New', [
+    this.showInfo("What's New", [
       [`Version ${__APP_VERSION__}`, COL.goldTxt],
       ['New: Online Duel. Join the live lobby, challenge anyone online, or invite a friend with a room link.', COL.text],
       ['Pick an avatar from 346 portraits; your country flag shows beside your name.', COL.text],
       ['Lobby and duel chat with emoji, GIFs and one-click emotes, plus 10-minute duel clocks and rematches.', COL.text],
       ['The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.', COL.text],
+      ['Version 1.1.0', COL.goldTxt],
+      ['Dueling moved to OCGCore WebAssembly with Project Ignis Lua card scripts; improved CPU decisions and expanded to 41 opponents.', COL.text],
+      ['Better card choices and field controls: direct field selection, clearer prompts, zone targeting, and corrected God summon labels/values.', COL.text],
+      ['Egyptian God summon reveals with bundled art, effects, and audio respecting settings.', COL.text],
+      ['Presentation/performance polish and build/compatibility improvements.', COL.text],
     ]);
   }
 
@@ -150,21 +155,56 @@ export class TitleScene extends Phaser.Scene {
     const block = this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.8).setInteractive(); // covers any window shape
     block.on('pointerup', () => layer.destroy());
     layer.add(block);
-    // the paragraphs are laid out first so the panel can be sized to them
+    // the paragraphs are laid out first so the panel can be sized to them (and scroll if needed)
     const x = 280, width = 720;
     const lines = paragraphs.map(([text, color]) => txt(this, x, 0, text, 13, color, { wordWrap: { width }, lineSpacing: 6 }));
-    const height = lines.reduce((sum, line) => sum + line.height + 18, 0);
-    const top = 360 - (height + 150) / 2;
-    layer.add(this.add.zone(240, top, 800, height + 150).setOrigin(0).setInteractive()); // clicks inside do not close it
-    layer.add(panel(this, 240, top, 800, height + 150, 0.98));
+    const contentHeight = lines.reduce((sum, line) => sum + line.height + 18, 0);
+    const maxPanel = 620, chrome = 150, maxContent = maxPanel - chrome;
+    const viewHeight = Math.min(contentHeight, maxContent);
+    const scrollable = contentHeight > viewHeight + 1;
+    const panelHeight = viewHeight + chrome;
+    const top = 360 - panelHeight / 2;
+    layer.add(this.add.zone(240, top, 800, panelHeight).setOrigin(0).setInteractive()); // clicks inside do not close it
+    layer.add(panel(this, 240, top, 800, panelHeight, 0.98));
     layer.add(htxt(this, 640, top + 38, title, 26).setOrigin(0.5));
-    let y = top + 78;
+    const contentTop = top + 78;
+    let y = contentTop;
     for (const line of lines) { line.setY(y); y += line.height + 18; }
-    layer.add(lines);
+    const content = this.add.container(0, 0, lines);
+    layer.add(content);
+    let scrollY = 0;
+    if (scrollable) {
+      const shape = this.make.graphics({ x: 0, y: 0 });
+      shape.fillRect(240, contentTop - 2, 800, viewHeight + 4);
+      const mask = shape.createGeometryMask();
+      content.setMask(mask);
+      const minScroll = -(contentHeight - viewHeight);
+      const applyScroll = (v: number) => { scrollY = Phaser.Math.Clamp(v, minScroll, 0); content.y = scrollY; };
+      const over = (p: Phaser.Input.Pointer) => p.x >= 240 && p.x <= 1040 && p.y >= contentTop && p.y <= contentTop + viewHeight;
+      const onWheel = (p: Phaser.Input.Pointer, _go: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => { if (over(p)) applyScroll(scrollY - dy * 0.6); };
+      this.input.on('wheel', onWheel);
+      let dragY = 0, startY = 0, dragging = false;
+      const zone = this.add.zone(640, contentTop + viewHeight / 2, 760, viewHeight).setInteractive();
+      zone.on('pointerdown', (p: Phaser.Input.Pointer) => { dragging = true; dragY = scrollY; startY = p.y; });
+      const onMove = (p: Phaser.Input.Pointer) => { if (dragging && p.isDown) applyScroll(dragY + (p.y - startY)); };
+      const onUp = () => { dragging = false; };
+      this.input.on('pointermove', onMove);
+      this.input.on('pointerup', onUp);
+      layer.add(zone);
+      layer.add(txt(this, 640, contentTop + viewHeight + 6, 'Scroll for more', 10, COL.dim).setOrigin(0.5));
+      layer.once('destroy', () => {
+        this.input.off('wheel', onWheel);
+        this.input.off('pointermove', onMove);
+        this.input.off('pointerup', onUp);
+        shape.destroy();
+        mask.destroy();
+      });
+    }
     const close = () => layer.destroy();
     const buttons: [string, () => void][] = [...actions, ['Close', close]];
+    const btnY = contentTop + viewHeight + 24;
     buttons.forEach(([label, run], i) => {
-      layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 190, y + 24, 180, 42, label, run, { size: 14, primary: i === 0 }));
+      layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 190, btnY, 180, 42, label, run, { size: 14, primary: i === 0 }));
     });
     this.input.keyboard?.once('keydown-ESC', close);
     layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));

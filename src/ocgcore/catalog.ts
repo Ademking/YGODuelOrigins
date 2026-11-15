@@ -1,6 +1,7 @@
 // Metadata for the browser deck editor. OCGCore supplies all duel behavior.
 import type { CardDef } from '../engine/types';
 import { SOURCE_CARDS } from '../data/sourceCards';
+import { BANLIST } from '../data/banlist';
 
 const specials: CardDef[] = [
   { id: 'ocg_89194033', name: 'Mystical Beast of Serket', kind: 'monster', mtype: 'effect', race: 'Fairy', attr: 'EARTH', lv: 6, atk: 2500, def: 2000, art: '',
@@ -21,7 +22,7 @@ export function getCard(id: string): CardDef {
   return card;
 }
 export const isExtraDeckCard = (card: CardDef) => card.mtype === 'fusion';
-export const copyLimit = (card: CardDef) => card.limit ?? 3;
+export const copyLimit = (card: CardDef, enforceBanlist = true) => card.limit ?? (enforceBanlist ? BANLIST.get(card.name.toLowerCase()) : undefined) ?? 3;
 
 export function typeLine(card: CardDef): string {
   if (card.kind === 'monster') {

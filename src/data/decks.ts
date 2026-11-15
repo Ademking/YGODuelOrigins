@@ -17,8 +17,9 @@ export const OPPONENTS: Opponent[] = PREMADE.map(opponent => structuredClone(opp
   .sort((a, b) => (appearanceRank.get(a.id) ?? Infinity) - (appearanceRank.get(b.id) ?? Infinity));
 export const STARTERS: Record<string, DeckList> = Object.fromEntries(PREMADE.map(opponent => [opponent.name, structuredClone(opponent.deck)]));
 
-/** 2004-style deck rules: 40–60 main, up to 15 Fusion Deck, 3 copies max (or the card's limit). */
-export function validateDeck(d: DeckList): string[] {
+/** 2004-style deck rules: 40-60 main, up to 15 Fusion Deck, 3 copies max (or the card's limit/banlist). */
+export function validateDeck(d: DeckList, opts: { enforceBanlist?: boolean } = {}): string[] {
+  const enforceBanlist = opts.enforceBanlist ?? true;
   const errs: string[] = [];
   if (d.main.length < 40) errs.push(`Main Deck has ${d.main.length} cards (minimum 40).`);
   if (d.main.length > 60) errs.push(`Main Deck has ${d.main.length} cards (maximum 60).`);
@@ -31,7 +32,7 @@ export function validateDeck(d: DeckList): string[] {
   for (const id of d.main) if (CARD_MAP[id] && isExtraDeckCard(getCard(id))) errs.push(`${getCard(id).name} belongs in the Fusion Deck.`);
   for (const id of d.extra) if (CARD_MAP[id] && !isExtraDeckCard(getCard(id))) errs.push(`${getCard(id).name} cannot be in the Fusion Deck.`);
   for (const [id, n] of Object.entries(counts)) {
-    const lim = copyLimit(getCard(id));
+    const lim = copyLimit(getCard(id), enforceBanlist);
     if (n > lim) errs.push(`${getCard(id).name}: ${n} copies (limit ${lim}).`);
   }
   return [...new Set(errs)];

@@ -11,7 +11,7 @@ test('premade decks are distinct, legal, and match their opponents', () => {
   assert.equal(new Set(OPPONENTS.map(opponent => JSON.stringify(opponent.deck))).size, OPPONENTS.length);
   assert.ok(new Set(OPPONENTS.map(opponent => opponent.deck.main.length)).size >= 4);
   for (const opponent of OPPONENTS) {
-    assert.deepEqual(validateDeck(opponent.deck), [], opponent.name);
+    assert.deepEqual(validateDeck(opponent.deck, { enforceBanlist: false }), [], opponent.name);
     assert.deepEqual(STARTERS[opponent.name], opponent.deck);
   }
   assert.equal(STARTERS['Seto Kaiba'].main.some(id => getCard(id).name === 'Baby Dragon'), false);
