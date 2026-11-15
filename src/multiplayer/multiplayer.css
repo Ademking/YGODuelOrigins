@@ -255,6 +255,18 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-drawer[hidden], .mp-emote-pop[hidden], .mp-badge[hidden] { display: none; }
 @keyframes mp-slide { from { opacity: 0; transform: translate(10px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
 
+/* Portrait duels (the same test as the game's portrait layout: height over 1.15x width): the right edge holds the
+   board's deck and graveyard, so the rail moves to the free top-left corner beside the opponent's plate, as a row,
+   and the chat and emotes open below it across the screen. */
+@media (max-aspect-ratio: 20/23) {
+  .mp-rail { top: calc(env(safe-area-inset-top) + 12px); left: calc(env(safe-area-inset-left) + 12px); right: auto; transform: none; flex-direction: row; gap: 10px; }
+  .mp-drawer, .mp-emote-pop { top: calc(env(safe-area-inset-top) + 74px); left: 12px; right: 12px; transform: none; animation-name: mp-drop; }
+  .mp-drawer { width: auto; height: min(560px, 62vh); }
+  .mp-emote-pop { right: auto; min-width: min(280px, calc(100vw - 24px)); }
+  .mp-emote { padding: 12px 14px; font-size: 16px; }
+}
+@keyframes mp-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
 /* ---------------------------------------------------------------- small screens and motion */
 @media (max-width: 860px) {
   .mp-root { overflow: auto; gap: 16px; }
