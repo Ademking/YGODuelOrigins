@@ -8,6 +8,8 @@ export interface DebugSetup {
   traps: string[];
   opponentMonsters: string[];
   extra: string[];
+  /** Set face-down in the opponent's Spell & Trap Zones (OCGCore duels only). */
+  opponentTraps?: string[];
 }
 
 export function prepareDebugDuel(duel: Duel, setup: DebugSetup) {

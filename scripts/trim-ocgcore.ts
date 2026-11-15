@@ -3,19 +3,22 @@
 // kept script names by passcode (tokens, "listed names", cards an effect summons or searches), plus all the shared
 // utility scripts. Only the database columns the game reads are kept.
 //
+// Cards listed in src/ocgcore/overrides.ts get their 2004 script and text.
+//
 // Input: assets/ocgcore/data.json.gz (written by prepare-ocgcore.mjs). Output: assets/ocgcore/duel.json.gz.
 import { readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { CARDS } from '../src/ocgcore/catalog';
 import { cardCatalog, type Bundle, type DatabaseRow } from '../src/ocgcore/data';
+import { applyOverrides } from '../src/ocgcore/overrides';
 
 const assets = resolve('assets/ocgcore');
 const input = resolve(assets, 'data.json.gz');
 const output = resolve(assets, 'duel.json.gz');
 const stamp = resolve(assets, 'duel.revision');
 // Rebuild only when the full bundle or this script changed.
-const version = `${statSync(input).mtimeMs}-${statSync(new URL(import.meta.url)).mtimeMs}-${CARDS.length}`;
+const version = [input, new URL(import.meta.url), new URL('../src/ocgcore/overrides.ts', import.meta.url)].map((file) => statSync(file).mtimeMs).join('-') + `-${CARDS.length}`;
 try {
   if (readFileSync(stamp, 'utf8') === version) process.exit(0);
 } catch { /* first run */ }
@@ -57,7 +60,9 @@ for (const code of keep) {
   const script = full.scripts[`c${code}.lua`];
   if (script) scripts[`c${code}.lua`] = script;
 }
-const bundle = { cards: full.cards.filter((row) => keep.has(Number(row.id))).map(slim), scripts, systemStrings: full.systemStrings };
+const bundle = { cards: full.cards.filter((row) => keep.has(Number(row.id))).map(slim) as DatabaseRow[], scripts, systemStrings: full.systemStrings };
+// 2004 versions of cards whose current errata plays differently (src/ocgcore/overrides.ts)
+applyOverrides(bundle);
 const zipped = gzipSync(JSON.stringify(bundle), { level: 9 });
 writeFileSync(`${output}.tmp`, zipped);
 renameSync(`${output}.tmp`, output);

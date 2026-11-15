@@ -43,6 +43,7 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
         [0, OcgLocation.MZONE, OcgPosition.FACEUP_ATTACK, debug.monsters],
         [1, OcgLocation.MZONE, OcgPosition.FACEUP_ATTACK, debug.opponentMonsters],
         [0, OcgLocation.SZONE, OcgPosition.FACEDOWN_DEFENSE, debug.traps],
+        [1, OcgLocation.SZONE, OcgPosition.FACEDOWN_DEFENSE, debug.opponentTraps ?? []],
         [0, OcgLocation.EXTRA, OcgPosition.FACEDOWN_DEFENSE, debug.extra],
       ] as const) {
         ids.forEach((id, sequence) => core.duelNewCard(handle, { team: controller, duelist: 0, controller,

@@ -1,6 +1,7 @@
 import createCore from 'ocgcore-wasm';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
 import type { Bundle } from './data';
+import { isStaleBuild, reloadForUpdate } from '../staleBuild';
 
 const loadCore = () => createCore({ sync: true, locateFile: () => wasmUrl });
 let runtime: Promise<[Awaited<ReturnType<typeof loadCore>>, Bundle]> | undefined;
@@ -48,7 +49,13 @@ export function loadRuntime() {
     if (!response.ok) throw new Error(`Could not load OCGCore card data (HTTP ${response.status}).`);
     return download(response);
   }).then(parseBundle)]).then((result) => { ready = true; report(1); return result; })
-    .catch(error => { runtime = undefined; report(0); throw error; });
+    .catch(error => {
+      runtime = undefined;
+      report(0);
+      // the page is from an older deploy: reload to get the current engine files
+      if (isStaleBuild(error) && reloadForUpdate()) return new Promise<never>(() => {});
+      throw error;
+    });
   return runtime;
 }
 

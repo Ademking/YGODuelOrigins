@@ -9,6 +9,7 @@ import { BACK, CARD_K, CH, CW, cardKey, faceKey } from '../ui/cardArt';
 import { cardImagePasscode } from '../data/cardImages';
 import { getCard } from '../ocgcore/catalog';
 import { loadRuntime, onRuntimeProgress, runtimeReady } from '../ocgcore/runtime';
+import { isStaleBuild } from '../staleBuild';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
@@ -325,7 +326,8 @@ export class DuelScene extends Phaser.Scene {
       if (d.multiplayer) void d.multiplayer.session.leave();
       const detail = error instanceof Error ? error.message : String(error);
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
-      this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
+      if (isStaleBuild(error)) this.showEnd(-1, 'The game was updated while this page was open. Reload the page to load the new version.');
+      else this.showEnd(-1, `Duel error on turn ${duel.turn}, ${duel.phase}: ${detail}`);
     });
   }
 

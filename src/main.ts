@@ -8,6 +8,10 @@ import { DebugScene } from './scenes/DebugScene';
 import { DeckEditorScene } from './scenes/DeckEditorScene';
 import { WatchScene } from './scenes/WatchScene';
 import { CANVAS_SIDE } from './ui/theme';
+import { reloadForUpdate } from './staleBuild';
+
+// Vite reports a code file from an older deploy that is gone: reload once to pick up the current one.
+window.addEventListener('vite:preloadError', (event) => { if (reloadForUpdate()) event.preventDefault(); });
 
 const options = new URLSearchParams(location.search);
 const game = new Phaser.Game({
