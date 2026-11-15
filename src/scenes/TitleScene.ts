@@ -134,10 +134,10 @@ export class TitleScene extends Phaser.Scene {
   private showChangelog() {
     this.showInfo('What’s New', [
       [`Version ${__APP_VERSION__}`, COL.goldTxt],
-      ['Fixed Flip Effects under Banisher of the Light, Contact Fusion reveals, Spellbinding Circle, and other card interactions.', COL.text],
-      ['Improved CPU decisions for Equip Spells, Shrink, Lava Golem, and attacks on face-down cards.', COL.text],
-      ['Added saved CPU decks, selectable starting Life Points, volume control, and deck editor shortcuts.', COL.text],
-      ['Added the Orichalcos preset, reduced effects, and startup error feedback.', COL.text],
+      ['New: Online Duel. Join the live lobby, challenge anyone online, or invite a friend with a room link.', COL.text],
+      ['Pick an avatar from 346 portraits; your country flag shows beside your name.', COL.text],
+      ['Lobby and duel chat with emoji, GIFs and one-click emotes, plus 10-minute duel clocks and rematches.', COL.text],
+      ['The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.', COL.text],
     ]);
   }
 

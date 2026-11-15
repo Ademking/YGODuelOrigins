@@ -14,9 +14,9 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 </div>
 
-## Multiplayer preview
+## Version 1.2.0 — Online duels
 
-This branch adds **Online Duel** to the title screen: a saved nickname, shared lobby and chat, player challenges, private room codes/links, and in-duel chat. There is no backend to deploy and players need no accounts.
+**Online Duel** on the title screen opens a live lobby: pick a name, a deck and an avatar, challenge anyone online or invite a friend with a room link, and duel in real time with chat, GIFs, emotes, per-player clocks and rematches. There is no backend to deploy and players need no accounts.
 
 The lobby (players, chat, challenges) runs on public Nostr relays with no player cap; duels use peer-to-peer WebRTC. Some networks require a TURN relay for duels, which is not configured by default. This is casual play, with no server-enforced anti-cheat. See [multiplayer setup and limitations](docs/MULTIPLAYER.md).
 

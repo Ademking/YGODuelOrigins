@@ -23,9 +23,11 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, text = ''
 }
 
 // ---------------------------------------------------------------- GIFs
-// Two sources: KLIPY search when VITE_KLIPY_KEY is set, else the built-in library. Only a library id or a KLIPY media path
+// GIF search runs through KLIPY; the built-in library is the fallback without a key. Only a library id or a KLIPY media path
 // travels over the wire, and the URL is always rebuilt for a fixed host, so peers cannot make us load arbitrary sites.
-const KLIPY_KEY = (import.meta.env.VITE_KLIPY_KEY as string | undefined)?.trim();
+// ponytail: a browser-side GIF key ships in the bundle whatever we do, so it lives here (owner's choice, no build env needed).
+// Rotate it in the KLIPY dashboard if it gets abused; VITE_KLIPY_KEY still overrides it for local testing.
+const KLIPY_KEY = (import.meta.env.VITE_KLIPY_KEY as string | undefined)?.trim() || 'bAq6J4tOAyDBvzAwuo3fUcDYIxkAvEYxMVXNEyaxggkau1iqsYXy3lGWvJeSSSQR';
 /** KLIPY v1 GIF search (trending when the query is empty). Returns small (~220px) GIF paths under static.klipy.com. */
 async function klipy(query: string): Promise<string[]> {
   const params = new URLSearchParams({ page: '1', per_page: '50', format_filter: 'gif' });

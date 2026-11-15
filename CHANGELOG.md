@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.2.0 — 2026-11-15
+
+Online duels: play other people in real time, with no account and no server to run.
+
+### Online Duel
+
+- Added **Online Duel** to the title screen. Enter a name, pick a deck, and you are in a live lobby of everyone playing right now.
+- Challenge any available duelist from the lobby; when they accept, the duel starts immediately. Unanswered challenges expire after 30 seconds, and declines are reported to the challenger.
+- Play a friend directly with a private room code or invite link. Both players press Ready to start.
+- The lobby runs on public Nostr relays, so there is no player cap. Room codes in challenges are encrypted to the recipient. Duels connect peer to peer over WebRTC.
+- Each player has 10 minutes of thinking time for the whole duel; running out forfeits.
+- After a duel, both players can press **Rematch** to play again with a fresh shuffle, including after a surrender or timeout.
+- Failed connections show a plain message with **Try again** (rooms) or **Reconnect** (lobby). An optional TURN relay can be configured for strict networks.
+
+### Lobby and chat
+
+- Duelist license with your name, deck, avatar and country flag. Pick any of 346 avatars from a grid or roll a random one; both are saved on your device.
+- Duelists online appear as compact tiles with avatar, flag and status.
+- Lobby chat and in-duel chat with emoji and GIF search (KLIPY), plus a built-in reaction GIF library as a fallback.
+- One-click duel emotes (Hello!, Nice play!, Good game! and more) pop up beside the sender's plate.
+- The duel sidebar shows both players' avatars, flags and clocks. Duel chat and emotes sit on a slim rail at the right edge, clear of your hand.
+- Added a Discord link in the lobby for finding opponents.
+
+### Title screen
+
+- Reordered and renamed the menu: Online Duel, Solo Duel, Deck Builder, Replays, About, What's New.
+
+### Fixes
+
+- Fixed duels failing at turn 0 with "Failed to fetch" when the server already decompressed the card data.
+
 ## 1.1.0 — 2026-11-14
 
 A major update to dueling, CPU opponents, field controls, and Egyptian God summons.
