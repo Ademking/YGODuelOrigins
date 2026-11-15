@@ -167,6 +167,11 @@ export class TitleScene extends Phaser.Scene {
   private showChangelog() {
     this.showInfo("What's New", [
       [`Version ${__APP_VERSION__}`, COL.goldTxt],
+      ['Play on your phone held upright: every screen has a portrait layout, with the duel board at full width and larger prompts.', COL.text],
+      ['Duels load much faster: the engine data is about 7x smaller and loads in the background on the title screen.', COL.text],
+      ['CPU opponents now use their traps, put curses like Mask of the Accursed on your monsters, and stop wasting cards (a second Toon World, Exodia pieces on the field).', COL.text],
+      ['Ring of Destruction plays by its 2004 text, and The Seal of Orichalcos shows its full text.', COL.text],
+      ['Version 1.2.0', COL.goldTxt],
       ['New: Online Duel. Join the live lobby, challenge anyone online, or invite a friend with a room link.', COL.text],
       ['Pick an avatar from 346 portraits; your country flag shows beside your name.', COL.text],
       ['Lobby and duel chat with emoji, GIFs and one-click emotes, plus 10-minute duel clocks and rematches.', COL.text],

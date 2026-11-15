@@ -14,6 +14,10 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 </div>
 
+## Version 1.3.0 — Phones, speed and smarter CPUs
+
+Every screen has a portrait layout for phones held upright, with the duel board at full width, a larger hand and larger prompts. The engine's card data is about 7x smaller and loads in the background, and the canvas is sized to the screen. CPU opponents now use their traps and pick sensible targets, and Ring of Destruction plays by its 2004 text. See the [changelog](CHANGELOG.md).
+
 ## Version 1.2.0 — Online duels
 
 **Online Duel** on the title screen opens a live lobby: pick a name, a deck and an avatar, challenge anyone online or invite a friend with a room link, and duel in real time with chat, GIFs, emotes, per-player clocks and rematches. There is no backend to deploy and players need no accounts.
