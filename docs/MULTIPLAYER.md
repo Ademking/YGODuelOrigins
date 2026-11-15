@@ -62,7 +62,13 @@ Before broad release, test two browsers on separate networks for lobby discovery
 
 ## Avatars and flags
 
-- **Avatar:** each player gets a random portrait number from 1 to 346, shown from `ygopro.online/assets/profile/Avatars/<n>.jpg` and saved in localStorage (`duel-origins.multiplayer.avatar`). The die button on your license rolls a new one. Players who send no avatar get one picked from their name. ygopro.online sends no CORS header, so the duel canvas loads portraits through the `wsrv.nl` image proxy (as card art already does).
+- **Avatar:** each player gets a random portrait number from 1 to 346, shown from `ygopro.online/assets/profile/Avatars/<n>.jpg` and saved in localStorage (`duel-origins.multiplayer.avatar`). Click your portrait to pick one from a grid of all 346, or press the die for a random one. Players who send no avatar get one picked from their name. ygopro.online sends no CORS header, so the duel canvas loads portraits through the `wsrv.nl` image proxy (as card art already does).
 - **Country flag:** on first visit the game asks `api.country.is` for the country of the player's IP address and caches the two-letter code in localStorage (`duel-origins.multiplayer.country`). That service sees the IP; the IP itself is never stored or shared with other players. Flags load from `flagsapi.com`. If the lookup fails, no flag is shown.
 - Both values are sent in the lobby profile and the private-room hello, and appear on duelist tiles, beside chat messages and on the duel plates. Receivers accept only an avatar number from 1 to 346 and an uppercase two-letter code, so peers cannot inject other URLs.
 - The duel canvas needs CORS-enabled images; flagsapi.com sends no CORS header, so in-duel flags load from `flagcdn.com` instead (`flagCanvasURL`).
+
+## Connection trouble
+
+- A failed or slow WebRTC handshake shows a plain message in the room popup with a **Try again** button that rejoins the same room code with a fresh connection.
+- If lobby connections fail (`peer-connect-failed`, `handshake-failed`, `relay-failed`), a **Reconnect** button appears beside the status and rebuilds the lobby connection.
+- These only help when the failure was transient. Players behind strict NATs (some mobile carriers, school or office networks) can only connect through a TURN relay; set the `VITE_TURN_*` variables described above.

@@ -19,6 +19,15 @@ const turnConfig = turnConfigured
   ? [{ urls: turnUrls, username: String(import.meta.env?.VITE_TURN_USERNAME ?? ''), credential: String(import.meta.env?.VITE_TURN_CREDENTIAL ?? '') }]
   : undefined;
 const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, ...(turnConfig ? { turnConfig } : {}) };
+/** Plain-language text for Trystero room errors. */
+function roomErrorText(error: { code?: string; message: string }, who: string) {
+  switch (error.code) {
+    case 'peer-connect-failed': case 'handshake-failed': case 'peer-error':
+      return `Couldn't connect to ${who}. One of your networks is blocking direct connections.`;
+    case 'relay-failed': return 'Lost touch with the matchmaking servers. Check your internet connection.';
+    default: return error.message;
+  }
+}
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Connection failed.';
 export class Lobby {
   readonly peers = new Map<string, PeerProfile>();
@@ -34,7 +43,7 @@ export class Lobby {
   onChange = () => {};
   onInvite = (_peer: string, _code: string) => {};
   onDecline = (_peer: string, _code: string) => {};
-  onError = (_message: string) => {};
+  onError = (_message: string, _code?: string) => {};
   constructor(public name: string, private look: Look) {
     this.room = joinRoom({ ...config, maxUsers: 64 }, 'lobby');
     this.profile = this.room.makeAction('profile');
@@ -43,7 +52,7 @@ export class Lobby {
     this.declines = this.room.makeAction('decline');
     this.room.onPeerJoin(({ peerId }) => { void this.announce(peerId); });
     this.room.onPeerLeave(({ peerId }) => { const gone = this.peers.get(peerId); this.peers.delete(peerId); if (gone) this.addChat({ name: '', text: `${gone.name} left`, system: true }); for (const key of this.rate.keys()) if (key.startsWith(peerId + ':')) this.rate.delete(key); this.onChange(); });
-    this.room.onError(error => this.onError(error.message));
+    this.room.onError(error => this.onError(roomErrorText(error, 'a duelist'), error.code));
     this.profile.onMessage((raw, { peerId }) => {
       const p = raw as PeerProfile;
       if (!p || !cleanName(p.name) || typeof p.busy !== 'boolean') return;
@@ -128,9 +137,9 @@ export class PrivateRoom {
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail('Your opponent disconnected.'); });
-    this.room.onError(error => { if (!this.opponent) { this.error = error.message; this.onChange(); } });
+    this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
-      if (!this.opponent) { this.error = turnConfigured ? 'Still waiting for a connection. Check the code and keep both tabs open.' : 'Still waiting for a connection. Check the code, keep both tabs open, or try another network. Some networks require a TURN relay.'; this.onChange(); }
+      if (!this.opponent) { this.error = turnConfigured ? 'Still waiting for a connection. Check the code and keep both tabs open.' : 'Still waiting. Check the code and keep both tabs open, or press Try again.'; this.onChange(); }
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {

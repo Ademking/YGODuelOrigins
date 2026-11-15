@@ -4,7 +4,7 @@ import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protoco
 import { Lobby, PrivateRoom } from '../multiplayer/client';
 import { btn, chatComposer, element as el, frame, picker, renderChat } from '../multiplayer/ui';
 import { fitCamera, sceneBackground } from '../ui/theme';
-import { avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
+import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
 import { sfx } from '../ui/sfx';
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
@@ -21,6 +21,7 @@ export class MultiplayerScene extends Phaser.Scene {
         <button class="mp-btn" id="mp-back"><span>‹&nbsp; Back</span></button>
         <h1>Online Duel</h1>
         <p class="mp-status" id="mp-status" role="status">Connecting…</p>
+        <button class="mp-btn small" id="mp-reconnect" hidden><span>Reconnect</span></button>
       </header>
       <div class="mp-grid">
         <aside class="mp-side">
@@ -63,7 +64,12 @@ export class MultiplayerScene extends Phaser.Scene {
         <div class="mp-err" id="mp-name-err" role="alert"></div>
         <div class="mp-row"><button type="button" class="mp-btn" id="mp-name-back"><span>Back</span></button><button class="mp-btn primary"><span>Enter lobby</span></button></div>
       </form></dialog>
-      <dialog class="mp-modal" id="mp-room-modal"></dialog>`;
+      <dialog class="mp-modal" id="mp-room-modal"></dialog>
+      <dialog class="mp-modal mp-avatar-modal" id="mp-avatar-modal"><div class="mp-sheet">
+        <h2>Choose your avatar</h2>
+        <div class="mp-avatar-grid" id="mp-avatar-grid" role="listbox" aria-label="Avatars"></div>
+        <div class="mp-row"><button type="button" class="mp-btn" id="mp-avatar-random"><span>Random</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>Done</span></button></div>
+      </div></dialog>`;
     document.body.append(root);
     // ponytail: Phaser's keyboard listener lives on window; stop keys leaking into the scene while typing.
     root.addEventListener('keydown', e => e.stopPropagation());
@@ -90,10 +96,41 @@ export class MultiplayerScene extends Phaser.Scene {
         const shuffle = el('button', '', 'mp-shuffle'); shuffle.type = 'button';
         shuffle.title = 'New avatar'; shuffle.setAttribute('aria-label', 'New avatar');
         shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
-        shuffle.onclick = () => { seed = randomSeed(); saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
-        q(id).replaceChildren(portrait(seed, country, 'Your avatar'), shuffle);
+        shuffle.onclick = () => setAvatar(randomSeed());
+        const choose = el('button', '', 'mp-art-btn'); choose.type = 'button';
+        choose.title = 'Choose avatar'; choose.setAttribute('aria-label', 'Choose avatar');
+        choose.append(portrait(seed, country, 'Your avatar'));
+        choose.onclick = openAvatars;
+        q(id).replaceChildren(choose, shuffle);
       }
     };
+    const setAvatar = (next: string) => { seed = next; saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
+    const avatarModal = q<HTMLDialogElement>('avatar-modal'), avatarGrid = q('avatar-grid');
+    /** Grid of every avatar; images load lazily as the grid scrolls. */
+    function openAvatars() {
+      if (!avatarGrid.childElementCount) {
+        for (let n = 1; n <= AVATAR_COUNT; n++) {
+          const b = el('button', '', 'mp-avatar-pick'); b.type = 'button'; b.dataset.id = String(n);
+          b.setAttribute('role', 'option'); b.setAttribute('aria-label', `Avatar ${n}`);
+          const img = el('img'); img.src = avatarURL(String(n)); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+          b.append(img);
+          b.onclick = () => { setAvatar(String(n)); mark(); };
+          avatarGrid.append(b);
+        }
+      }
+      mark();
+      avatarModal.showModal();
+      avatarGrid.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' });
+      avatarGrid.querySelector<HTMLElement>('.on')?.focus();
+    }
+    const mark = () => {
+      for (const b of Array.from(avatarGrid.children) as HTMLElement[]) {
+        const on = b.dataset.id === seed; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+      }
+    };
+    q<HTMLButtonElement>('avatar-random').onclick = () => { setAvatar(randomSeed()); mark(); avatarGrid.querySelector('.on')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+    q<HTMLButtonElement>('avatar-close').onclick = () => avatarModal.close();
+    avatarModal.addEventListener('click', e => { if (e.target === avatarModal) avatarModal.close(); });
     renderLooks();
     void lookupCountry().then(found => {
       if (!alive || !found) return;
@@ -104,6 +141,7 @@ export class MultiplayerScene extends Phaser.Scene {
     const codeInput = q<HTMLInputElement>('code');
     const fromLink = location.hash.startsWith('#duel=') ? parseCode(location.href) : null;
     if (fromLink) codeInput.value = fromLink;
+    let linkUsed = false;
     let lobby: Lobby | undefined, session: PrivateRoom | undefined, transferred = false, connecting = false, alive = true;
     /** Opponent's name when the room came from a lobby challenge: no code to share, both sides ready up automatically. */
     let challengeWith: string | undefined;
@@ -142,12 +180,15 @@ export class MultiplayerScene extends Phaser.Scene {
       const err = el('div', s.error, 'mp-err');
       const actions = el('div', '', 'mp-row');
       const cancel = btn(challengeWith ? 'Cancel' : 'Leave'); cancel.onclick = leaveRoom;
+      // A failed WebRTC handshake often succeeds on a second attempt: rejoin the same room.
+      const retry = s.error && !s.opponent ? btn('Try again', 'primary') : undefined;
+      if (retry) retry.onclick = () => { const again = challengeWith; leaveRoom(); void startRoom(s.code, s.isHost, again); };
       if (challengeWith) {
         // Challenge rooms: both players already agreed in the lobby, so ready up as soon as the opponent connects.
         if (s.opponent && !s.isReady && !s.error) void s.setReady().catch(error);
         const hint = s.error ? 'The challenge could not start.'
           : !s.opponent ? `Waiting for ${challengeWith} to accept…` : 'Starting the duel…';
-        actions.append(cancel);
+        actions.append(cancel, ...(retry ? [retry] : []));
         box.append(el('h2', 'Challenge'), el('p', hint), versus(s), err, actions);
         if (!s.opponent && !s.error && s.isHost) box.append(challengeBar ??= expiry());
       } else {
@@ -159,7 +200,7 @@ export class MultiplayerScene extends Phaser.Scene {
         const ready = btn(s.isReady ? 'Waiting for them…' : "I'm ready", 'primary');
         ready.disabled = !s.opponent || s.isReady || !!s.error;
         ready.onclick = () => void s.setReady().catch(error);
-        actions.append(cancel, ready);
+        actions.append(cancel, retry ?? ready);
         box.append(el('h2', 'Private room'),
           el('p', s.opponent ? 'The duel starts when you are both ready.' : 'Send your friend the invite link. You can start once they join.'),
           el('div', s.code, 'mp-code'), copies, versus(s), err, actions);
@@ -243,9 +284,13 @@ export class MultiplayerScene extends Phaser.Scene {
       try { localStorage.setItem(NAME_KEY, chosen); } catch {}
       lobby = new Lobby(chosen, { avatar: seed, country });
       q('lic-name').textContent = chosen;
-      q('lic-deck').replaceWith(select.el);
+      root.querySelector('#mp-lic-deck')?.replaceWith(select.el);
+      q('reconnect').hidden = true;
       lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); };
-      lobby.onError = status;
+      lobby.onError = (message, code) => {
+        status(message);
+        if (code === 'peer-connect-failed' || code === 'handshake-failed' || code === 'relay-failed') q('reconnect').hidden = false;
+      };
       lobby.onInvite = (peer, code) => {
         if (session) return;
         const from = lobby!.peers.get(peer)?.name ?? 'A duelist';
@@ -269,7 +314,7 @@ export class MultiplayerScene extends Phaser.Scene {
       status('Online');
       renderRoster(); renderChat(q('messages'), lobby.chat);
       composer.input.focus();
-      if (fromLink) { history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
+      if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
     q<HTMLFormElement>('name-form').onsubmit = e => {
       const chosen = cleanName(name.value);
@@ -277,6 +322,11 @@ export class MultiplayerScene extends Phaser.Scene {
       if (!chosen) { e.preventDefault(); err.textContent = 'Type a name to enter the lobby.'; name.focus(); return; }
       if (!window.RTCPeerConnection || !crypto.subtle) { e.preventDefault(); err.textContent = 'Multiplayer needs a browser with WebRTC over HTTPS.'; return; }
       try { connect(chosen); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : 'Connection failed.'; }
+    };
+    q<HTMLButtonElement>('reconnect').onclick = () => {
+      if (!lobby || session) return;
+      const me = lobby.name; lobby.close(); lobby = undefined;
+      status('Reconnecting…'); connect(me);
     };
     const back = () => this.scene.start('Title');
     nameModal.addEventListener('cancel', back);
