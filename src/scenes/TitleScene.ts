@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BACK, CARD_K } from '../ui/cardArt';
 import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
-import { button, caption, COL, htxt, panel, sceneBackground, txt, fitCamera } from '../ui/theme';
+import { button, caption, COL, fitCamera, fitDialog, htxt, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';
 import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
@@ -21,11 +21,18 @@ const ABOUT: [string, string][] = [
   [`Version ${__APP_VERSION__}`, COL.dim],
 ];
 
+/** Portrait: a column 640 wide holding the logo, a larger menu, then Discord and Settings. */
+const TALL = { w: 640, top: 40, bottom: 1130, logoY: 200, menuY: 420, step: 88 };
+
 export class TitleScene extends Phaser.Scene {
+  private portrait = false;
   constructor() { super('Title'); }
 
   create() {
-    fitCamera(this);
+    const tall = this.portrait = portraitScreen(this);
+    fitCamera(this, () => tall
+      ? { cx: 640, cy: (TALL.top + TALL.bottom) / 2, w: TALL.w, h: TALL.bottom - TALL.top }
+      : { cx: 640, cy: 360, w: 1280, h: 720 });
     sceneBackground(this);
     const pool = CARDS.map((card) => card.id);
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -39,6 +46,14 @@ export class TitleScene extends Phaser.Scene {
       { x: 340, y: 585, angle: 11, size: 0.25 },
       { x: 940, y: 570, angle: -11, size: 0.25 },
     ];
+    if (tall) {
+      // portrait: the cards drift in the space above the logo and below the buttons
+      positions.splice(0, positions.length,
+        { x: 390, y: 10, angle: -12, size: 0.3 }, { x: 890, y: 20, angle: 12, size: 0.3 },
+        { x: 560, y: -20, angle: 8, size: 0.24 }, { x: 730, y: -10, angle: -8, size: 0.24 },
+        { x: 380, y: 1190, angle: -8, size: 0.32 }, { x: 900, y: 1200, angle: 9, size: 0.32 },
+        { x: 560, y: 1230, angle: 10, size: 0.26 }, { x: 730, y: 1220, angle: -10, size: 0.26 });
+    }
     const count = positions.length;
     for (let i = 0; i < count; i++) {
       const img = this.add.image(0, 0, BACK).setAlpha(0);
@@ -79,13 +94,15 @@ export class TitleScene extends Phaser.Scene {
     }
     if (this.game.renderer.type === Phaser.WEBGL) {
       const source = new Phaser.Display.BaseShader('logo-gravity-well', gravityWellShader(reducedMotion), undefined, { reveal: { type: '1f', value: reducedMotion ? 1 : 0 } });
-      const effect = this.add.shader(source, 640, 165, 790, 320, ['game_logo'], { wrapS: 'clamp_to_edge', wrapT: 'clamp_to_edge' });
+      const k = tall ? 600 / 690 : 1;
+      const effect = this.add.shader(source, 640, tall ? TALL.logoY : 165, 790 * k, 320 * k, ['game_logo'], { wrapS: 'clamp_to_edge', wrapT: 'clamp_to_edge' });
       if (!reducedMotion) {
         const fade = { value: 0 };
         this.tweens.add({ targets: fade, value: 1, duration: 1000, ease: 'Cubic.Out', onUpdate: () => effect.setUniform('reveal.value', fade.value) });
       }
     }
-    this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
+    if (tall) this.add.image(640, TALL.logoY, 'game_logo').setDisplaySize(600, 200);
+    else this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
 
     const menu: [string, () => void][] = [
       ['Online Duel', () => this.scene.start('Multiplayer')],
@@ -96,11 +113,20 @@ export class TitleScene extends Phaser.Scene {
       ['What’s New', () => this.showChangelog()],
     ];
     menu.forEach(([label, run], index) => {
-      button(this, 640, 318 + index * 54, 320, 48, label, run, { size: 17, primary: index === 0 });
+      if (tall) button(this, 640, TALL.menuY + index * TALL.step, 480, 72, label, run, { size: 25, primary: index === 0 });
+      else button(this, 640, 318 + index * 54, 320, 48, label, run, { size: 17, primary: index === 0 });
     });
-    button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
-    button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });
-    const debug = button(this, 98, 640, 148, 36, 'Debug Duel', () => this.scene.start('Debug'), { size: 13 });
+    const below = TALL.menuY + menu.length * TALL.step + 30;
+    if (tall) {
+      button(this, 520, below, 220, 56, 'Discord', openDiscord, { size: 19 });
+      button(this, 760, below, 220, 56, 'Settings', () => this.showSettings(), { size: 19 });
+    } else {
+      button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
+      button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });
+    }
+    const debug = tall
+      ? button(this, 640, below + 74, 220, 50, 'Debug Duel', () => this.scene.start('Debug'), { size: 17 })
+      : button(this, 98, 640, 148, 36, 'Debug Duel', () => this.scene.start('Debug'), { size: 13 });
     const showDebug = (visible: boolean) => {
       debug.setVisible(visible);
       debug.setEnabled(visible);
@@ -114,7 +140,9 @@ export class TitleScene extends Phaser.Scene {
     };
     this.input.keyboard?.on('keydown', shortcut);
     this.events.once('shutdown', () => this.input.keyboard?.off('keydown', shortcut));
-    caption(this, 24, 683, `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`, COL.dim, 9);
+    const credit = `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`;
+    if (tall) caption(this, 640, TALL.bottom - 16, credit, COL.dim, 11).setOrigin(0.5);
+    else caption(this, 24, 683, credit, COL.dim, 9);
     document.dispatchEvent(new Event('duel-origins:ready'));
   }
 
@@ -124,9 +152,10 @@ export class TitleScene extends Phaser.Scene {
     layer.add(this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive());
     layer.add(panel(this, 420, 125, 440, 470, 0.98, 10));
     layer.add(htxt(this, 640, 161, 'Settings', 24).setOrigin(0.5));
-    volumeControls(this, layer, 640, 225);
+    const slider = volumeControls(this, layer, 640, 225);
     settingsRows(this, layer, 640, 340);
     layer.add(button(this, 640, 554, 160, 40, 'Close', close, { size: 14 }));
+    if (fitDialog(this, layer, 440) > 1) placeDom(slider, layer, slider.x, slider.y);
     this.input.keyboard?.once('keydown-ESC', close);
     layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
   }
@@ -156,16 +185,19 @@ export class TitleScene extends Phaser.Scene {
     block.on('pointerup', () => layer.destroy());
     layer.add(block);
     // the paragraphs are laid out first so the panel can be sized to them (and scroll if needed)
-    const x = 280, width = 720;
-    const lines = paragraphs.map(([text, color]) => txt(this, x, 0, text, 13, color, { wordWrap: { width }, lineSpacing: 6 }));
+    // portrait: a narrower panel with larger type, as tall as the screen allows
+    const tall = this.portrait, view = viewOf(this);
+    const left = tall ? 330 : 240, panelWidth = tall ? 620 : 800;
+    const x = left + (tall ? 26 : 40), width = panelWidth - (tall ? 52 : 80);
+    const lines = paragraphs.map(([text, color]) => txt(this, x, 0, text, tall ? 20 : 13, color, { wordWrap: { width }, lineSpacing: 6 }));
     const contentHeight = lines.reduce((sum, line) => sum + line.height + 18, 0);
-    const maxPanel = 620, chrome = 150, maxContent = maxPanel - chrome;
+    const maxPanel = tall ? view.height - 60 : 620, chrome = 150, maxContent = maxPanel - chrome;
     const viewHeight = Math.min(contentHeight, maxContent);
     const scrollable = contentHeight > viewHeight + 1;
     const panelHeight = viewHeight + chrome;
-    const top = 360 - panelHeight / 2;
-    layer.add(this.add.zone(240, top, 800, panelHeight).setOrigin(0).setInteractive()); // clicks inside do not close it
-    layer.add(panel(this, 240, top, 800, panelHeight, 0.98));
+    const top = view.cy - panelHeight / 2;
+    layer.add(this.add.zone(left, top, panelWidth, panelHeight).setOrigin(0).setInteractive()); // clicks inside do not close it
+    layer.add(panel(this, left, top, panelWidth, panelHeight, 0.98));
     layer.add(htxt(this, 640, top + 38, title, 26).setOrigin(0.5));
     const contentTop = top + 78;
     let y = contentTop;
@@ -175,23 +207,23 @@ export class TitleScene extends Phaser.Scene {
     let scrollY = 0;
     if (scrollable) {
       const shape = this.make.graphics({ x: 0, y: 0 });
-      shape.fillRect(240, contentTop - 2, 800, viewHeight + 4);
+      shape.fillRect(left, contentTop - 2, panelWidth, viewHeight + 4);
       const mask = shape.createGeometryMask();
       content.setMask(mask);
       const minScroll = -(contentHeight - viewHeight);
       const applyScroll = (v: number) => { scrollY = Phaser.Math.Clamp(v, minScroll, 0); content.y = scrollY; };
-      const over = (p: Phaser.Input.Pointer) => p.x >= 240 && p.x <= 1040 && p.y >= contentTop && p.y <= contentTop + viewHeight;
+      const over = (p: Phaser.Input.Pointer) => p.worldX >= left && p.worldX <= left + panelWidth && p.worldY >= contentTop && p.worldY <= contentTop + viewHeight;
       const onWheel = (p: Phaser.Input.Pointer, _go: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => { if (over(p)) applyScroll(scrollY - dy * 0.6); };
       this.input.on('wheel', onWheel);
       let dragY = 0, startY = 0, dragging = false;
-      const zone = this.add.zone(640, contentTop + viewHeight / 2, 760, viewHeight).setInteractive();
-      zone.on('pointerdown', (p: Phaser.Input.Pointer) => { dragging = true; dragY = scrollY; startY = p.y; });
-      const onMove = (p: Phaser.Input.Pointer) => { if (dragging && p.isDown) applyScroll(dragY + (p.y - startY)); };
+      const zone = this.add.zone(640, contentTop + viewHeight / 2, panelWidth - 40, viewHeight).setInteractive();
+      zone.on('pointerdown', (p: Phaser.Input.Pointer) => { dragging = true; dragY = scrollY; startY = p.worldY; });
+      const onMove = (p: Phaser.Input.Pointer) => { if (dragging && p.isDown) applyScroll(dragY + (p.worldY - startY)); };
       const onUp = () => { dragging = false; };
       this.input.on('pointermove', onMove);
       this.input.on('pointerup', onUp);
       layer.add(zone);
-      layer.add(txt(this, 640, contentTop + viewHeight + 6, 'Scroll for more', 10, COL.dim).setOrigin(0.5));
+      layer.add(txt(this, 640, contentTop + viewHeight + 6, 'Scroll for more', tall ? 15 : 10, COL.dim).setOrigin(0.5));
       layer.once('destroy', () => {
         this.input.off('wheel', onWheel);
         this.input.off('pointermove', onMove);
@@ -204,7 +236,8 @@ export class TitleScene extends Phaser.Scene {
     const buttons: [string, () => void][] = [...actions, ['Close', close]];
     const btnY = contentTop + viewHeight + 24;
     buttons.forEach(([label, run], i) => {
-      layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 190, btnY, 180, 42, label, run, { size: 14, primary: i === 0 }));
+      if (tall) layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 196, btnY + 10, 186, 58, label, run, { size: 18, primary: i === 0 }));
+      else layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 190, btnY, 180, 42, label, run, { size: 14, primary: i === 0 }));
     });
     this.input.keyboard?.once('keydown-ESC', close);
     layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));

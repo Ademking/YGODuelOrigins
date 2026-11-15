@@ -54,6 +54,29 @@ export function fitCamera(scene: Phaser.Scene, frame: () => Frame = defaultFrame
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));
 }
 
+/** Is the screen held upright (taller than wide)? Scenes pick their portrait layout from this when they start. */
+export function portraitScreen(scene: Phaser.Scene) {
+  const { width, height } = scene.scale.baseSize;
+  return height > width * 1.15;
+}
+
+/**
+ * Portrait only: draw a dialog that is laid out around the world centre (640, 360) larger, as far as `width`
+ * allows, and move it to the middle of the screen. Returns the scale used (1 when nothing changed).
+ */
+export function fitDialog(scene: Phaser.Scene, layer: Phaser.GameObjects.Container, width: number, maxScale = 1.45) {
+  if (!portraitScreen(scene)) return 1;
+  const view = viewOf(scene);
+  const k = Math.max(1, Math.min(maxScale, (view.width - 24) / width));
+  layer.setScale(k).setPosition(view.cx - 640 * k, view.cy - 360 * k);
+  return k;
+}
+
+/** DOM elements do not follow containers: put one where (x, y) of a fitDialog layer appears, at its scale. */
+export function placeDom(dom: Phaser.GameObjects.DOMElement, layer: Phaser.GameObjects.Container, x: number, y: number) {
+  dom.setPosition(layer.x + x * layer.scaleX, layer.y + y * layer.scaleY).setScale(layer.scaleX);
+}
+
 /** The part of the world currently on screen, in world coordinates. */
 export function viewOf(scene: Phaser.Scene) {
   const f = (frames.get(scene) ?? defaultFrame)();
@@ -416,6 +439,9 @@ export function modal(scene: Phaser.Scene, o: { title: string; text?: string; in
       field.value = o.input;
       y += 64;
     }
+    fitDialog(scene, layer, 440);
+    if (dom) placeDom(dom, layer, 640, dom.y);
+    dom?.setDepth(4001);
     const done = (v: string | boolean | null) => { dom?.destroy(); layer.destroy(); resolve(v); };
     const accept = () => {
       if (!field) return done(true);
@@ -444,29 +470,35 @@ export function chooseFromList(scene: Phaser.Scene, title: string, options: read
   const backdrop = scene.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
   backdrop.on('pointerup', close);
   layer.add(backdrop);
-  layer.add(scene.add.zone(320, 130, 640, 460).setOrigin(0).setInteractive());
-  layer.add(panel(scene, 320, 130, 640, 460, 0.98, 10));
-  layer.add(htxt(scene, 640, 166, title, 22).setOrigin(0.5));
+  // portrait: a single column, drawn larger by fitDialog
+  const tall = portraitScreen(scene);
+  const px = tall ? 400 : 320, pw = tall ? 480 : 640, top = tall ? 40 : 130, ph = tall ? 640 : 460;
+  layer.add(scene.add.zone(px, top, pw, ph).setOrigin(0).setInteractive());
+  layer.add(panel(scene, px, top, pw, ph, 0.98, 10));
+  layer.add(htxt(scene, 640, top + 36, title, 22).setOrigin(0.5));
   const entries = scene.add.container(0, 0);
   layer.add(entries);
-  const pageSize = 12;
+  const pageSize = tall ? 10 : 12;
+  const bottom = top + ph - 38;
   const lastPage = Math.max(0, Math.ceil(options.length / pageSize) - 1);
   let page = Math.max(0, Math.floor(selected / pageSize));
   const render = () => {
     entries.removeAll(true);
     options.slice(page * pageSize, (page + 1) * pageSize).forEach((label, i) => {
       const index = page * pageSize + i;
-      entries.add(button(scene, 484 + (i % 2) * 312, 218 + Math.floor(i / 2) * 49, 290, 39, label, () => {
+      const x = tall ? 640 : 484 + (i % 2) * 312, y = tall ? top + 92 + i * 49 : 218 + Math.floor(i / 2) * 49;
+      entries.add(button(scene, x, y, tall ? 420 : 290, 39, label, () => {
         close();
         onChoose(index);
       }, { size: 14 }).setSelected(index === selected));
     });
     if (lastPage) {
-      entries.add(button(scene, 404, 552, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
-      entries.add(button(scene, 876, 552, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+      entries.add(button(scene, px + 84, bottom, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, px + pw - 84, bottom, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
     }
   };
-  layer.add(button(scene, 640, 552, 160, 36, 'Close', close, { size: 14 }));
+  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, 'Close', close, { size: 14 }));
+  fitDialog(scene, layer, pw);
   scene.input.keyboard?.once('keydown-ESC', close);
   layer.once('destroy', () => scene.input.keyboard?.off('keydown-ESC', close));
   render();

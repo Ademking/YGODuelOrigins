@@ -35,12 +35,6 @@
     #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
     #game canvas { touch-action: none; }
     #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; text-align: center; font: 16px/1.5 Arial, sans-serif; }
-    .rotate-notice { display: none; }
-    @media (pointer: coarse) and (orientation: portrait) and (max-width: 800px) {
-      .rotate-notice:not([hidden]) { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; background: #06050d; color: #f1ebdc; font: 16px Michroma, Arial, sans-serif; text-align: center; }
-      .rotate-notice p { max-width: 26rem; margin: 0; line-height: 1.6; }
-      .rotate-notice button { min-height: 48px; padding: 0 20px; border: 1px solid #d8b25e; border-radius: 2px; background: #14121f; color: #f1ebdc; font: inherit; cursor: pointer; }
-    }
     input.ad-input { font: 16px Michroma, Arial, sans-serif; background: #0a0916; color: #f1ebdc; border: 1px solid #3a3456; border-radius: 2px; padding: 7px 12px; outline: none; }
     .ad-log { box-sizing: border-box; overflow-y: auto; padding-right: 10px; font: 12px/1.65 Michroma, Arial, sans-serif; color: #9a93ae; scrollbar-width: thin; scrollbar-color: #7c6638 #0a0916; }
     .ad-log b { color: #f1ebdc; }
@@ -90,12 +84,6 @@
 <body>
   <div id="game"></div>
   <div id="startup-status" role="alert" hidden></div>
-  <div class="rotate-notice" id="rotate-notice" role="dialog" aria-labelledby="rotate-title" aria-describedby="rotate-description">
-    <p id="rotate-title">Turn your device sideways</p>
-    <p id="rotate-description">Duels have a portrait layout. The menus and deck editor are easier to use in landscape.</p>
-    <button type="button" id="rotate-dismiss">Continue in portrait</button>
-  </div>
-  <script>document.getElementById('rotate-dismiss').addEventListener('click', () => { document.getElementById('rotate-notice').hidden = true; });</script>
   <script type="module">
     const status = document.getElementById('startup-status');
     let ready = false;

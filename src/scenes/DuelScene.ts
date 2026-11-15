@@ -15,7 +15,7 @@ import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profil
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
-import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, W, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera, viewOf, type Frame } from '../ui/theme';
+import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, W, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera, portraitScreen, viewOf, type Frame } from '../ui/theme';
 import { burst, flash, ring } from '../ui/fx';
 import { debugModeEnabled } from '../ui/debugMode';
 import { sfx } from '../ui/sfx';
@@ -96,8 +96,6 @@ const PORTRAIT = {
   minPanelH: 240, maxPanelH: 440,
   ui: 1.45, // dialogs and menus are drawn this much larger, as far as the width allows
 };
-/** Is the screen tall enough to use the portrait layout? */
-const isPortrait = (width: number, height: number) => height > width * 1.15;
 function applyLayout(portrait: boolean) {
   CX = portrait ? W / 2 : 798;
   Y.oppHand = portrait ? -10 : 6;
@@ -236,7 +234,7 @@ export class DuelScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale.baseSize;
-    this.portrait = isPortrait(width, height);
+    this.portrait = portraitScreen(this);
     applyLayout(this.portrait);
     if (this.portrait) {
       // the card details take whatever height the phone has left over

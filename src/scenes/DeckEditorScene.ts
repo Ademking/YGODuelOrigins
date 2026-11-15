@@ -6,7 +6,7 @@ import type { Attr, CardDef, Race } from '../engine/types';
 import { CARD_K, faceKey } from '../ui/cardArt';
 import { loadCard, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
-import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
+import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, portraitScreen, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
 import { sfx } from '../ui/sfx';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
@@ -16,9 +16,13 @@ const MTYPES = ['Any', 'Normal', 'Effect', 'Ritual', 'Fusion'];
 const SORTS = ['Name', 'ATK', 'DEF', 'Level', 'Type'];
 const KIND_ORDER = { monster: 0, spell: 1, trap: 2 };
 
+// Landscape: card details | deck | card pool side by side. Portrait: the header, Deck and Card list tabs sharing one
+// area, and the card details below. Pool and deck positions are set per layout in create().
 const POOL = { x: 830, y: 148, w: 438, bottom: 650, cols: 6, rows: 5, dx: 70, dy: 100, scale: 0.3 };
 const PAGE = POOL.cols * POOL.rows;
 const MAIN = { x: 275, y: 140, cols: 10, dx: 52, dy: 68, scale: 0.22 };
+/** Portrait: where the tab area starts, the pool panel's height and where the card details go. */
+const TALL = { tabs: 134, content: 166, poolH: 800, detailTop: 976, detailH: 270 };
 
 export class DeckEditorScene extends Phaser.Scene {
   private decks!: Record<string, DeckList>;
@@ -43,11 +47,39 @@ export class DeckEditorScene extends Phaser.Scene {
   private dragFrom: 'pool' | 'main' | 'extra' | null = null;
   private ghost: Phaser.GameObjects.Image | null = null;
   private returnScene = 'Title';
+  private portrait = false;
+  /** Top-left of the deck panel and of the pool panel; the pool's controls sit in a 454-wide column from poolX. */
+  private deckY = 110;
+  private poolX = 822;
+  private poolY = 8;
+  /** Main deck panel height, and the Fusion Deck panel's top and height. */
+  private mainH = 458;
+  private fusionY = 574;
+  private fusionH = 136;
+  private tab: 'deck' | 'pool' = 'deck';
+  private deckGroup!: Phaser.GameObjects.Container;
+  private poolGroup!: Phaser.GameObjects.Container;
+  private tabBtns: Record<'deck' | 'pool', Button> | null = null;
 
   constructor() { super('DeckEditor'); }
 
   create(data: { createNew?: boolean; returnTo?: string } = {}) {
-    fitCamera(this);
+    const tall = this.portrait = portraitScreen(this);
+    this.deckY = tall ? TALL.content : 110;
+    this.poolX = tall ? 275 + (540 - 454) / 2 : 822;
+    this.poolY = tall ? TALL.content : 8;
+    // portrait: bigger pool cards, six to a row across the full 540 width
+    Object.assign(POOL, tall
+      ? { x: 290, y: TALL.content + 140, w: 510, bottom: TALL.content + 750, dx: 86, dy: 122, scale: 0.36 }
+      : { x: 830, y: 148, w: 438, bottom: 650, dx: 70, dy: 100, scale: 0.3 });
+    MAIN.y = this.deckY + (tall ? 38 : 30);
+    // portrait: the deck tab has the whole area, so its cards are larger
+    Object.assign(MAIN, tall ? { dy: 86, scale: 0.25 } : { dy: 68, scale: 0.22 });
+    this.mainH = tall ? 570 : 458;
+    this.fusionY = this.deckY + this.mainH + 6;
+    this.fusionH = tall ? 170 : 136;
+    const bottom = TALL.detailTop + TALL.detailH + 10;
+    fitCamera(this, () => tall ? { cx: 545, cy: bottom / 2, w: 560, h: bottom } : { cx: 640, cy: 360, w: 1280, h: 720 });
     sceneBackground(this);
     this.decks = loadDecks();
     const names = Object.keys(this.decks);
@@ -64,7 +96,13 @@ export class DeckEditorScene extends Phaser.Scene {
     this.dragFrom = null;
     this.ghost = null;
 
-    this.cardPanel = new CardPanel(this, 12, 10, 330, 350, 360, 250);
+    const dy = this.deckY - 110, px = this.poolX - 822, py = this.poolY - 8;
+    if (tall) {
+      // details below the tabs: the card beside its text
+      const top = TALL.detailTop, h = TALL.detailH;
+      this.cardPanel = new CardPanel(this, 275 + 168, top, h, top, h, 540 - 168, false, { x: 275, w: 160 });
+      if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint('Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.');
+    } else this.cardPanel = new CardPanel(this, 12, 10, 330, 350, 360, 250);
 
     // header
     panel(this, 275, 8, 540, 96);
@@ -78,28 +116,33 @@ export class DeckEditorScene extends Phaser.Scene {
     ];
     hb.forEach(([l, f, prim], i) => button(this, 322 + i * 89, 84, 84, 28, l, f, { size: 13, primary: prim, danger: l === 'Delete' }));
 
-    panel(this, 275, 110, 540, 458);
-    this.stats = caption(this, 292, 122, '', COL.goldTxt, 9);
-    panel(this, 275, 574, 540, 136);
-    caption(this, 292, 585, 'Fusion Deck', COL.goldTxt, 10);
+    let first = this.children.length;
+    panel(this, 275, 110 + dy, 540, this.mainH);
+    this.stats = caption(this, 292, 122 + dy, '', COL.goldTxt, tall ? 11 : 9);
+    panel(this, 275, this.fusionY, 540, this.fusionH);
+    caption(this, 292, this.fusionY + 11, 'Fusion Deck', COL.goldTxt, tall ? 11 : 10);
+    this.deckLayer = this.add.container(0, 0);
+    this.deckGroup = this.add.container(0, 0, this.children.list.slice(first));
 
     // pool
-    panel(this, 822, 8, 454, 702);
+    first = this.children.length;
+    if (tall) panel(this, 275, this.poolY, 540, TALL.poolH);
+    else panel(this, 822, 8, 454, 702);
     // search box on its own line, then card kind, then the detailed filters, all on the same 418px column
-    this.input0 = this.add.dom(1049, 38).createElement('input', 'width: 418px; box-sizing: border-box;', '') as Phaser.GameObjects.DOMElement;
+    this.input0 = this.add.dom(1049 + px, 38 + py).createElement('input', 'width: 418px; box-sizing: border-box;', '') as Phaser.GameObjects.DOMElement;
     const el = this.input0.node as HTMLInputElement;
     el.className = 'ad-input';
     el.placeholder = 'Search name or text…';
     el.addEventListener('input', () => { this.filter.q = el.value.toLowerCase(); this.page = 0; this.renderPool(); });
     el.addEventListener('keydown', (e) => e.stopPropagation());
     ['all', 'monster', 'spell', 'trap'].forEach((k, i) => {
-      this.kindBtns[k] = button(this, 890 + i * 106, 86, 100, 28, k === 'all' ? 'All' : k[0].toUpperCase() + k.slice(1), () => {
+      this.kindBtns[k] = button(this, 890 + px + i * 106, 86 + py, 100, 28, k === 'all' ? 'All' : k[0].toUpperCase() + k.slice(1), () => {
         this.filter.kind = k; this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 13, tab: true });
     });
     const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
     cycles.forEach(([key, vals, label], i) => {
-      const b = button(this, 880 + (i >= 2 ? i + 1 : i) * 84.5, 120, 80, 26, '', () => {
+      const b = button(this, 880 + px + (i >= 2 ? i + 1 : i) * 84.5, 120 + py, 80, 26, '', () => {
         (this.filter[key] as number) = ((this.filter[key] as number) + 1) % vals.length;
         this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 12 });
@@ -113,7 +156,7 @@ export class DeckEditorScene extends Phaser.Scene {
     });
 
     const raceLabels = RACES.map((race) => race === 'Any' ? 'All types' : race);
-    const raceFilter = button(this, 1049, 120, 80, 26, 'Type: Any ▾', () => {
+    const raceFilter = button(this, 1049 + px, 120 + py, 80, 26, 'Type: Any ▾', () => {
       chooseFromList(this, 'Monster type', raceLabels, this.filter.race, (index) => {
         this.filter.race = index;
         raceFilter.setLabel(index === 0 ? 'Type: Any ▾' : `${RACES[index]} ▾`).setSelected(index !== 0);
@@ -121,25 +164,60 @@ export class DeckEditorScene extends Phaser.Scene {
         this.renderPool();
       });
     }, { size: 12 });
-    this.deckLayer = this.add.container(0, 0);
     this.poolLayer = this.add.container(0, 0);
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
-    this.prevBtn = button(this, 885, 684, 90, 30, '‹ Prev', () => this.turnPage(-1), { size: 13 });
-    this.nextBtn = button(this, 1213, 684, 90, 30, 'Next ›', () => this.turnPage(1), { size: 13 });
-    this.pageText = txt(this, 1049, 684, '', 13, COL.dim).setOrigin(0.5);
+    const pageY = tall ? this.poolY + TALL.poolH - 30 : 684;
+    if (tall) {
+      this.prevBtn = button(this, 275 + 70, pageY, 120, 40, '‹ Prev', () => this.turnPage(-1), { size: 15 });
+      this.nextBtn = button(this, 815 - 70, pageY, 120, 40, 'Next ›', () => this.turnPage(1), { size: 15 });
+    } else {
+      this.prevBtn = button(this, 885, 684, 90, 30, '‹ Prev', () => this.turnPage(-1), { size: 13 });
+      this.nextBtn = button(this, 1213, 684, 90, 30, 'Next ›', () => this.turnPage(1), { size: 13 });
+    }
+    this.pageText = txt(this, tall ? 545 : 1049, pageY, '', 13, COL.dim).setOrigin(0.5);
+    // the search box is a DOM element and stays out of the container (showTab hides it with the rest)
+    this.poolGroup = this.add.container(0, 0, this.children.list.slice(first).filter((o) => o !== this.input0));
     // Scene-level wheel: an interactive zone here would sit on top of the pool cards and swallow their clicks.
     this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
-      if (p.worldX < POOL.x || p.worldX > POOL.x + POOL.w || p.worldY < POOL.y - 8 || p.worldY > 700) return;
+      if (this.portrait && this.tab !== 'pool') return;
+      if (p.worldX < POOL.x || p.worldX > POOL.x + POOL.w || p.worldY < POOL.y - 8 || p.worldY > pageY + 16) return;
       if (dy) this.turnPage(Math.sign(dy));
     });
     this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.turnPage(1));
     this.input.keyboard?.on('keydown-PAGE_UP', () => this.turnPage(-1));
 
+    this.tabBtns = null;
+    if (tall) {
+      // the deck and the card list share the area under the header
+      this.tabBtns = {
+        deck: button(this, 275 + 134, TALL.tabs, 266, 44, 'Deck', () => this.showTab('deck'), { size: 17, tab: true }),
+        pool: button(this, 815 - 134, TALL.tabs, 266, 44, 'Card List', () => this.showTab('pool'), { size: 17, tab: true }),
+      };
+      this.showTab(data.createNew ? 'pool' : 'deck');
+    }
     this.setupDrag();
     this.refreshFilterBtns();
     this.renderDeck();
     this.renderPool();
     if (data.createNew) void this.newDeck();
+  }
+
+  /** Portrait: show the deck or the card list. */
+  private showTab(tab: 'deck' | 'pool') {
+    this.tab = tab;
+    this.deckGroup.setVisible(tab === 'deck');
+    this.poolGroup.setVisible(tab === 'pool');
+    this.input0.setVisible(tab === 'pool');
+    // hidden cards must not take taps or drags meant for the visible tab
+    for (const [group, on] of [[this.deckGroup, tab === 'deck'], [this.poolGroup, tab === 'pool']] as const) {
+      const walk = (list: Phaser.GameObjects.GameObject[]) => list.forEach((o) => {
+        if (o.input) o.input.enabled = on;
+        if (o instanceof Phaser.GameObjects.Container) walk(o.list);
+      });
+      walk(group.list);
+    }
+    this.tabBtns?.deck.setSelected(tab === 'deck');
+    this.tabBtns?.pool.setSelected(tab === 'pool');
   }
 
   // ---------------------------------------------------------------- deck ops
@@ -169,6 +247,8 @@ export class DeckEditorScene extends Phaser.Scene {
   }
 
   private touch() { this.dirty = true; this.renderDeck(); this.renderPool(); }
+  /** After re-rendering, keep the hidden tab's new cards from taking input. */
+  private retab() { if (this.portrait) this.showTab(this.tab); }
 
   private flashTimer?: Phaser.Time.TimerEvent;
   private setStatus(message: string, color: string) {
@@ -214,8 +294,11 @@ export class DeckEditorScene extends Phaser.Scene {
       this.deckLayer.add(this.cardImg(id, x, y, MAIN.scale, 'main'));
     });
     const ex = this.sorted(this.deck.extra);
-    ex.forEach((id, i) => this.deckLayer.add(this.cardImg(id, 314 + i * 34, 652, MAIN.scale, 'extra')));
+    const fusionScale = this.portrait ? 0.3 : MAIN.scale, step = 34;
+    ex.forEach((id, i) => this.deckLayer.add(this.cardImg(id, 314 + i * step, this.fusionY + (this.portrait ? 95 : 78), fusionScale, 'extra')));
+    this.tabBtns?.deck.setLabel(`Deck (${main.length}${ex.length ? ` + ${ex.length}` : ''})`);
     this.refreshStatus();
+    this.retab();
   }
 
   private poolCards(): CardDef[] {
@@ -270,9 +353,11 @@ export class DeckEditorScene extends Phaser.Scene {
       this.poolLayer.add(this.cardImg(c.id, x, y, POOL.scale, 'pool'));
       const n = this.count(c.id), lim = copyLimit(c);
       // copies in the deck / allowed, tucked into the card's corner; hidden while it would only say 0/3
-      if (n || lim < 3) this.poolLayer.add(this.add.text(x + 31, y + 45, `${n}/${lim}`, { fontFamily: FONT_N, fontSize: '10px', fontStyle: 'bold', color: n >= lim ? '#ff9a7a' : n ? COL.goldTxt : COL.dim, backgroundColor: '#07060ff2', padding: { x: 4, y: 2 } }).setOrigin(1, 1));
+      const r = POOL.scale / 0.3;
+      if (n || lim < 3) this.poolLayer.add(this.add.text(x + 31 * r, y + 45 * r, `${n}/${lim}`, { fontFamily: FONT_N, fontSize: `${Math.round(10 * r)}px`, fontStyle: 'bold', color: n >= lim ? '#ff9a7a' : n ? COL.goldTxt : COL.dim, backgroundColor: '#07060ff2', padding: { x: 4, y: 2 } }).setOrigin(1, 1));
     });
     if (!list.length) this.poolLayer.add(txt(this, POOL.x + POOL.w / 2, POOL.y + 60, 'No cards match.', 15, COL.dim).setOrigin(0.5));
+    this.retab();
   }
 
   private cardImg(id: string, x: number, y: number, scale: number, from: 'pool' | 'main' | 'extra') {
@@ -318,7 +403,8 @@ export class DeckEditorScene extends Phaser.Scene {
       if (!this.dragId) return;
       const id = this.dragId;
       const from = this.dragFrom;
-      const inDeck = p.worldX >= 275 && p.worldX <= 815 && p.worldY >= 110 && p.worldY <= 710;
+      // portrait shows one tab at a time: a card dropped back on the card list is not added
+      const inDeck = p.worldX >= 275 && p.worldX <= 815 && p.worldY >= this.deckY && p.worldY <= this.fusionY + this.fusionH && (!this.portrait || this.tab === 'deck');
       this.ghost?.destroy();
       this.ghost = null;
       this.time.delayedCall(0, () => { this.dragId = null; this.dragFrom = null; });
