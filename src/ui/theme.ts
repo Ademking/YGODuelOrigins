@@ -32,16 +32,34 @@ factory.text = function (x, y, s, style) {
   return addText.call(this, x, y, s, st);
 };
 
-/** Call first in every scene: maps the RES x canvas back onto the 1280x720 world. */
-export function fitCamera(scene: Phaser.Scene) {
+/** The world rectangle a scene's camera keeps in view (the 1280x720 world unless the scene asks otherwise). */
+export interface Frame { cx: number; cy: number; w: number; h: number }
+const frames = new WeakMap<Phaser.Scene, () => Frame>();
+const defaultFrame = (): Frame => ({ cx: W / 2, cy: H / 2, w: W, h: H });
+
+/**
+ * Call first in every scene: maps the RES x canvas back onto the world. By default the 1280x720 world is
+ * fitted and centred; `frame` lets a scene fit and centre another region (portrait duels frame the board).
+ */
+export function fitCamera(scene: Phaser.Scene, frame: () => Frame = defaultFrame) {
+  frames.set(scene, frame);
   const camera = scene.cameras.main;
   const resize = () => {
     const size = scene.scale.baseSize;
-    camera.setSize(size.width, size.height).setZoom(Math.min(size.width / W, size.height / H)).centerOn(W / 2, H / 2);
+    const f = frame();
+    camera.setSize(size.width, size.height).setZoom(Math.min(size.width / f.w, size.height / f.h)).centerOn(f.cx, f.cy);
   };
   resize();
   scene.scale.on('resize', resize);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));
+}
+
+/** The part of the world currently on screen, in world coordinates. */
+export function viewOf(scene: Phaser.Scene) {
+  const f = (frames.get(scene) ?? defaultFrame)();
+  const zoom = scene.cameras.main.zoom;
+  const width = scene.scale.baseSize.width / zoom, height = scene.scale.baseSize.height / zoom;
+  return { cx: f.cx, cy: f.cy, width, height, left: f.cx - width / 2, top: f.cy - height / 2, right: f.cx + width / 2, bottom: f.cy + height / 2 };
 }
 
 // ---------------------------------------------------------------- palette & type
@@ -256,10 +274,9 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
     };
     scene.events.on('postupdate', update);
     const resize = () => {
-      const width = scene.scale.baseSize.width / scene.cameras.main.zoom;
-      const height = scene.scale.baseSize.height / scene.cameras.main.zoom;
+      const { width, height, cx, cy } = viewOf(scene);
       shader.setUniform('viewport.value', { x: width, y: height });
-      background.setDisplaySize(width, height);
+      background.setPosition(cx, cy).setDisplaySize(width, height);
     };
     background.once('destroy', () => {
       scene.events.off('postupdate', update);
@@ -288,7 +305,10 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
     texture.refresh();
   }
   const background = scene.add.image(W / 2, H / 2, 'duel-bg').setDepth(-100);
-  const resize = () => background.setDisplaySize(scene.scale.baseSize.width / scene.cameras.main.zoom, scene.scale.baseSize.height / scene.cameras.main.zoom);
+  const resize = () => {
+    const { width, height, cx, cy } = viewOf(scene);
+    background.setPosition(cx, cy).setDisplaySize(width, height);
+  };
   resize();
   scene.scale.on('resize', resize);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));

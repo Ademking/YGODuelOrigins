@@ -15,7 +15,7 @@ import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profil
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
-import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera } from '../ui/theme';
+import { button, chamfer, COL, FONT_B, FONT_H, FONT_N, H, W, htxt, modal, onWheelIn, panel, duelBackground, ScrollBar, txt, wait, type Button, fitCamera, viewOf, type Frame } from '../ui/theme';
 import { burst, flash, ring } from '../ui/fx';
 import { debugModeEnabled } from '../ui/debugMode';
 import { sfx } from '../ui/sfx';
@@ -39,7 +39,9 @@ export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; 
 
 // ---- board geometry: a ground plane seen in true perspective (proportions fitted to the wireframe).
 // u = column in tile widths (0 = centre), w = depth in tile depths (0 = midline, + towards you).
-const CX = 798, CY = 306; // screen position of the board centre (midline)
+const CY = 306; // screen y of the board centre (midline)
+/** Screen x of the board centre: right of the HUD column in landscape, the middle of the world in portrait. */
+let CX = 798;
 const D = 30; // camera distance in tile depths: mild perspective, the far edge is ~0.85x the near edge
 const HZ = 3150; // CY minus the horizon's screen y
 const ZW = 75, ZH = 108; // card size in px at the midline; cards nearly fill their tile
@@ -68,8 +70,9 @@ const CARD_TILT = 1;
 const CARD_FILL = 0.94;
 const Y = { oppHand: 6, phase: CY, myHand: 658 };
 const FIELD_SCALE = ZW / CW;
-const HAND_SCALE = 0.46 * CARD_K;
-const OPP_HAND_SCALE = 0.28 * CARD_K;
+let HAND_SCALE = 0.46 * CARD_K;
+let OPP_HAND_SCALE = 0.28 * CARD_K;
+let HAND_SPACING = 92, HAND_ROW = 600;
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
 const LEFT_W = 242; // width of the HUD column on the left
 type Pos = { x: number; y: number; s: number; k: number; w: number };
@@ -79,6 +82,31 @@ const EQUIP_TARGET_GLOW = 0xd9a2ff;
 const SET_ONLY_GLOW = 0x8f9fd0;
 // Geometry of the Life Point plates in the HUD column.
 const PLATE = { x: 20, w: LEFT_W - 16, h: 72, yFoe: 8, yMe: 640, lpX: 88 };
+
+// ---- portrait (phones held upright): no sidebar. The camera frames a column PORTRAIT.w wide around the
+// board; the opponent's plate sits above the board, your hand, plate and buttons below it, then the card details.
+const PORTRAIT = {
+  w: 820, // world width kept in view: the board's near edge is ~782
+  top: -186,
+  plateScale: 1.6, // LP plates are the sidebar plates drawn larger
+  oppPlateY: -176,
+  myPlateY: 832,
+  panelTop: 960,
+  panelScale: 1.5, // card details likewise
+  minPanelH: 240, maxPanelH: 440,
+  ui: 1.45, // dialogs and menus are drawn this much larger, as far as the width allows
+};
+/** Is the screen tall enough to use the portrait layout? */
+const isPortrait = (width: number, height: number) => height > width * 1.15;
+function applyLayout(portrait: boolean) {
+  CX = portrait ? W / 2 : 798;
+  Y.oppHand = portrait ? -10 : 6;
+  Y.myHand = portrait ? 728 : 658;
+  HAND_SCALE = (portrait ? 0.64 : 0.46) * CARD_K;
+  OPP_HAND_SCALE = (portrait ? 0.3 : 0.28) * CARD_K;
+  HAND_SPACING = portrait ? 132 : 92;
+  HAND_ROW = portrait ? 680 : 600;
+}
 
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
 function logLineHtml(line: string, actors: string[]): string {
@@ -110,6 +138,11 @@ export class DuelScene extends Phaser.Scene {
   private hoverAny: Card | null = null;
   private cardPanel!: CardPanel;
   private sidePanelX = 0;
+  /** Portrait layout: chosen when the duel starts (turning the phone mid-duel just refits the camera). */
+  private portrait = false;
+  private panelH = 0;
+  /** Portrait LP plates: each player's plate is a scaled container. */
+  private plateBox: (Phaser.GameObjects.Container | null)[] = [null, null];
   private revealingGod: number | null = null;
   private revealedGods = new Set<number>();
   private lpText: Phaser.GameObjects.Text[] = [];
@@ -202,7 +235,15 @@ export class DuelScene extends Phaser.Scene {
   }
 
   create() {
-    fitCamera(this);
+    const { width, height } = this.scale.baseSize;
+    this.portrait = isPortrait(width, height);
+    applyLayout(this.portrait);
+    if (this.portrait) {
+      // the card details take whatever height the phone has left over
+      const fixed = PORTRAIT.panelTop - PORTRAIT.top + 12;
+      this.panelH = Phaser.Math.Clamp(PORTRAIT.w * (height / width) - fixed, PORTRAIT.minPanelH, PORTRAIT.maxPanelH);
+    }
+    fitCamera(this, () => this.frame());
     if (debugModeEnabled()) this.createFpsCounter();
     if (this.game.renderer.type === Phaser.WEBGL) {
       const pipelines = (this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer).pipelines;
@@ -215,7 +256,7 @@ export class DuelScene extends Phaser.Scene {
     this.lastZoneMask = -1;
     this.disabledZoneOverlay = this.add.graphics().setDepth(55);
     this.attackMarker = this.add.graphics().setDepth(340);
-    this.turnCount = txt(this, proj(-EDGE_U, -EDGE_W).x + 8, proj(-EDGE_U, -EDGE_W).y - 6, 'Turn 0', 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
+    this.turnCount = txt(this, proj(-EDGE_U, -EDGE_W).x + 8, proj(-EDGE_U, -EDGE_W).y - 6, 'Turn 0', this.portrait ? 18 : 11, COL.goldTxt, { backgroundColor: '#14121f', padding: { x: 7, y: 3 } })
       .setOrigin(0, 1).setDepth(351);
     this.equipBadge = this.add.image(0, 0, 'equip_badge').setDisplaySize(24, 24).setDepth(330).setVisible(false);
     const sync = () => this.syncSkins();
@@ -290,15 +331,36 @@ export class DuelScene extends Phaser.Scene {
     });
   }
 
+  /** The world region the camera fits: the whole 1280x720 world, or the portrait column. */
+  private frame(): Frame {
+    if (!this.portrait) return { cx: W / 2, cy: H / 2, w: W, h: H };
+    const bottom = PORTRAIT.panelTop + this.panelH + 12;
+    return { cx: W / 2, cy: (PORTRAIT.top + bottom) / 2, w: PORTRAIT.w, h: bottom - PORTRAIT.top };
+  }
+  /** Left edge of the play area: right of the sidebar in landscape, the screen edge in portrait. */
+  private playLeft() {
+    return this.portrait ? viewOf(this).left : this.sidePanelX + 12 + LEFT_W;
+  }
+  /**
+   * Portrait only: draw a dialog larger, scaled about (cx, cy), as far as its width allows.
+   * Returns the scale used (1 in landscape).
+   */
+  private enlarge(layer: Phaser.GameObjects.Container, width: number, cx = CX, cy = CY) {
+    if (!this.portrait) return 1;
+    const scale = Math.min(PORTRAIT.ui, (PORTRAIT.w - 24) / width);
+    if (scale <= 1) return 1;
+    layer.setScale(scale).setPosition(cx * (1 - scale), cy * (1 - scale));
+    return scale;
+  }
+
   private createFpsCounter() {
     const fps = this.add.text(0, 0, '— FPS', {
       fontFamily: FONT_N, fontSize: '13px', color: COL.text, backgroundColor: '#14121f',
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setDepth(1200);
     const position = () => {
-      const { width, height } = this.scale.baseSize;
-      const zoom = this.cameras.main.zoom;
-      fps.setPosition(640 + width / (2 * zoom) - 12, H / 2 - height / (2 * zoom) + 12);
+      const view = viewOf(this);
+      fps.setPosition(view.right - 12, view.top + 12);
     };
     position();
     this.scale.on('resize', position);
@@ -346,6 +408,7 @@ export class DuelScene extends Phaser.Scene {
       const layer = this.add.container(0, 0).setDepth(950);
       this.dialog = layer;
       layer.add(this.playfieldBlocker(0x06050d, 0.95));
+      this.enlarge(layer, 560);
       const reduced = this.reducedMotion;
       const SIZE = 116;
       const moving: object[] = [];
@@ -610,7 +673,9 @@ export class DuelScene extends Phaser.Scene {
     }
     // phase track on the midline
     PHASES.forEach((ph, i) => {
-      const b = button(this, CX + (i - 2.5) * 66, Y.phase, 60, 26, ph, () => this.clickPhase(ph), { size: 13, tab: true });
+      const b = this.portrait
+        ? button(this, CX + (i - 2.5) * 90, Y.phase, 84, 42, ph, () => this.clickPhase(ph), { size: 19, tab: true })
+        : button(this, CX + (i - 2.5) * 66, Y.phase, 60, 26, ph, () => this.clickPhase(ph), { size: 13, tab: true });
       b.setDepth(350);
       this.phaseBtns[ph] = b;
     });
@@ -785,12 +850,10 @@ export class DuelScene extends Phaser.Scene {
     }
     object.setDepth(-99);
     const resize = () => {
-      const zoom = this.cameras.main.zoom;
-      const viewportWidth = this.scale.baseSize.width / zoom;
-      const height = this.scale.baseSize.height / zoom;
-      const left = 640 - viewportWidth / 2 + LEFT_W;
-      const width = Math.max(1, viewportWidth - LEFT_W);
-      object.setPosition(left + width / 2, H / 2);
+      const view = viewOf(this);
+      const left = this.portrait ? view.left : view.left + LEFT_W;
+      const width = Math.max(1, view.right - left), height = view.height;
+      object.setPosition(left + width / 2, view.cy);
       if (object instanceof Phaser.GameObjects.Shader) object.setSize(width, height).updateDisplayOrigin();
       else object.setDisplaySize(width, height);
     };
@@ -906,57 +969,17 @@ export class DuelScene extends Phaser.Scene {
     return m;
   }
 
+  /** A plate's top edge in its own coordinates: the sidebar's, or 0 inside a portrait plate container. */
+  private plateY(s: Side) {
+    return this.portrait ? 0 : s === this.me ? PLATE.yMe : PLATE.yFoe;
+  }
+
   private buildSidePanel() {
+    if (this.portrait) { this.buildPortraitHud(); return; }
     const x = 12, w = LEFT_W;
     const first = this.children.length;
     const sidebarBackground = this.add.graphics();
-    for (const s of [opp(this.me), this.me]) {
-      const y = s === this.me ? PLATE.yMe : PLATE.yFoe;
-      const g = this.add.graphics();
-      g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
-      g.lineStyle(1, COL.line, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
-      // brass edge while it is this player's turn
-      this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
-      // portrait well
-      const px = PLATE.x + 34, py = y + PLATE.h / 2;
-      if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
-      else g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
-      const watched = s === this.me ? this.init0.watch : undefined;
-      const online = this.init0.multiplayer;
-      if (online) {
-        // online duels show each player's lobby avatar and flag
-        const look = online.looks[s === this.me ? 0 : 1];
-        this.plateLook(px, py, avatarFor(look.avatar, s === this.me ? online.name : online.opponent), look.country);
-      } else if (s === this.me && !watched) {
-        // your side shows the art of your deck's strongest monster
-        const deck = this.init0.deck;
-        const ace = [...deck.main, ...deck.extra].map(getCard).filter((card) => card.kind === 'monster').sort((a, b) => (b.atk ?? 0) - (a.atk ?? 0))[0];
-        if (ace) {
-          const k = 46 / 192;
-          setCardTexture(this.add.image(px, py + 25 * k, BACK), ace.id).setCrop(54, 79, 192, 230).setScale(k);
-        } else htxt(this, px, py, 'YOU', 11).setOrigin(0.5);
-      } else {
-        const duelist = watched ?? this.init0.opp;
-        const portrait = portraitKey(duelist.id);
-        if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
-        else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
-      }
-      if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
-      const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
-        { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
-      if (this.init0.multiplayer) {
-        this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
-      }
-      const room = PLATE.x + PLATE.w - 12 - PLATE.lpX - (this.init0.multiplayer ? 56 : 0);
-      if (name.width > room) {
-        name.setScale(Math.max(0.8, room / name.width));
-        while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
-      }
-      this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
-      this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
-      this.lpBar[s] = this.add.graphics();
-      this.drawLP(s, this.lpShown[s]);
-    }
+    for (const s of [opp(this.me), this.me]) this.buildPlate(s);
     this.cardPanel = new CardPanel(this, x + 8, 88, 268, 362, 238, w - 16, true);
     const buttonWidth = (w - 22) / 2;
     button(this, x + 8 + buttonWidth / 2, 620, buttonWidth, 28, 'Menu', () => this.showMenu(), { size: 12 });
@@ -976,9 +999,86 @@ export class DuelScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', resize));
   }
 
+  /**
+   * Portrait HUD: the opponent's plate above the board (right), yours below your hand (left) with Menu and
+   * Log beside it, and the card details across the bottom. Plates and details are the sidebar's, scaled up.
+   */
+  private buildPortraitHud() {
+    const left = CX - PORTRAIT.w / 2 + 10, right = CX + PORTRAIT.w / 2 - 10;
+    const ps = PORTRAIT.plateScale, plateW = PLATE.w * ps, plateH = PLATE.h * ps;
+    for (const s of [opp(this.me), this.me]) {
+      const first = this.children.length;
+      this.buildPlate(s);
+      const x = (s === this.me ? left : right - plateW) - PLATE.x * ps;
+      const y = s === this.me ? PORTRAIT.myPlateY : PORTRAIT.oppPlateY;
+      this.plateBox[s] = this.add.container(x, y, this.children.list.slice(first)).setScale(ps).setDepth(400);
+    }
+    // Menu and Log beside your plate
+    const bx = left + plateW + 14, bw = right - bx, bh = (plateH - 10) / 2, my = PORTRAIT.myPlateY;
+    button(this, bx + bw / 2, my + bh / 2, bw, bh, 'Menu', () => this.showMenu(), { size: 22 }).setDepth(400);
+    button(this, bx + bw / 2, my + plateH - bh / 2, bw, bh, 'Log', () => this.toggleLogs(), { size: 22 }).setDepth(400);
+    // card details: the preview beside the description, drawn in a scaled container
+    const k = PORTRAIT.panelScale, w = (right - left) / k, h = this.panelH / k;
+    const previewW = Math.round(Math.min((h - 26) * CW / CH + 26, w * 0.3));
+    const first = this.children.length;
+    this.cardPanel = new CardPanel(this, previewW + 8, 0, h, 0, h, w - previewW - 8, false, { x: 0, w: previewW });
+    if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint('Tap a card to see its details.');
+    this.add.container(left, PORTRAIT.panelTop, this.children.list.slice(first)).setScale(k).setDepth(400);
+    this.cardPanel.setTransform(left, PORTRAIT.panelTop, k);
+  }
+
+  /** One player's LP plate at the sidebar's coordinates (portrait wraps it in a scaled container). */
+  private buildPlate(s: Side) {
+    const y = this.plateY(s);
+    const g = this.add.graphics();
+    g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
+    g.lineStyle(1, COL.line, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
+    // brass edge while it is this player's turn
+    this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
+    // portrait well
+    const px = PLATE.x + 34, py = y + PLATE.h / 2;
+    if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
+    else g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    const watched = s === this.me ? this.init0.watch : undefined;
+    const online = this.init0.multiplayer;
+    if (online) {
+      // online duels show each player's lobby avatar and flag
+      const look = online.looks[s === this.me ? 0 : 1];
+      this.plateLook(px, py, avatarFor(look.avatar, s === this.me ? online.name : online.opponent), look.country);
+    } else if (s === this.me && !watched) {
+      // your side shows the art of your deck's strongest monster
+      const deck = this.init0.deck;
+      const ace = [...deck.main, ...deck.extra].map(getCard).filter((card) => card.kind === 'monster').sort((a, b) => (b.atk ?? 0) - (a.atk ?? 0))[0];
+      if (ace) {
+        const k = 46 / 192;
+        setCardTexture(this.add.image(px, py + 25 * k, BACK), ace.id).setCrop(54, 79, 192, 230).setScale(k);
+      } else htxt(this, px, py, 'YOU', 11).setOrigin(0.5);
+    } else {
+      const duelist = watched ?? this.init0.opp;
+      const portrait = portraitKey(duelist.id);
+      if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
+      else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
+    }
+    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? 'You' : this.init0.opp.name),
+      { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
+    if (this.init0.multiplayer) {
+      this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
+    }
+    const room = PLATE.x + PLATE.w - 12 - PLATE.lpX - (this.init0.multiplayer ? 56 : 0);
+    if (name.width > room) {
+      name.setScale(Math.max(0.8, room / name.width));
+      while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
+    }
+    this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
+    this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
+    this.lpBar[s] = this.add.graphics();
+    this.drawLP(s, this.lpShown[s]);
+  }
+
   /** Life Points: the number, and a bar with eight segments relative to the starting LP. */
   private drawLP(s: Side, lp: number) {
-    const y = (s === this.me ? PLATE.yMe : PLATE.yFoe) + 57;
+    const y = this.plateY(s) + 57;
     const x0 = PLATE.lpX, bw = PLATE.x + PLATE.w - 12 - x0, gap = 2, seg = (bw - gap * 7) / 8;
     const startingLP = this.init0.startingLP ?? 8000;
     const frac = Phaser.Math.Clamp(lp / startingLP, 0, 1);
@@ -1046,6 +1146,7 @@ export class DuelScene extends Phaser.Scene {
     const w = cols * (bw + 10) + 40, h = 90 + rows * (bh + 6);
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.35));
+    this.enlarge(layer, w);
     const x0 = CX - w / 2, y0 = Math.max(8, CY - h / 2);
     layer.add(panel(this, x0, y0, w, h));
     const title = htxt(this, CX, y0 + 26, text, 16).setOrigin(0.5);
@@ -1086,7 +1187,7 @@ export class DuelScene extends Phaser.Scene {
       pile(d.banishedFor(s), 'banished', true);
       const n = P.hand.length;
       const opponentScale = Math.min(OPP_HAND_SCALE, Math.max(1, 420 - Math.max(0, n - 1) * 4) / (Math.max(n, 1) * CW));
-      const sp = mine ? Math.min(92, 600 / Math.max(n, 1)) : CW * opponentScale + 4;
+      const sp = mine ? Math.min(HAND_SPACING, HAND_ROW / Math.max(n, 1)) : CW * opponentScale + 4;
       P.hand.forEach((c, i) => {
         const k = i - (n - 1) / 2;
         const hov = mine && this.hoverCard === c;
@@ -1429,10 +1530,19 @@ export class DuelScene extends Phaser.Scene {
     blocker.on('pointerup', () => this.closeMenu());
     layer.add(blocker);
     const total = heights.reduce((sum, h) => sum + h + 4, 0);
-    let x = s.x, y = s.y - s.displayHeight / 2 - total / 2 - 6;
-    if (c.zone === 'hand') y = Y.myHand - 100 - total / 2;
-    y = Phaser.Math.Clamp(y, total / 2 + 8, 712 - total / 2);
-    x = Phaser.Math.Clamp(x, 300 + w / 2, 1270 - w / 2);
+    // portrait: drawn larger, scaled about its own centre, and kept on the screen
+    const k = this.portrait ? PORTRAIT.ui : 1;
+    let x = s.x, y = s.y - s.displayHeight / 2 - (total / 2) * k - 6;
+    if (c.zone === 'hand') y = Y.myHand - (this.portrait ? 120 : 100) - (total / 2) * k;
+    if (this.portrait) {
+      const view = viewOf(this);
+      y = Phaser.Math.Clamp(y, view.top + (total / 2) * k + 8, view.bottom - (total / 2) * k - 8);
+      x = Phaser.Math.Clamp(x, view.left + (w / 2) * k + 8, view.right - (w / 2) * k - 8);
+      layer.setScale(k).setPosition(x * (1 - k), y * (1 - k));
+    } else {
+      y = Phaser.Math.Clamp(y, total / 2 + 8, 712 - total / 2);
+      x = Phaser.Math.Clamp(x, 300 + w / 2, 1270 - w / 2);
+    }
     let top = y - total / 2;
     items.forEach((it, i) => {
       layer.add(button(this, x, top + heights[i] / 2, w, heights[i], it.label, () => { this.closeMenu(); it.run(); }, { size: 13 }));
@@ -1576,11 +1686,9 @@ export class DuelScene extends Phaser.Scene {
   private playfieldBlocker(color: number, alpha: number) {
     const blocker = this.add.rectangle(0, 0, 1, 1, color, alpha).setOrigin(0).setInteractive();
     const resize = () => {
-      const camera = this.cameras.main;
-      const width = this.scale.baseSize.width / camera.zoom;
-      const height = this.scale.baseSize.height / camera.zoom;
-      const left = this.sidePanelX + 12 + LEFT_W;
-      blocker.setPosition(left, 360 - height / 2).setDisplaySize(Math.max(1, 640 + width / 2 - left), height);
+      const view = viewOf(this);
+      const left = this.playLeft();
+      blocker.setPosition(left, view.top).setDisplaySize(Math.max(1, view.right - left), view.height);
     };
     resize();
     this.scale.on('resize', resize);
@@ -1599,6 +1707,7 @@ export class DuelScene extends Phaser.Scene {
     const rows = Math.min(opts.length, fit);
     const h = fixed + rows * step;
     const x0 = CX - w / 2, y0 = Math.max(8, CY - h / 2);
+    const k = this.enlarge(layer, w);
     layer.add(panel(this, x0, y0, w, h));
     layer.add(htxt(this, CX, y0 + 22, title, 20).setOrigin(0.5));
     bodyT.setPosition(CX, y0 + 44);
@@ -1613,7 +1722,9 @@ export class DuelScene extends Phaser.Scene {
     });
     layer.add(list);
     if (opts.length > fit) {
-      list.setMask(this.make.graphics({}, false).fillRect(x0, listTop - 3, w, listH).createGeometryMask());
+      const clip = this.make.graphics({}, false).fillRect(x0, listTop - 3, w, listH);
+      clip.setScale(k).setPosition(layer.x, layer.y); // follows the dialog when it is drawn larger
+      list.setMask(clip.createGeometryMask());
       const total = opts.length * step;
       const to = (v: number) => {
         const sc = Phaser.Math.Clamp(v, 0, total - listH);
@@ -1657,7 +1768,7 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(850);
     const selected = new Set<number>();
-    const top = H / 2 - this.scale.baseSize.height / (2 * this.cameras.main.zoom) + 12;
+    const top = this.portrait ? PORTRAIT.top + 8 : viewOf(this).top + 12;
     const label = htxt(this, CX - 76, top + 22, '', 14, COL.goldTxt).setOrigin(0.5);
     layer.add(panel(this, CX - 228, top, 456, 44, 0.98));
     layer.add(label);
@@ -1691,6 +1802,8 @@ export class DuelScene extends Phaser.Scene {
 
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {
     const layer = this.add.container(0, 0).setDepth(850);
+    // portrait: larger, over the opponent's plate so it leaves the whole board clear
+    if (this.enlarge(layer, 600, CX, 40) > 1) layer.y += PORTRAIT.top + 4 - 40;
     const title = htxt(this, CX, 62, prompt.text, 14).setOrigin(0.5);
     if (title.width > 560) title.setScale(560 / title.width);
     layer.add(panel(this, CX - 300, 40, 600, 45, 0.95, 6));
@@ -1765,6 +1878,7 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.45));
+    this.enlarge(layer, 440);
     layer.add(panel(this, CX - 220, CY - 150, 440, 300));
     layer.add(htxt(this, CX, CY - 123, 'Summon position', 19).setOrigin(0.5));
     layer.add(txt(this, CX, CY - 90, c.def.name, 13, COL.goldTxt, { wordWrap: { width: 400 }, align: 'center' }).setOrigin(0.5));
@@ -1795,8 +1909,11 @@ export class DuelScene extends Phaser.Scene {
     const blocker = this.playfieldBlocker(0x000000, 0.5);
     blocker.on('pointerup', () => this.closeMenu());
     layer.add(blocker);
-    const cols = 10, w = 900, rows = Math.ceil(cards.length / cols), h = Math.min(600, 90 + rows * 120);
-    const x0 = CX - w / 2, y0 = 360 - h / 2;
+    // portrait: five big cards a row in a taller window
+    const big = this.portrait, cs = big ? 0.62 : 0.38, cellW = big ? 150 : 87, cellH = big ? 196 : 120;
+    const cols = big ? 5 : 10, w = big ? 790 : 900, rows = Math.ceil(cards.length / cols);
+    const h = Math.min(big ? Math.min(1100, viewOf(this).height - 40) : 600, 90 + rows * cellH);
+    const x0 = CX - w / 2, y0 = viewOf(this).cy - h / 2;
     layer.add(panel(this, x0, y0, w, h));
     const name = { gy: 'Graveyard', banished: 'Banished', extra: 'Fusion Deck' }[z as 'gy'];
     layer.add(htxt(this, CX, y0 + 22, `${this.init0.watch ? `${this.duel.name(s)}'s` : s === this.me ? 'Your' : "Opponent's"} ${name} (${cards.length})`, 18).setOrigin(0.5));
@@ -1813,14 +1930,14 @@ export class DuelScene extends Phaser.Scene {
     const viewTop = y0 + 42, viewBot = y0 + h - 26;
     grid.setMask(this.make.graphics({}, false).fillRect(x0, viewTop, w, viewBot - viewTop).createGeometryMask());
     [...cards].reverse().forEach((c, i) => {
-      const x = x0 + 60 + (i % cols) * 87, y = y0 + 100 + Math.floor(i / cols) * 120;
+      const x = x0 + (big ? 95 : 60) + (i % cols) * cellW, y = y0 + (big ? 150 : 100) + Math.floor(i / cols) * cellH;
       const actions = pileActions(c);
       if (actions.length) {
-        const highlight = this.add.graphics();
-        highlight.lineStyle(3, COL.gold, 1).strokeRoundedRect(x - 41, y - 59, 82, 118, 5);
+        const highlight = this.add.graphics(), r = cs / 0.38;
+        highlight.lineStyle(3, COL.gold, 1).strokeRoundedRect(x - 41 * r, y - 59 * r, 82 * r, 118 * r, 5);
         grid.add(highlight);
       }
-      const img = this.add.image(x, y, faceKey(this.textures, c.def.id)).setScale(0.38 * CARD_K).setInteractive({ useHandCursor: actions.length > 0 });
+      const img = this.add.image(x, y, faceKey(this.textures, c.def.id)).setScale(cs * CARD_K).setInteractive({ useHandCursor: actions.length > 0 });
       img.on('pointerover', (ptr: Phaser.Input.Pointer) => { if (ptr.worldY >= viewTop && ptr.worldY <= viewBot) this.cardPanel.show(c.def); });
       setCardTexture(img, c.def.id);
       img.on('pointerup', (ptr: Phaser.Input.Pointer) => {
@@ -1835,14 +1952,16 @@ export class DuelScene extends Phaser.Scene {
       });
       grid.add(img);
     });
-    const contentH = 100 + (rows - 1) * 120 + 60 - 42, viewH = viewBot - viewTop;
+    const contentH = (big ? 150 : 100) + (rows - 1) * cellH + (big ? 100 : 60) - 42, viewH = viewBot - viewTop;
     const to = (v: number) => { const s = Phaser.Math.Clamp(v, 0, Math.max(0, contentH - viewH)); grid.y = -s; bar.set(s, contentH, viewH); };
     const bar = new ScrollBar(this, x0 + w - 12, viewTop, viewH, to);
     layer.add(grid);
     layer.add(bar);
     onWheelIn(this, { x: x0, y: viewTop, w, h: viewH }, (dy) => to(-grid.y + dy * 0.5), layer);
     to(0);
-    layer.add(button(this, CX, y0 + h - 4, 140, 34, 'Close', () => this.closeMenu(), { size: 14 }));
+    layer.add(big
+      ? button(this, CX, y0 + h - 4, 220, 52, 'Close', () => this.closeMenu(), { size: 22 })
+      : button(this, CX, y0 + h - 4, 140, 34, 'Close', () => this.closeMenu(), { size: 14 }));
     this.overlay = layer;
   }
 
@@ -1852,6 +1971,7 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(980);
     const blocker = this.playfieldBlocker(0x000000, 0.55);
     layer.add(blocker);
+    this.enlarge(layer, 340, CX, 145);
     const all: [string, () => void][] = [
       ['Resume', () => this.closeMenu()],
       [`Chain prompts: ${this.chainMode === 'auto' ? 'Smart' : 'Always'}`, () => {
@@ -1926,10 +2046,17 @@ export class DuelScene extends Phaser.Scene {
   /** Speech bubble beside a player's plate; a newer emote replaces the old one. */
   private showEmote(side: Side, text: string) {
     this.emoteBubble[side]?.destroy();
-    const y = (side === this.me ? PLATE.yMe : PLATE.yFoe) + PLATE.h / 2;
+    const box = this.plateBox[side];
+    const y = this.plateY(side) + PLATE.h / 2;
     const bubble = this.add.text(PLATE.x + PLATE.w + 14 + this.sidePanelX, y, text, {
       fontFamily: FONT_B, fontSize: '16px', fontStyle: 'bold', color: COL.goldTxt, backgroundColor: '#14121f', padding: { x: 14, y: 9 },
     }).setOrigin(0, 0.5).setDepth(1100).setAlpha(0);
+    if (box) {
+      // portrait: the bubble hangs off the plate's inner edge, towards the board
+      const mine = side === this.me;
+      bubble.setPosition(mine ? PLATE.x : PLATE.x + PLATE.w - 8, mine ? -10 : PLATE.h + 10).setOrigin(mine ? 0 : 1, mine ? 1 : 0);
+      box.add(bubble);
+    }
     this.emoteBubble[side] = bubble;
     sfx.click();
     this.tweens.add({ targets: bubble, alpha: 1, x: bubble.x + 8, duration: 160, ease: 'Back.out' });
@@ -1971,19 +2098,26 @@ export class DuelScene extends Phaser.Scene {
   private toggleLogs() {
     if (this.logLayer) { this.logLayer.destroy(); this.logLayer = null; return; }
     const layer = this.add.container(0, 0).setDepth(1100);
-    const x = CX - 280, y = CY - 280;
-    layer.add(this.add.zone(x, y, 560, 560).setOrigin(0).setInteractive()); // clicks do not fall through to the board
-    layer.add(panel(this, x, y, 560, 560, 0.97));
-    layer.add(htxt(this, CX, y + 24, 'Duel Log', 18).setOrigin(0.5));
+    // portrait: the log fills the column, with larger type
+    const view = viewOf(this);
+    const w = this.portrait ? PORTRAIT.w - 30 : 560, h = this.portrait ? Math.min(1300, view.height - 60) : 560;
+    const x = CX - w / 2, y = this.portrait ? view.cy - h / 2 : CY - 280;
+    layer.add(this.add.zone(x, y, w, h).setOrigin(0).setInteractive()); // clicks do not fall through to the board
+    layer.add(panel(this, x, y, w, h, 0.97));
+    layer.add(htxt(this, CX, y + (this.portrait ? 34 : 24), 'Duel Log', this.portrait ? 28 : 18).setOrigin(0.5));
     // An HTML list rather than canvas text: every line can carry its own colour and weight, and it scrolls natively.
-    const dom = this.add.dom(CX, y + 48 + 231).createElement('div', 'width: 524px; height: 462px;', '').setDepth(1101);
+    const top = this.portrait ? 70 : 48, bottom = this.portrait ? 90 : 50;
+    const dom = this.add.dom(CX, y + top + (h - top - bottom) / 2)
+      .createElement('div', `width: ${w - 36}px; height: ${h - top - bottom}px;${this.portrait ? ' font-size: 21px;' : ''}`, '').setDepth(1101);
     const list = dom.node as HTMLDivElement;
     list.className = 'ad-log';
     const actors = [this.duel.name(0), this.duel.name(1)];
     list.innerHTML = this.duel.logLines.slice(-400).map((line) => logLineHtml(line, actors)).join('');
     list.scrollTop = list.scrollHeight; // newest lines
     layer.once('destroy', () => dom.destroy());
-    layer.add(button(this, CX, y + 536, 140, 32, 'Close', () => this.toggleLogs(), { size: 14 }));
+    layer.add(this.portrait
+      ? button(this, CX, y + h - 44, 220, 52, 'Close', () => this.toggleLogs(), { size: 22 })
+      : button(this, CX, y + 536, 140, 32, 'Close', () => this.toggleLogs(), { size: 14 }));
     this.logLayer = layer;
   }
 
@@ -2072,7 +2206,7 @@ export class DuelScene extends Phaser.Scene {
 
   private async exodiaFx(winner: Side) {
     const reduced = this.reducedMotion;
-    const layer = this.add.container(0, 360).setDepth(940);
+    const layer = this.add.container(0, viewOf(this).cy).setDepth(940);
     const backdrop = this.add.rectangle(0, 0, 1, 1, 0x030308, 0.28).setInteractive();
     layer.add(backdrop);
     const art = this.add.image(0, 0, 'exodia_victory').setAlpha(0);
@@ -2117,16 +2251,14 @@ export class DuelScene extends Phaser.Scene {
       }
     });
     const resize = () => {
-      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
-      const height = this.scale.baseSize.height / this.cameras.main.zoom;
-      const left = this.sidePanelX + 12 + LEFT_W;
-      const right = 640 + fullWidth / 2;
+      const view = viewOf(this), height = view.height;
+      const left = this.playLeft(), right = view.right;
       const width = Math.max(1, right - left);
-      layer.setPosition((left + right) / 2, 360);
+      layer.setPosition((left + right) / 2, view.cy);
       backdrop.setDisplaySize(width, height);
       const scale = Math.max(width / art.width, height / art.height);
       art.setScale(scale);
-      mask.clear().fillStyle(0xffffff).fillRect(left, 360 - height / 2, width, height);
+      mask.clear().fillStyle(0xffffff).fillRect(left, view.top, width, height);
       light?.setSize(width, height).updateDisplayOrigin();
       fire?.setSize(width, height).updateDisplayOrigin();
       blast?.setSize(width, height).updateDisplayOrigin();
@@ -2191,12 +2323,10 @@ export class DuelScene extends Phaser.Scene {
     const reveal = this.add.image(0, 0, faceKey(this.textures, card.def.id)).setScale(0.78 * CARD_K).setAlpha(0);
     layer.add(reveal);
     const resize = () => {
-      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
-      const height = this.scale.baseSize.height / this.cameras.main.zoom;
-      const left = this.sidePanelX + 12 + LEFT_W;
-      const right = 640 + fullWidth / 2;
+      const view = viewOf(this), height = view.height;
+      const left = this.playLeft(), right = view.right;
       const width = Math.max(1, right - left);
-      layer.setPosition((left + right) / 2, 360);
+      layer.setPosition((left + right) / 2, view.cy);
       backdrop.setDisplaySize(width, height);
       circle?.setSize(width, height).updateDisplayOrigin();
       if (fallback) {
@@ -2235,12 +2365,10 @@ export class DuelScene extends Phaser.Scene {
       layer.add(vortex);
     }
     const resize = () => {
-      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
-      const height = this.scale.baseSize.height / this.cameras.main.zoom;
-      const left = this.sidePanelX + 12 + LEFT_W;
-      const right = 640 + fullWidth / 2;
+      const view = viewOf(this), height = view.height;
+      const left = this.playLeft(), right = view.right;
       const width = Math.max(1, right - left);
-      layer.setPosition((left + right) / 2, 360);
+      layer.setPosition((left + right) / 2, view.cy);
       backdrop.setDisplaySize(width, height);
       vortex?.setSize(width, height).updateDisplayOrigin();
     };
@@ -2433,21 +2561,19 @@ export class DuelScene extends Phaser.Scene {
     const clip = mask.createGeometryMask();
     layer.setMask(clip);
     const resize = () => {
-      const fullWidth = this.scale.baseSize.width / this.cameras.main.zoom;
-      const height = this.scale.baseSize.height / this.cameras.main.zoom;
-      const left = this.sidePanelX + 12 + LEFT_W;
-      const right = 640 + fullWidth / 2;
+      const view = viewOf(this), height = view.height;
+      const left = this.playLeft(), right = view.right;
       const width = Math.max(1, right - left);
-      shade.setPosition((left + right) / 2, H / 2).setDisplaySize(width, height);
+      shade.setPosition((left + right) / 2, view.cy).setDisplaySize(width, height);
       // Cover the entire duel viewport, with no fixed-width caption rectangle.
       plate.clear();
-      const bottom = (H + height) / 2;
+      const bottom = view.bottom;
       for (let y = 455; y < bottom; y += 4) {
         const opacity = Math.sin(Math.min(1, (y - 455) / 150) * Math.PI / 2) * 0.88;
         plate.fillStyle(0x03040c, opacity).fillRect(left, y, width, Math.min(4, bottom - y));
       }
-      energy?.setPosition((left + right) / 2, H / 2).setSize(width, height).updateDisplayOrigin();
-      mask.clear().fillStyle(0xffffff).fillRect(left, (H - height) / 2, width, height);
+      energy?.setPosition((left + right) / 2, view.cy).setSize(width, height).updateDisplayOrigin();
+      mask.clear().fillStyle(0xffffff).fillRect(left, view.top, width, height);
     };
     resize();
     this.scale.on('resize', resize);
@@ -2701,13 +2827,16 @@ export class DuelScene extends Phaser.Scene {
   }
   private async lpFx(side: Side, delta: number, lp: number) {
     if (delta < 0) sfx.damage(); else sfx.heal();
-    const plateY = side === this.me ? PLATE.yMe : PLATE.yFoe;
+    const box = this.plateBox[side];
+    const offsetX = box ? 0 : this.sidePanelX;
+    const plateY = this.plateY(side);
     const y = side === this.me ? plateY - 22 : plateY + PLATE.h + 22;
-    const t = this.add.text(PLATE.x + PLATE.w - 14 + this.sidePanelX, y, `${delta > 0 ? '+' : ''}${delta}`, { fontFamily: FONT_N, fontSize: '28px', color: delta < 0 ? '#ff6b7f' : '#7dffa6', fontStyle: 'bold' })
+    const t = this.add.text(PLATE.x + PLATE.w - 14 + offsetX, y, `${delta > 0 ? '+' : ''}${delta}`, { fontFamily: FONT_N, fontSize: '28px', color: delta < 0 ? '#ff6b7f' : '#7dffa6', fontStyle: 'bold' })
       .setOrigin(1, 0.5).setDepth(900).setStroke('#07060f', 6).setScale(1.3);
     this.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.out' });
     this.tweens.add({ targets: t, y: y + (side === this.me ? -34 : 34), alpha: 0, delay: 500, duration: 650, onComplete: () => t.destroy() });
-    const hit = this.add.graphics({ x: this.sidePanelX }).setDepth(899).fillStyle(delta < 0 ? COL.red : COL.green, 0.5).fillPoints(chamfer(PLATE.x, plateY, PLATE.w, PLATE.h, 8), true);
+    const hit = this.add.graphics({ x: offsetX }).setDepth(899).fillStyle(delta < 0 ? COL.red : COL.green, 0.5).fillPoints(chamfer(PLATE.x, plateY, PLATE.w, PLATE.h, 8), true);
+    box?.add([hit, t]);
     this.tweens.add({ targets: hit, alpha: 0, duration: 520, ease: 'Cubic.out', onComplete: () => hit.destroy() });
     if (delta < 0 && Math.abs(delta) >= 1000) this.cameras.main.shake(220, 0.008);
     const from = this.lpShown[side];
