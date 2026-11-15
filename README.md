@@ -18,7 +18,7 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 This branch adds **Online Duel** to the title screen: a saved nickname, shared lobby and chat, player challenges, private room codes/links, and in-duel chat. There is no backend to deploy and players need no accounts.
 
-Peer discovery uses public relays; gameplay uses WebRTC. Some networks require a TURN relay, which is not configured by default. This is casual play, with a bounded lobby and no server-enforced anti-cheat. See [multiplayer setup and limitations](docs/MULTIPLAYER.md).
+The lobby (players, chat, challenges) runs on public Nostr relays with no player cap; duels use peer-to-peer WebRTC. Some networks require a TURN relay for duels, which is not configured by default. This is casual play, with no server-enforced anti-cheat. See [multiplayer setup and limitations](docs/MULTIPLAYER.md).
 
 ## Version 1.1.0 — OCGCore duels
 

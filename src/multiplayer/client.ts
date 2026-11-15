@@ -4,10 +4,11 @@ import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } fro
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
-export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
-export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
+import type { ChatLine } from './lobby';
+/** The public lobby runs over Nostr (lobby.ts); private rooms and duels below stay peer to peer. */
+export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
-/** `looks` is [yours, opponent's]; a missing avatar falls back to the player's name as the DiceBear seed. */
+/** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>] };
 /**
  * Optional TURN relay for networks that block direct WebRTC (set at build time, e.g. a free Metered or Cloudflare TURN):
@@ -29,85 +30,6 @@ function roomErrorText(error: { code?: string; message: string }, who: string) {
   }
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Connection failed.';
-export class Lobby {
-  readonly peers = new Map<string, PeerProfile>();
-  readonly chat: ChatLine[] = [];
-  private room: Room;
-  private profile;
-  private chatAction;
-  private invites;
-  private declines;
-  private lastChat = 0;
-  private rate = new Map<string, number>();
-  private busy = false;
-  onChange = () => {};
-  onInvite = (_peer: string, _code: string) => {};
-  onDecline = (_peer: string, _code: string) => {};
-  onError = (_message: string, _code?: string) => {};
-  constructor(public name: string, private look: Look) {
-    this.room = joinRoom({ ...config, maxUsers: 64 }, 'lobby');
-    this.profile = this.room.makeAction('profile');
-    this.chatAction = this.room.makeAction('chat');
-    this.invites = this.room.makeAction('invite');
-    this.declines = this.room.makeAction('decline');
-    this.room.onPeerJoin(({ peerId }) => { void this.announce(peerId); });
-    this.room.onPeerLeave(({ peerId }) => { const gone = this.peers.get(peerId); this.peers.delete(peerId); if (gone) this.addChat({ name: '', text: `${gone.name} left`, system: true }); for (const key of this.rate.keys()) if (key.startsWith(peerId + ':')) this.rate.delete(key); this.onChange(); });
-    this.room.onError(error => this.onError(roomErrorText(error, 'a duelist'), error.code));
-    this.profile.onMessage((raw, { peerId }) => {
-      const p = raw as PeerProfile;
-      if (!p || !cleanName(p.name) || typeof p.busy !== 'boolean') return;
-      const known = this.peers.has(peerId);
-      this.peers.set(peerId, { name: cleanName(p.name), busy: p.busy, avatar: cleanSeed(p.avatar), country: cleanCountry(p.country) });
-      if (!known) this.addChat({ name: '', text: `${cleanName(p.name)} joined`, system: true });
-      else this.onChange();
-    });
-    this.chatAction.onMessage((raw, { peerId }) => {
-      if (!this.allow(peerId + ':chat', 800)) return;
-      const text = cleanChat(raw), peer = this.peers.get(peerId);
-      if (text && peer) this.addChat({ name: peer.name, text, avatar: peer.avatar, country: peer.country });
-    });
-    this.invites.onMessage((raw, { peerId }) => {
-      if (!this.peers.has(peerId) || typeof raw !== 'string' || !/^[A-HJ-NP-Z2-9]{12}$/.test(raw)) return;
-      if (this.busy) { void this.decline(peerId, raw).catch(() => {}); return; }
-      if (this.allow(peerId + ':invite', 10000)) this.onInvite(peerId, raw);
-    });
-    this.declines.onMessage((raw, { peerId }) => {
-      if (this.peers.has(peerId) && typeof raw === 'string' && /^[A-HJ-NP-Z2-9]{12}$/.test(raw)) this.onDecline(peerId, raw);
-    });
-  }
-  private allow(key: string, interval: number) {
-    const now = Date.now();
-    if (now - (this.rate.get(key) ?? 0) < interval) return false;
-    this.rate.set(key, now); return true;
-  }
-  private addChat(line: ChatLine) {
-    const last = this.chat[this.chat.length - 1];
-    // Reconnects and duplicate tabs repeat the same join/leave line; show it once.
-    if (line.system && last?.system && last.text === line.text) { this.onChange(); return; }
-    this.chat.push({ ...line, at: Date.now() });
-    if (this.chat.length > 100) this.chat.shift();
-    this.onChange();
-  }
-  private async announce(target?: string) {
-    try { await this.profile.send({ name: this.name, busy: this.busy, ...this.look }, target ? { target } : undefined); }
-    catch (e) { this.onError(errorText(e)); }
-  }
-  setBusy(busy: boolean) { this.busy = busy; void this.announce(); }
-  get avatar() { return this.look.avatar; }
-  /** Change avatar or country and tell everyone. */
-  setLook(look: Partial<Look>) { this.look = { ...this.look, ...look }; void this.announce(); }
-  async say(text: string) {
-    text = cleanChat(text);
-    if (!text || Date.now() - this.lastChat < 800) return;
-    this.lastChat = Date.now();
-    this.addChat({ name: this.name, text, self: true, ...this.look });
-    await this.chatAction.send(text);
-  }
-  async invite(peer: string, code: string) { await this.invites.send(code, { target: peer }); }
-  async decline(peer: string, code: string) { await this.declines.send(code, { target: peer }); }
-  close() { void this.room.leave(); }
-}
-
 export class PrivateRoom {
   readonly chat: ChatLine[] = [];
   opponent?: Hello;

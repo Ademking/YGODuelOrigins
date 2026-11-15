@@ -17,10 +17,11 @@ Nicknames persist in localStorage. Lobby chat and duel chat are ephemeral and ca
 Frontend-only does **not** mean that no infrastructure is involved:
 
 - Trystero 0.27.0 uses public Nostr relays for discovery/signaling. No relay account or API key is required.
-- WebRTC data channels carry lobby messages, invitations, duel decisions, and private chat between browsers.
+- **Lobby (Nostr):** presence, lobby chat and challenge invites are signed ephemeral Nostr events (kind 25050, tag `duelorigins-lobby-v1`) sent through five public relays (`LOBBY_RELAYS` in `src/multiplayer/lobby.ts`) and de-duplicated. Each tab uses a throwaway key. Players announce themselves every 25 s and drop off after 70 s of silence; newcomers ask who is here and others answer after a random pause. Invites and declines are NIP-44 encrypted to the recipient, so other listeners cannot read room codes. There is no player cap and no peer-to-peer lobby mesh, so the lobby needs no TURN.
+- **Duels (WebRTC):** private rooms, duel decisions and duel chat use WebRTC data channels between the two browsers, with Trystero handling the handshake.
 - Trystero supplies public STUN servers for connection discovery.
 - No TURN service is configured by default (see "TURN relay" below). Without one, some restrictive networks cannot establish a peer connection. The UI reports connection delays/disconnections rather than claiming guaranteed connectivity.
-- The shared lobby is a bounded peer mesh (64 users), not a scalable, authoritative list of every internet-connected player. Public relay outages or partial connectivity can produce incomplete rosters. It is not designed for thousands of concurrent users.
+- Public relays are run by third parties: one going down is fine (five are used), but rate limits or outages on several at once delay or drop lobby messages. Very large lobbies mean every client receives every heartbeat (roughly players / 25 events per second).
 
 Global chat means the live shared lobby, not stored chat history. Messages sent while a client is offline are not recovered.
 
@@ -70,5 +71,5 @@ Before broad release, test two browsers on separate networks for lobby discovery
 ## Connection trouble
 
 - A failed or slow WebRTC handshake shows a plain message in the room popup with a **Try again** button that rejoins the same room code with a fresh connection.
-- If lobby connections fail (`peer-connect-failed`, `handshake-failed`, `relay-failed`), a **Reconnect** button appears beside the status and rebuilds the lobby connection.
+- If no relay accepts lobby messages (`relay-failed`), a **Reconnect** button appears beside the status and rebuilds the lobby connection.
 - These only help when the failure was transient. Players behind strict NATs (some mobile carriers, school or office networks) can only connect through a TURN relay; set the `VITE_TURN_*` variables described above.
