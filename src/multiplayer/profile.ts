@@ -1,19 +1,37 @@
-/** Player look shared in the lobby: a DiceBear avatar seed and a country code. Both are validated before use. */
+/**
+ * Player look shared in the lobby: an avatar number (ygopro.online portraits 1 to AVATAR_COUNT) and a country code.
+ * Both are validated before use, so peers cannot point the page at other URLs.
+ */
 const SEED_KEY = 'duel-origins.multiplayer.avatar';
 const COUNTRY_KEY = 'duel-origins.multiplayer.country';
-export const SEED = /^[a-z0-9]{4,32}$/;
+export const AVATAR_COUNT = 346;
 export const COUNTRY = /^[A-Z]{2}$/;
 export type Look = { avatar: string; country?: string };
 
-export const avatarURL = (seed: string) => `https://api.dicebear.com/10.x/dylan/svg?seed=${encodeURIComponent(seed)}&backgroundColor=00000000`;
+const AVATAR_PATH = 'ygopro.online/assets/profile/Avatars/';
+export const avatarURL = (id: string) => `https://${AVATAR_PATH}${id}.jpg`;
+/** ygopro.online sends no CORS header, so the game canvas (WebGL needs CORS) loads avatars through the wsrv.nl proxy the card art already uses. */
+export const avatarCanvasURL = (id: string) => `https://wsrv.nl/?url=${encodeURIComponent(avatarURL(id))}&w=128&h=128&fit=cover`;
 export const flagURL = (country: string) => `https://flagsapi.com/${country}/flat/64.png`;
-/** flagsapi.com sends no CORS header, so the game canvas (WebGL needs CORS) draws flags from flagcdn.com instead. */
+/** flagsapi.com sends no CORS header, so the game canvas draws flags from flagcdn.com instead. */
 export const flagCanvasURL = (country: string) => `https://flagcdn.com/w80/${country.toLowerCase()}.png`;
-export const cleanSeed = (value: unknown) => typeof value === 'string' && SEED.test(value) ? value : undefined;
+/** An avatar number from 1 to AVATAR_COUNT, as a string without leading zeros. */
+export const cleanSeed = (value: unknown) => {
+  if (typeof value !== 'string' || !/^[1-9]\d{0,2}$/.test(value)) return undefined;
+  return Number(value) <= AVATAR_COUNT ? value : undefined;
+};
 export const cleanCountry = (value: unknown) => typeof value === 'string' && COUNTRY.test(value) ? value : undefined;
+/** A valid avatar for anyone: theirs, or one picked from their name for players who sent none. */
+export function avatarFor(avatar: string | undefined, name: string) {
+  const valid = cleanSeed(avatar);
+  if (valid) return valid;
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
+  return String(hash % AVATAR_COUNT + 1);
+}
 
 export function randomSeed() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(8)), n => 'abcdefghijklmnopqrstuvwxyz0123456789'[n % 36]).join('');
+  return String(crypto.getRandomValues(new Uint32Array(1))[0] % AVATAR_COUNT + 1);
 }
 export function saveSeed(seed: string) { try { localStorage.setItem(SEED_KEY, seed); } catch { /* private mode */ } }
 /** The stored avatar seed, or a new random one (saved) on first visit. */

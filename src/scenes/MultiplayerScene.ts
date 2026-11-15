@@ -4,7 +4,7 @@ import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protoco
 import { Lobby, PrivateRoom } from '../multiplayer/client';
 import { btn, chatComposer, element as el, frame, picker, renderChat } from '../multiplayer/ui';
 import { fitCamera, sceneBackground } from '../ui/theme';
-import { avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
+import { avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
 import { sfx } from '../ui/sfx';
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
@@ -19,7 +19,7 @@ export class MultiplayerScene extends Phaser.Scene {
     const root = el('main', '', 'mp-root');
     root.innerHTML = `<header class="mp-top">
         <button class="mp-btn" id="mp-back"><span>‹&nbsp; Back</span></button>
-        <h1>Multiplayer</h1>
+        <h1>Online Duel</h1>
         <p class="mp-status" id="mp-status" role="status">Connecting…</p>
       </header>
       <div class="mp-grid">
@@ -213,7 +213,7 @@ export class MultiplayerScene extends Phaser.Scene {
       }
       for (const [id, profile] of lobby.peers) {
         const card = el('article', '', profile.busy ? 'mp-duelist busy' : 'mp-duelist');
-        card.append(portrait(profile.avatar ?? profile.name, profile.country, `${profile.name}'s avatar`), el('b', profile.name),
+        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`), el('b', profile.name),
           el('small', profile.busy ? 'In a duel' : 'Available'));
         if (!profile.busy) {
           const challenge = btn('Challenge', 'small');

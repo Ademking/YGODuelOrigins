@@ -178,13 +178,17 @@ test('chat GIF messages only resolve to the GIPHY library or static.klipy.com', 
     'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/a/b.gif', 'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/x.png', `tenor:${path}`, 'hello']) assert.equal(gifSrc(bad), null, bad);
 });
 
-test('lobby profiles only accept a plain avatar seed and a two-letter country', async () => {
-  const { cleanSeed, cleanCountry, avatarURL, flagURL, randomSeed } = await import('../../src/multiplayer/profile');
-  const seed = randomSeed();
-  assert.equal(cleanSeed(seed), seed);
-  for (const bad of ['', 'abc', 'A'.repeat(8), 'x"><img', '../../evil', 'a'.repeat(40), 42]) assert.equal(cleanSeed(bad), undefined, String(bad));
+test('lobby profiles only accept an avatar number and a two-letter country', async () => {
+  const { cleanSeed, cleanCountry, avatarURL, avatarFor, flagURL, randomSeed, AVATAR_COUNT } = await import('../../src/multiplayer/profile');
+  for (let i = 0; i < 200; i++) { const n = Number(randomSeed()); assert.ok(n >= 1 && n <= AVATAR_COUNT); }
+  assert.equal(cleanSeed('1'), '1');
+  assert.equal(cleanSeed(String(AVATAR_COUNT)), String(AVATAR_COUNT));
+  for (const bad of ['', '0', '007', String(AVATAR_COUNT + 1), '12a', '../1', 'ovwm1w9s', 42]) assert.equal(cleanSeed(bad), undefined, String(bad));
+  assert.equal(avatarFor('12', 'Kaiba'), '12');
+  assert.equal(avatarFor(undefined, 'Kaiba'), avatarFor('../evil', 'Kaiba'));
+  assert.ok(cleanSeed(avatarFor(undefined, 'Kaiba')));
   assert.equal(cleanCountry('TN'), 'TN');
   for (const bad of ['tn', 'TUN', 'T', '../', null]) assert.equal(cleanCountry(bad), undefined, String(bad));
-  assert.ok(avatarURL(seed).startsWith('https://api.dicebear.com/10.x/dylan/svg?seed='));
+  assert.equal(avatarURL('12'), 'https://ygopro.online/assets/profile/Avatars/12.jpg');
   assert.equal(flagURL('TN'), 'https://flagsapi.com/TN/flat/64.png');
 });

@@ -88,12 +88,12 @@ export class TitleScene extends Phaser.Scene {
     this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
 
     const menu: [string, () => void][] = [
-      ['Multiplayer', () => this.scene.start('Multiplayer')],
-      ['Duel', () => this.scene.start('Setup')],
-      ['Deck Editor', () => this.scene.start('DeckEditor')],
-      ['Replay', () => this.scene.start('Watch')],
+      ['Online Duel', () => this.scene.start('Multiplayer')],
+      ['Solo Duel', () => this.scene.start('Setup')],
+      ['Deck Builder', () => this.scene.start('DeckEditor')],
+      ['Replays', () => this.scene.start('Watch')],
       ['About', () => this.showAbout()],
-      ['Changelog', () => this.showChangelog()],
+      ['What’s New', () => this.showChangelog()],
     ];
     menu.forEach(([label, run], index) => {
       button(this, 640, 318 + index * 54, 320, 48, label, run, { size: 17, primary: index === 0 });
@@ -132,7 +132,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showChangelog() {
-    this.showInfo('Changelog', [
+    this.showInfo('What’s New', [
       [`Version ${__APP_VERSION__}`, COL.goldTxt],
       ['Fixed Flip Effects under Banisher of the Light, Contact Fusion reveals, Spellbinding Circle, and other card interactions.', COL.text],
       ['Improved CPU decisions for Equip Spells, Shrink, Lava Golem, and attacks on face-down cards.', COL.text],

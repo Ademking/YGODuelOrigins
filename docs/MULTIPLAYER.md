@@ -4,7 +4,7 @@ The `multiplayer` branch adds online casual duels without a custom backend, data
 
 ## Player flow
 
-1. Open **Multiplayer**, type a nickname in the popup and press Enter. You land in the lobby with the player list and global chat; pick your deck at the top right.
+1. Open **Online Duel**, type a nickname in the popup and press Enter. You land in the lobby with the player list and global chat; pick your deck at the top right.
 2. Challenge an available player: when they accept, the duel starts right away. Or create a private room and share its 12-character code or invite link; both players then press **Ready to duel**.
 3. Your deck is the one picked at the top right of the lobby.
 4. The first player is randomly chosen. Both players use the existing duel board.
@@ -62,7 +62,7 @@ Before broad release, test two browsers on separate networks for lobby discovery
 
 ## Avatars and flags
 
-- **Avatar:** each player gets a random [DiceBear](https://www.dicebear.com/) "dylan" avatar seed, saved in localStorage (`duel-origins.multiplayer.avatar`). The die button on your license rolls a new one. The image loads from `api.dicebear.com`.
+- **Avatar:** each player gets a random portrait number from 1 to 346, shown from `ygopro.online/assets/profile/Avatars/<n>.jpg` and saved in localStorage (`duel-origins.multiplayer.avatar`). The die button on your license rolls a new one. Players who send no avatar get one picked from their name. ygopro.online sends no CORS header, so the duel canvas loads portraits through the `wsrv.nl` image proxy (as card art already does).
 - **Country flag:** on first visit the game asks `api.country.is` for the country of the player's IP address and caches the two-letter code in localStorage (`duel-origins.multiplayer.country`). That service sees the IP; the IP itself is never stored or shared with other players. Flags load from `flagsapi.com`. If the lookup fails, no flag is shown.
-- Both values are sent in the lobby profile and the private-room hello, and appear on duelist tiles, beside chat messages and on the duel plates. Receivers accept only a 4 to 32 character lowercase seed and an uppercase two-letter code, so peers cannot inject other URLs.
+- Both values are sent in the lobby profile and the private-room hello, and appear on duelist tiles, beside chat messages and on the duel plates. Receivers accept only an avatar number from 1 to 346 and an uppercase two-letter code, so peers cannot inject other URLs.
 - The duel canvas needs CORS-enabled images; flagsapi.com sends no CORS header, so in-duel flags load from `flagcdn.com` instead (`flagCanvasURL`).
