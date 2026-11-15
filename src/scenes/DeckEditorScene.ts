@@ -8,6 +8,8 @@ import { loadCard, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, portraitScreen, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
 import { sfx } from '../ui/sfx';
+import { num, t } from '../i18n';
+import { cardName, matchesTranslated } from '../i18n/cards';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
 const RACES: (Race | 'Any')[] = ['Any', ...[...new Set(CARDS.filter((c) => c.race).map((c) => c.race!))].sort()];
@@ -101,7 +103,7 @@ export class DeckEditorScene extends Phaser.Scene {
       // details below the tabs: the card beside its text
       const top = TALL.detailTop, h = TALL.detailH;
       this.cardPanel = new CardPanel(this, 275 + 168, top, h, top, h, 540 - 168, false, { x: 275, w: 160 });
-      if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint('Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.');
+      if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint(t('Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.'));
     } else this.cardPanel = new CardPanel(this, 12, 10, 330, 350, 360, 250);
 
     // header
@@ -111,16 +113,16 @@ export class DeckEditorScene extends Phaser.Scene {
     this.nameText = htxt(this, 545, 30, '', 20).setOrigin(0.5);
     this.status = txt(this, 545, 54, '', 13, COL.dim).setOrigin(0.5);
     const hb: [string, () => void, boolean?][] = [
-      ['New', () => this.newDeck()], ['Rename', () => this.renameDeck()], ['Save', () => this.save(), true],
-      ['Clear', () => { this.deck = { main: [], extra: [] }; this.touch(); }], ['Delete', () => this.deleteDeck()], ['Back', () => this.back()],
+      [t('New'), () => this.newDeck()], [t('Rename'), () => this.renameDeck()], [t('Save'), () => this.save(), true],
+      [t('Clear'), () => { this.deck = { main: [], extra: [] }; this.touch(); }], [t('Delete'), () => this.deleteDeck()], [t('Back'), () => this.back()],
     ];
-    hb.forEach(([l, f, prim], i) => button(this, 322 + i * 89, 84, 84, 28, l, f, { size: 13, primary: prim, danger: l === 'Delete' }));
+    hb.forEach(([l, f, prim], i) => button(this, 322 + i * 89, 84, 84, 28, l, f, { size: 13, primary: prim, danger: l === t('Delete') }));
 
     let first = this.children.length;
     panel(this, 275, 110 + dy, 540, this.mainH);
     this.stats = caption(this, 292, 122 + dy, '', COL.goldTxt, tall ? 11 : 9);
     panel(this, 275, this.fusionY, 540, this.fusionH);
-    caption(this, 292, this.fusionY + 11, 'Fusion Deck', COL.goldTxt, tall ? 11 : 10);
+    caption(this, 292, this.fusionY + 11, t('Fusion Deck'), COL.goldTxt, tall ? 11 : 10);
     this.deckLayer = this.add.container(0, 0);
     this.deckGroup = this.add.container(0, 0, this.children.list.slice(first));
 
@@ -132,15 +134,15 @@ export class DeckEditorScene extends Phaser.Scene {
     this.input0 = this.add.dom(1049 + px, 38 + py).createElement('input', 'width: 418px; box-sizing: border-box;', '') as Phaser.GameObjects.DOMElement;
     const el = this.input0.node as HTMLInputElement;
     el.className = 'ad-input';
-    el.placeholder = 'Search name or text…';
+    el.placeholder = t('Search name or text…');
     el.addEventListener('input', () => { this.filter.q = el.value.toLowerCase(); this.page = 0; this.renderPool(); });
     el.addEventListener('keydown', (e) => e.stopPropagation());
     ['all', 'monster', 'spell', 'trap'].forEach((k, i) => {
-      this.kindBtns[k] = button(this, 890 + px + i * 106, 86 + py, 100, 28, k === 'all' ? 'All' : k[0].toUpperCase() + k.slice(1), () => {
+      this.kindBtns[k] = button(this, 890 + px + i * 106, 86 + py, 100, 28, t(k === 'all' ? 'All' : k[0].toUpperCase() + k.slice(1)), () => {
         this.filter.kind = k; this.page = 0; this.refreshFilterBtns(); this.renderPool();
       }, { size: 13, tab: true });
     });
-    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, 'Card'], ['attr', ATTRS, 'Attr'], ['level', LEVELS, 'Lv'], ['sort', SORTS, 'Sort']];
+    const cycles: [keyof typeof this.filter, readonly string[], string][] = [['mtype', MTYPES, t('Card')], ['attr', ATTRS, t('Attr')], ['level', LEVELS, t('Lv')], ['sort', SORTS, t('Sort')]];
     cycles.forEach(([key, vals, label], i) => {
       const b = button(this, 880 + px + (i >= 2 ? i + 1 : i) * 84.5, 120 + py, 80, 26, '', () => {
         (this.filter[key] as number) = ((this.filter[key] as number) + 1) % vals.length;
@@ -155,11 +157,11 @@ export class DeckEditorScene extends Phaser.Scene {
       this.cycleBtns.push(b);
     });
 
-    const raceLabels = RACES.map((race) => race === 'Any' ? 'All types' : race);
-    const raceFilter = button(this, 1049 + px, 120 + py, 80, 26, 'Type: Any ▾', () => {
-      chooseFromList(this, 'Monster type', raceLabels, this.filter.race, (index) => {
+    const raceLabels = RACES.map((race) => race === 'Any' ? t('All types') : t(race));
+    const raceFilter = button(this, 1049 + px, 120 + py, 80, 26, t('Type: Any ▾'), () => {
+      chooseFromList(this, t('Monster type'), raceLabels, this.filter.race, (index) => {
         this.filter.race = index;
-        raceFilter.setLabel(index === 0 ? 'Type: Any ▾' : `${RACES[index]} ▾`).setSelected(index !== 0);
+        raceFilter.setLabel(index === 0 ? t('Type: Any ▾') : `${t(RACES[index])} ▾`).setSelected(index !== 0);
         this.page = 0;
         this.renderPool();
       });
@@ -168,11 +170,11 @@ export class DeckEditorScene extends Phaser.Scene {
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
     const pageY = tall ? this.poolY + TALL.poolH - 30 : 684;
     if (tall) {
-      this.prevBtn = button(this, 275 + 70, pageY, 120, 40, '‹ Prev', () => this.turnPage(-1), { size: 15 });
-      this.nextBtn = button(this, 815 - 70, pageY, 120, 40, 'Next ›', () => this.turnPage(1), { size: 15 });
+      this.prevBtn = button(this, 275 + 70, pageY, 120, 40, t('‹ Prev'), () => this.turnPage(-1), { size: 15 });
+      this.nextBtn = button(this, 815 - 70, pageY, 120, 40, t('Next ›'), () => this.turnPage(1), { size: 15 });
     } else {
-      this.prevBtn = button(this, 885, 684, 90, 30, '‹ Prev', () => this.turnPage(-1), { size: 13 });
-      this.nextBtn = button(this, 1213, 684, 90, 30, 'Next ›', () => this.turnPage(1), { size: 13 });
+      this.prevBtn = button(this, 885, 684, 90, 30, t('‹ Prev'), () => this.turnPage(-1), { size: 13 });
+      this.nextBtn = button(this, 1213, 684, 90, 30, t('Next ›'), () => this.turnPage(1), { size: 13 });
     }
     this.pageText = txt(this, tall ? 545 : 1049, pageY, '', 13, COL.dim).setOrigin(0.5);
     // the search box is a DOM element and stays out of the container (showTab hides it with the rest)
@@ -190,8 +192,8 @@ export class DeckEditorScene extends Phaser.Scene {
     if (tall) {
       // the deck and the card list share the area under the header
       this.tabBtns = {
-        deck: button(this, 275 + 134, TALL.tabs, 266, 44, 'Deck', () => this.showTab('deck'), { size: 17, tab: true }),
-        pool: button(this, 815 - 134, TALL.tabs, 266, 44, 'Card List', () => this.showTab('pool'), { size: 17, tab: true }),
+        deck: button(this, 275 + 134, TALL.tabs, 266, 44, t('Deck'), () => this.showTab('deck'), { size: 17, tab: true }),
+        pool: button(this, 815 - 134, TALL.tabs, 266, 44, t('Card List'), () => this.showTab('pool'), { size: 17, tab: true }),
       };
       this.showTab(data.createNew ? 'pool' : 'deck');
     }
@@ -225,12 +227,12 @@ export class DeckEditorScene extends Phaser.Scene {
 
   private add1(id: string) {
     const c = getCard(id);
-    if (this.count(id) >= copyLimit(c)) { sfx.deny(); this.flash(`${c.name}: limit ${copyLimit(c)}`); return; }
+    if (this.count(id) >= copyLimit(c)) { sfx.deny(); this.flash(t('{card}: limit {limit}', { card: cardName(c), limit: copyLimit(c) })); return; }
     if (isExtraDeckCard(c)) {
-      if (this.deck.extra.length >= 15) { sfx.deny(); this.flash('Fusion Deck is full (15)'); return; }
+      if (this.deck.extra.length >= 15) { sfx.deny(); this.flash(t('Fusion Deck is full (15)')); return; }
       this.deck.extra.push(id);
     } else {
-      if (this.deck.main.length >= 60) { sfx.deny(); this.flash('Main Deck is full (60)'); return; }
+      if (this.deck.main.length >= 60) { sfx.deny(); this.flash(t('Main Deck is full (60)')); return; }
       this.deck.main.push(id);
     }
     sfx.set();
@@ -272,7 +274,7 @@ export class DeckEditorScene extends Phaser.Scene {
 
   private refreshStatus() {
     const errs = validateDeck(this.deck);
-    this.setStatus(errs.length ? `⚠ ${errs[0]}${errs.length > 1 ? ` (+${errs.length - 1} more)` : ''}` : '✔ Deck is legal', errs.length ? '#ffb070' : '#9fe0a8');
+    this.setStatus(errs.length ? `⚠ ${errs[0]}${errs.length > 1 ? ` ${t('(+{n} more)', { n: errs.length - 1 })}` : ''}` : `✔ ${t('Deck is legal')}`, errs.length ? '#ffb070' : '#9fe0a8');
     this.nameText.setText(`${this.name}${this.dirty ? ' *' : ''}`);
     this.nameText.setScale(Math.min(1, 450 / Math.max(1, this.nameText.width)));
   }
@@ -288,7 +290,7 @@ export class DeckEditorScene extends Phaser.Scene {
     this.deckLayer.removeAll(true);
     const main = this.sorted(this.deck.main);
     const k = (kind: string) => this.deck.main.filter((id) => getCard(id).kind === kind).length;
-    this.stats.setText(`MAIN ${main.length}  ·  MONSTERS ${k('monster')}  ·  SPELLS ${k('spell')}  ·  TRAPS ${k('trap')}`);
+    this.stats.setText(t('MAIN {main}  ·  MONSTERS {monsters}  ·  SPELLS {spells}  ·  TRAPS {traps}', { main: main.length, monsters: k('monster'), spells: k('spell'), traps: k('trap') }));
     main.forEach((id, i) => {
       const x = MAIN.x + 32 + (i % MAIN.cols) * MAIN.dx, y = MAIN.y + 32 + Math.floor(i / MAIN.cols) * MAIN.dy;
       this.deckLayer.add(this.cardImg(id, x, y, MAIN.scale, 'main'));
@@ -296,7 +298,7 @@ export class DeckEditorScene extends Phaser.Scene {
     const ex = this.sorted(this.deck.extra);
     const fusionScale = this.portrait ? 0.3 : MAIN.scale, step = 34;
     ex.forEach((id, i) => this.deckLayer.add(this.cardImg(id, 314 + i * step, this.fusionY + (this.portrait ? 95 : 78), fusionScale, 'extra')));
-    this.tabBtns?.deck.setLabel(`Deck (${main.length}${ex.length ? ` + ${ex.length}` : ''})`);
+    this.tabBtns?.deck.setLabel(`${t('Deck')} (${main.length}${ex.length ? ` + ${ex.length}` : ''})`);
     this.refreshStatus();
     this.retab();
   }
@@ -315,7 +317,8 @@ export class DeckEditorScene extends Phaser.Scene {
         if (lv === '5-6' && (c.lv! < 5 || c.lv! > 6)) return false;
         if (lv === '7+' && c.lv! < 7) return false;
       }
-      if (f.q && !c.name.toLowerCase().includes(f.q) && !c.text.toLowerCase().includes(f.q)) return false;
+      // English or translated name/text both match, so players can search in either
+      if (f.q && !c.name.toLowerCase().includes(f.q) && !c.text.toLowerCase().includes(f.q) && !matchesTranslated(c, f.q)) return false;
       return true;
     });
     const s = SORTS[f.sort];
@@ -343,7 +346,7 @@ export class DeckEditorScene extends Phaser.Scene {
     const pages = Math.max(1, Math.ceil(list.length / PAGE));
     this.page = Math.min(this.page, pages - 1);
     const shown = list.slice(this.page * PAGE, this.page * PAGE + PAGE);
-    this.pageText.setText(list.length ? `Page ${this.page + 1} / ${pages}  ·  ${list.length} card${list.length === 1 ? '' : 's'}` : '');
+    this.pageText.setText(list.length ? t(list.length === 1 ? 'Page {page} / {pages}  ·  1 card' : 'Page {page} / {pages}  ·  {n} cards', { page: this.page + 1, pages, n: num(list.length) }) : '');
     this.prevBtn.setEnabled(this.page > 0);
     this.nextBtn.setEnabled(this.page < pages - 1);
     // quietly warm the next page so flipping forward is instant
@@ -356,7 +359,7 @@ export class DeckEditorScene extends Phaser.Scene {
       const r = POOL.scale / 0.3;
       if (n || lim < 3) this.poolLayer.add(this.add.text(x + 31 * r, y + 45 * r, `${n}/${lim}`, { fontFamily: FONT_N, fontSize: `${Math.round(10 * r)}px`, fontStyle: 'bold', color: n >= lim ? '#ff9a7a' : n ? COL.goldTxt : COL.dim, backgroundColor: '#07060ff2', padding: { x: 4, y: 2 } }).setOrigin(1, 1));
     });
-    if (!list.length) this.poolLayer.add(txt(this, POOL.x + POOL.w / 2, POOL.y + 60, 'No cards match.', 15, COL.dim).setOrigin(0.5));
+    if (!list.length) this.poolLayer.add(txt(this, POOL.x + POOL.w / 2, POOL.y + 60, t('No cards match.'), 15, COL.dim).setOrigin(0.5));
     this.retab();
   }
 
@@ -431,14 +434,14 @@ export class DeckEditorScene extends Phaser.Scene {
     for (const b of this.cycleBtns) {
       const { key, vals, label } = b.getData('cfg');
       const v = vals[this.filter[key as 'attr'] as number];
-      b.setLabel(`${label}: ${v}`).setSelected(v !== 'Any' && key !== 'sort');
+      b.setLabel(`${label}: ${key === 'attr' && v !== 'Any' ? v : t(v)}`).setSelected(v !== 'Any' && key !== 'sort');
     }
   }
 
   // ---------------------------------------------------------------- deck slots
   private async confirmDiscard() {
     if (!this.dirty) return true;
-    return (await modal(this, { title: 'Unsaved changes', text: `Discard your changes to "${this.name}"?`, ok: 'Discard', cancel: 'Keep editing', danger: true })) === true;
+    return (await modal(this, { title: t('Unsaved changes'), text: t('Discard your changes to "{name}"?', { name: this.name }), ok: t('Discard'), cancel: t('Keep editing'), danger: true })) === true;
   }
 
   private async cycleDeck(dir: number) {
@@ -459,10 +462,10 @@ export class DeckEditorScene extends Phaser.Scene {
 
   /** Ask for a deck name; null when cancelled or when an existing deck must not be overwritten. */
   private async askName(title: string, def: string, allowCurrent = true): Promise<string | null> {
-    const n = await modal(this, { title, input: def, ok: 'OK' });
+    const n = await modal(this, { title, input: def, ok: t('OK') });
     if (typeof n !== 'string') return null;
     if ((!allowCurrent || n !== this.name) && this.decks[n]) {
-      const over = await modal(this, { title: 'Name already used', text: `A deck called "${n}" exists. Replace it?`, ok: 'Replace', danger: true });
+      const over = await modal(this, { title: t('Name already used'), text: t('A deck called "{name}" exists. Replace it?', { name: n }), ok: t('Replace'), danger: true });
       if (over !== true) return null;
     }
     return n;
@@ -470,16 +473,16 @@ export class DeckEditorScene extends Phaser.Scene {
 
   private async newDeck() {
     if (!(await this.confirmDiscard())) return;
-    const n = await this.askName('New deck', 'New Deck', false);
+    const n = await this.askName(t('New deck'), t('New Deck'), false);
     if (!n) return;
     this.decks[n] = { main: [], extra: [] };
     saveDecks(this.decks);
     this.loadDeck(n);
-    this.flash('Deck created. Add cards from the right.');
+    this.flash(t('Deck created. Add cards from the right.'));
   }
 
   private async renameDeck() {
-    const n = await this.askName('Rename deck', this.name);
+    const n = await this.askName(t('Rename deck'), this.name);
     if (!n || n === this.name) return;
     this.decks[n] = this.decks[this.name];
     delete this.decks[this.name];
@@ -496,13 +499,13 @@ export class DeckEditorScene extends Phaser.Scene {
     this.dirty = false;
     this.refreshStatus();
     const errs = validateDeck(this.deck);
-    this.flash(errs.length ? 'Saved — but the deck is not legal for duels yet.' : 'Deck saved.');
+    this.flash(errs.length ? t('Saved — but the deck is not legal for duels yet.') : t('Deck saved.'));
     if (!errs.length) this.status.setColor('#9fe0a8');
   }
 
   private async deleteDeck() {
-    if (Object.keys(this.decks).length <= 1) { this.flash('You need at least one deck.'); return; }
-    if ((await modal(this, { title: 'Delete deck', text: `Delete "${this.name}"? This cannot be undone.`, ok: 'Delete', danger: true })) !== true) return;
+    if (Object.keys(this.decks).length <= 1) { this.flash(t('You need at least one deck.')); return; }
+    if ((await modal(this, { title: t('Delete deck'), text: t('Delete "{name}"? This cannot be undone.', { name: this.name }), ok: t('Delete'), danger: true })) !== true) return;
     delete this.decks[this.name];
     saveDecks(this.decks);
     this.loadDeck(Object.keys(this.decks)[0]);

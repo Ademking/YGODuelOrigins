@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from './sfx';
+import { isRTL, t } from '../i18n';
 
 // ---------------------------------------------------------------- sharp rendering
 /** World size every scene is laid out in. */
@@ -34,6 +35,13 @@ export const FONT_LOADS = ['16px Michroma'];
 type TextFactory = (this: unknown, x: number, y: number, s: string | string[], style?: Phaser.Types.GameObjects.Text.TextStyle) => Phaser.GameObjects.Text;
 const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as { text: TextFactory };
 const addText = factory.text;
+// Letter spacing draws text one character at a time, which breaks Arabic's joined letters: off for Arabic.
+const setLetterSpacing = Phaser.GameObjects.Text.prototype.setLetterSpacing;
+Phaser.GameObjects.Text.prototype.setLetterSpacing = function (this: Phaser.GameObjects.Text, spacing: number) {
+  return setLetterSpacing.call(this, isRTL() ? 0 : spacing);
+};
+// (Arabic needs no rtl flag: the browser shapes and orders it when the canvas draws the text, and Phaser's rtl mode
+// shifts left-aligned text out of place.)
 factory.text = function (x, y, s, style) {
   const st = { resolution: RES, ...(style ?? {}) };
   return addText.call(this, x, y, s, st);
@@ -458,7 +466,7 @@ export function modal(scene: Phaser.Scene, o: { title: string; text?: string; in
     };
     const cancel = () => done(field ? null : false);
     layer.add(button(scene, 640 + (o.cancel === '' ? 0 : 100), y + 26, 170, 40, o.ok, accept, { primary: !o.danger, danger: o.danger, size: 15 }));
-    if (o.cancel !== '') layer.add(button(scene, 540, y + 26, 170, 40, o.cancel ?? 'Cancel', cancel, { size: 15 }));
+    if (o.cancel !== '') layer.add(button(scene, 540, y + 26, 170, 40, o.cancel ?? t('Cancel'), cancel, { size: 15 }));
     if (field) {
       const f = field;
       f.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') accept(); if (e.key === 'Escape') cancel(); });
@@ -501,11 +509,11 @@ export function chooseFromList(scene: Phaser.Scene, title: string, options: read
       }, { size: 14 }).setSelected(index === selected));
     });
     if (lastPage) {
-      entries.add(button(scene, px + 84, bottom, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
-      entries.add(button(scene, px + pw - 84, bottom, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+      entries.add(button(scene, px + 84, bottom, 120, 34, t('‹ Previous'), () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, px + pw - 84, bottom, 120, 34, t('Next ›'), () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
     }
   };
-  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, 'Close', close, { size: 14 }));
+  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, t('Close'), close, { size: 14 }));
   fitDialog(scene, layer, pw);
   scene.input.keyboard?.once('keydown-ESC', close);
   layer.once('destroy', () => scene.input.keyboard?.off('keydown-ESC', close));

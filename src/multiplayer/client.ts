@@ -5,6 +5,7 @@ import { cleanCountry, cleanSeed, type Look } from './profile';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
 import type { ChatLine } from './lobby';
+import { t } from '../i18n';
 /** The public lobby runs over Nostr (lobby.ts); private rooms and duels below stay peer to peer. */
 export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
@@ -24,12 +25,12 @@ const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 3276
 function roomErrorText(error: { code?: string; message: string }, who: string) {
   switch (error.code) {
     case 'peer-connect-failed': case 'handshake-failed': case 'peer-error':
-      return `Couldn't connect to ${who}. One of your networks is blocking direct connections.`;
-    case 'relay-failed': return 'Lost touch with the matchmaking servers. Check your internet connection.';
+      return t("Couldn't connect to {player}. One of your networks is blocking direct connections.", { player: who });
+    case 'relay-failed': return t('Lost touch with the matchmaking servers. Check your internet connection.');
     default: return error.message;
   }
 }
-const errorText = (error: unknown) => error instanceof Error ? error.message : 'Connection failed.';
+const errorText = (error: unknown) => error instanceof Error ? error.message : t('Connection failed.');
 export class PrivateRoom {
   readonly chat: ChatLine[] = [];
   opponent?: Hello;
@@ -58,15 +59,15 @@ export class PrivateRoom {
     this.action = this.room.makeAction('duel');
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
-    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail('Your opponent disconnected.'); });
+    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail(t('Your opponent disconnected.')); });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
-      if (!this.opponent) { this.error = turnConfigured ? 'Still waiting for a connection. Check the code and keep both tabs open.' : 'Still waiting. Check the code and keep both tabs open, or press Try again.'; this.onChange(); }
+      if (!this.opponent) { this.error = turnConfigured ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
     const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error('Could not verify the duel engine version. Reload and try again.');
+    if (!response.ok) throw new Error(t('Could not verify the duel engine version. Reload and try again.'));
     const revision = (await response.text()).trim();
     return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look });
   }
@@ -89,7 +90,7 @@ export class PrivateRoom {
     this.pendingSeed = Array.from(crypto.getRandomValues(new BigUint64Array(4)), String) as DuelNetwork['seed'];
     this.pendingFirst = crypto.getRandomValues(new Uint8Array(1))[0] % 2 as 0 | 1;
     this.makeNetwork(this.pendingSeed);
-    this.handshakeTimer = setTimeout(() => this.fail('Opponent did not acknowledge the rematch.'), 20000);
+    this.handshakeTimer = setTimeout(() => this.fail(t('Opponent did not acknowledge the rematch.')), 20000);
     await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst, rematch: true });
   }
   private send(value: unknown, target = this.peer) {
@@ -103,9 +104,9 @@ export class PrivateRoom {
     if (!m || typeof m !== 'object') return;
     if (m.type === 'hello') {
       if (this.started || (this.peer && this.peer !== peer)) return;
-      if (m.protocol !== PROTOCOL || m.revision !== this.hello.revision) throw new Error('Different game versions. Both players should reload the same deployment.');
-      if (typeof m.host !== 'boolean' || m.host === this.hello.host) throw new Error('This room already has a host. Join using their code.');
-      if (!cleanName(m.name) || !validDeck(m.deck) || typeof m.ready !== 'boolean') throw new Error('Opponent sent invalid deck or profile data.');
+      if (m.protocol !== PROTOCOL || m.revision !== this.hello.revision) throw new Error(t('Different game versions. Both players should reload the same deployment.'));
+      if (typeof m.host !== 'boolean' || m.host === this.hello.host) throw new Error(t('This room already has a host. Join using their code.'));
+      if (!cleanName(m.name) || !validDeck(m.deck) || typeof m.ready !== 'boolean') throw new Error(t('Opponent sent invalid deck or profile data.'));
       const firstHello = !this.peer;
       this.peer = peer;
       this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country) } as Hello;
@@ -117,7 +118,7 @@ export class PrivateRoom {
         this.pendingSeed = Array.from(crypto.getRandomValues(new BigUint64Array(4)), String) as DuelNetwork['seed'];
         this.pendingFirst = crypto.getRandomValues(new Uint8Array(1))[0] % 2 as 0 | 1;
         this.makeNetwork(this.pendingSeed);
-        this.handshakeTimer = setTimeout(() => this.fail('Opponent did not acknowledge the duel. Recreate the room.'), 20000);
+        this.handshakeTimer = setTimeout(() => this.fail(t('Opponent did not acknowledge the duel. Recreate the room.')), 20000);
         await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst });
       }
       return;
@@ -138,7 +139,7 @@ export class PrivateRoom {
     if (m.type === 'start' && !this.isHost && !this.started) {
       if (!this.ready || !this.opponent.ready || !Array.isArray(m.seed) || m.seed.length !== 4
         || !m.seed.every(s => typeof s === 'string' && /^\d{1,20}$/.test(s) && BigInt(s) < (1n << 64n))
-        || (m.first !== 0 && m.first !== 1)) throw new Error('Invalid duel setup.');
+        || (m.first !== 0 && m.first !== 1)) throw new Error(t('Invalid duel setup.'));
       this.makeNetwork(m.seed as DuelNetwork['seed']);
       await this.send({ type: 'ack' });
       this.start(m.first === 0 ? 1 : 0);
@@ -153,11 +154,11 @@ export class PrivateRoom {
       this.receivedChat = Date.now();
       this.addChat(this.opponent.name, text);
     } else if (m.type === 'forfeit') {
-      const reason = m.timeout === true ? 'Your opponent ran out of time.' : 'Your opponent surrendered.';
+      const reason = m.timeout === true ? t('Your opponent ran out of time.') : t('Your opponent surrendered.');
       this.network?.abort(reason);
       this.onEnd(reason, true);
     } else if (m.type === 'leave') {
-      this.fail(m.timeout === true ? 'Your opponent ran out of time.' : m.surrender === true ? 'Your opponent surrendered.' : 'Your opponent left the room.', m.surrender === true);
+      this.fail(m.timeout === true ? t('Your opponent ran out of time.') : m.surrender === true ? t('Your opponent surrendered.') : t('Your opponent left the room.'), m.surrender === true);
     }
   }
   private makeNetwork(seed: DuelNetwork['seed']) {
@@ -202,7 +203,7 @@ export class PrivateRoom {
   /** Lose the current duel (surrender or clock) without leaving the room. */
   async forfeit(timeout = false) {
     if (this.closed) return;
-    this.network?.abort(timeout ? 'You ran out of time.' : 'You surrendered.');
+    this.network?.abort(timeout ? t('You ran out of time.') : t('You surrendered.'));
     try { await this.send({ type: 'forfeit', timeout }); } catch {}
   }
   async leave(surrender = false, timeout = false) {
@@ -211,7 +212,7 @@ export class PrivateRoom {
     this.closed = true;
     clearTimeout(this.connectionTimer);
     clearTimeout(this.handshakeTimer);
-    this.network?.abort('You left the duel.');
+    this.network?.abort(t('You left the duel.'));
     await this.room.leave();
   }
 }

@@ -1,17 +1,18 @@
 import type Phaser from 'phaser';
 import { sfx } from './sfx';
 import { button, COL, txt } from './theme';
+import { t } from '../i18n';
 
 export function volumeControls(scene: Phaser.Scene, layer: Phaser.GameObjects.Container, x: number, y: number, width = 320) {
   const percent = txt(scene, x + width / 2, y, '', 14, COL.goldTxt).setOrigin(1, 0.5);
-  layer.add([txt(scene, x - width / 2, y, 'Game volume', 14, COL.text).setOrigin(0, 0.5), percent]);
+  layer.add([txt(scene, x - width / 2, y, t('Game volume'), 14, COL.text).setOrigin(0, 0.5), percent]);
   const input = document.createElement('input');
   input.type = 'range';
   input.min = '0';
   input.max = '100';
   input.className = 'ad-volume';
   input.style.width = `${width}px`;
-  input.setAttribute('aria-label', 'Game volume');
+  input.setAttribute('aria-label', t('Game volume'));
   const slider = scene.add.dom(x, y + 26, input).setDepth(layer.depth + 1);
   const mute = button(scene, x, y + 61, 144, 30, '', () => {
     sfx.setMuted(!sfx.muted);
@@ -23,7 +24,7 @@ export function volumeControls(scene: Phaser.Scene, layer: Phaser.GameObjects.Co
     input.value = String(value);
     input.style.setProperty('--volume', `${value}%`);
     percent.setText(`${value}%`);
-    mute.setLabel(sfx.muted ? 'Unmute' : 'Mute').setSelected(sfx.muted);
+    mute.setLabel(sfx.muted ? t('Unmute') : t('Mute')).setSelected(sfx.muted);
   };
   input.addEventListener('input', () => {
     sfx.setVolume(Number(input.value) / 100);
@@ -40,10 +41,10 @@ export function volumeControls(scene: Phaser.Scene, layer: Phaser.GameObjects.Co
 
 export function settingsRows(scene: Phaser.Scene, layer: Phaser.GameObjects.Container, x: number, y: number) {
   const options = [
-    { key: 'chain', labels: ['Chain prompts: Smart', 'Chain prompts: Always'], values: ['auto', 'always'], fallback: false },
-    { key: 'fast', labels: ['Speed: Normal', 'Speed: Fast'], values: ['0', '1'], fallback: false },
-    { key: 'holograms', labels: ['Holograms: Off', 'Holograms: On'], values: ['0', '1'], fallback: false },
-    { key: 'reduced-effects', labels: ['Effects: Full', 'Effects: Reduced'], values: ['0', '1'], fallback: window.matchMedia('(pointer: coarse)').matches },
+    { key: 'chain', labels: [t('Chain prompts: Smart'), t('Chain prompts: Always')], values: ['auto', 'always'], fallback: false },
+    { key: 'fast', labels: [t('Speed: Normal'), t('Speed: Fast')], values: ['0', '1'], fallback: false },
+    { key: 'holograms', labels: [t('Holograms: Off'), t('Holograms: On')], values: ['0', '1'], fallback: false },
+    { key: 'reduced-effects', labels: [t('Effects: Full'), t('Effects: Reduced')], values: ['0', '1'], fallback: window.matchMedia('(pointer: coarse)').matches },
   ];
   options.forEach(({ key, labels, values, fallback }, index) => {
     const storageKey = `arcana-duel.${key}`;

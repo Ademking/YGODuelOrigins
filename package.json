@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "check": "tsx src/engine/selftest.ts",
     "import:ygo": "tsx scripts/import-ygo.ts",
+    "import:card-text": "tsx scripts/import-card-text.ts",
     "verify:original": "node scripts/verify-original.mjs",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "fuzz": "tsx tests/fuzz.ts",

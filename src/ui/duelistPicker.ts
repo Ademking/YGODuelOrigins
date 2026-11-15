@@ -6,6 +6,7 @@ import { setCardTexture } from './cardLoader';
 import { portraitKey } from './portraits';
 import { button, caption, COL, htxt, panel, txt } from './theme';
 import { sfx } from './sfx';
+import { t } from '../i18n';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
@@ -85,10 +86,10 @@ export function duelistPicker(scene: Phaser.Scene, cx: number, top: number, labe
     mystery.setText(custom ? '+' : '?').setVisible(!duelist || custom);
     avatar.setVisible(!custom);
     if (!custom) show(avatar, duelist ?? anyone(), 160).setAlpha(duelist ? 1 : 0.25);
-    name.setText(duelist?.name ?? 'Random').setScale(1);
+    name.setText(duelist?.name ?? t('Random')).setScale(1);
     name.setScale(Math.min(1, 460 / name.width));
-    title.setText(duelist?.title ?? 'A surprise duelist, picked when the duel starts');
-    style.setText(duelist?.style ?? '');
+    title.setText(duelist?.title ? t(duelist.title) : t('A surprise duelist, picked when the duel starts'));
+    style.setText(duelist?.style ? t(duelist.style) : '');
     faces.forEach(({ face }, n) => face.setAlpha(n - 1 === selected ? 1 : 0.66));
     const { x, y } = faces[selected + 1];
     marker.clear().lineStyle(2, COL.gold, 1).strokeRect(x - 15, y - tileHeight / 2, 30, tileHeight);

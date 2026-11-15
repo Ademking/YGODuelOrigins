@@ -34,6 +34,9 @@
     html, body { margin: 0; height: 100%; background: #06050d; overflow: hidden; }
     #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
     #game canvas { touch-action: none; }
+    /* Arabic: Phaser positions its HTML overlays left to right, so the game area stays LTR; only text inside reads RTL */
+    #game { direction: ltr; }
+    html[dir="rtl"] #game .ad-log, html[dir="rtl"] #game input { direction: rtl; text-align: right; }
     #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; text-align: center; font: 16px/1.5 Arial, sans-serif; }
     input.ad-input { font: 16px Michroma, Arial, sans-serif; background: #0a0916; color: #f1ebdc; border: 1px solid #3a3456; border-radius: 2px; padding: 7px 12px; outline: none; }
     .ad-log { box-sizing: border-box; overflow-y: auto; padding-right: 10px; font: 12px/1.65 Michroma, Arial, sans-serif; color: #9a93ae; scrollbar-width: thin; scrollbar-color: #7c6638 #0a0916; }
