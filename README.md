@@ -16,7 +16,7 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 ## Multiplayer preview
 
-This branch adds **Multiplayer** to the title screen: a saved nickname, shared lobby and chat, player challenges, private room codes/links, and in-duel chat. There is no backend to deploy and players need no accounts.
+This branch adds **Online Duel** to the title screen: a saved nickname, shared lobby and chat, player challenges, private room codes/links, and in-duel chat. There is no backend to deploy and players need no accounts.
 
 Peer discovery uses public relays; gameplay uses WebRTC. Some networks require a TURN relay, which is not configured by default. This is casual play, with a bounded lobby and no server-enforced anti-cheat. See [multiplayer setup and limitations](docs/MULTIPLAYER.md).
 
