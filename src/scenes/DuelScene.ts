@@ -2032,7 +2032,7 @@ export class DuelScene extends Phaser.Scene {
         this.closeMenu(); this.showMenu();
       }],
       ['Surrender', () => { this.closeMenu(); this.surrender(); }],
-      ['Quit to Home', () => { this.closeMenu(); this.surrender(); this.scene.start('Title'); }],
+      ['Quit to Home', () => { this.closeMenu(); this.surrender(true); this.scene.start('Title'); }],
     ];
     // a spectator has no chains to answer and nothing to surrender
     const items = this.init0.watch ? all.filter(([label]) => label !== 'Surrender' && !label.startsWith('Chain')) : all;
@@ -2119,14 +2119,16 @@ export class DuelScene extends Phaser.Scene {
     this.time.addEvent({ delay: 250, loop: true, callback: tick });
   }
 
-  private surrender() {
+  /** Give up the duel. `leaving`: the player is quitting to the menus, so skip the result screen and its jingle. */
+  private surrender(leaving = false) {
     if (this.ended) return;
     if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit();
+    if (leaving) this.ended = true;
     this.duel.stop();
     const p = this.pending;
     this.pending = null;
     p?.resolve(SURRENDER);
-    this.showEnd(opp(this.me), 'You surrendered');
+    if (!leaving) this.showEnd(opp(this.me), 'You surrendered');
   }
 
   private toggleLogs() {
