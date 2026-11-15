@@ -13,7 +13,7 @@
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "fuzz": "tsx tests/fuzz.ts",
     "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts",
-    "prepare:ocgcore": "node scripts/prepare-ocgcore.mjs",
+    "prepare:ocgcore": "node scripts/prepare-ocgcore.mjs && tsx scripts/trim-ocgcore.ts",
     "predev": "npm run prepare:ocgcore",
     "test:ocgcore": "npm run prepare:ocgcore && node --import tsx --test tests/integration/ocgcore.test.ts",
     "pretest": "npm run prepare:ocgcore"

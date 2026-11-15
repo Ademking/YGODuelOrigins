@@ -49,7 +49,7 @@ test('lockstep abort and timeout release pending decisions', async () => {
   await assert.rejects(malformed.exchange(prompt, false, async () => undefined), /synchronization/);
 });
 test('two mirrored OCGCore clients agree on draws, summons, and result', { timeout: 30000 }, async () => {
-  const bundle = JSON.parse(gunzipSync(readFileSync('assets/ocgcore/data.json.gz')).toString());
+  const bundle = JSON.parse(gunzipSync(readFileSync('assets/ocgcore/duel.json.gz')).toString());
   const [coreA, coreB] = await Promise.all([createCore({ sync: true }), createCore({ sync: true })]);
   const id = (name: string) => CARDS.find(c => c.name === name)!.id;
   const deckA = { main: Array(20).fill(id('Blue-Eyes White Dragon')).concat(Array(20).fill(id('Battle Ox'))), extra: [] };

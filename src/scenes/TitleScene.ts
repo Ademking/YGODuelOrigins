@@ -6,6 +6,7 @@ import { button, caption, COL, fitCamera, fitDialog, htxt, panel, placeDom, port
 import { settingsRows, volumeControls } from '../ui/settings';
 import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
+import { loadRuntime } from '../ocgcore/runtime';
 
 const open = (url: string) => () => { window.open(url, '_blank', 'noopener'); };
 const openDiscord = open('https://discord.gg/VYfWyXyRuf');
@@ -144,6 +145,9 @@ export class TitleScene extends Phaser.Scene {
     if (tall) caption(this, 640, TALL.bottom - 16, credit, COL.dim, 11).setOrigin(0.5);
     else caption(this, 24, 683, credit, COL.dim, 9);
     document.dispatchEvent(new Event('duel-origins:ready'));
+    // Warm the duel engine while the player is on the menus, so a duel starts without a wait. A failure here is
+    // retried, and reported, when the duel itself asks for the engine.
+    this.time.delayedCall(800, () => { loadRuntime().catch(() => undefined); });
   }
 
   private showSettings() {

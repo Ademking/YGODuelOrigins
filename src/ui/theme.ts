@@ -4,17 +4,24 @@ import { sfx } from './sfx';
 // ---------------------------------------------------------------- sharp rendering
 /** World size every scene is laid out in. */
 export const W = 1280, H = 720;
+/** Phones and tablets. */
+export const TOUCH = window.matchMedia('(pointer: coarse)').matches;
+/** A phone or tablet with little memory or few cores: it gets a smaller canvas and a still background. */
+export const LOW_END = TOUCH && (((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4);
 /**
- * Internal render scale. The canvas is RES x the world size and each camera zooms by RES, so layout
- * code keeps using 1280x720 coordinates while vectors, text and cards are rasterized at screen
- * resolution. Cap mobile resolution to keep the canvas and text textures smaller.
+ * Canvas size: a square of the screen's short side in device pixels, capped. Phaser's EXPAND mode fits it in the
+ * window and lengthens the long side, so the canvas has the screen's shape and about its pixel count, never more.
+ * Cameras zoom from the world to the canvas (fitCamera), so layout code keeps using world coordinates.
  */
-const touchDevice = window.matchMedia('(pointer: coarse)').matches;
-export const RES = Phaser.Math.Clamp(
-  Math.ceil(((window.screen?.width ?? W) * (window.devicePixelRatio || 1)) / W * 2) / 2,
-  touchDevice ? 1 : 1.5,
-  touchDevice ? 1 : 2,
-);
+export const CANVAS_SIDE = Math.round(Phaser.Math.Clamp(
+  Math.min(window.innerWidth, window.innerHeight) * Math.min(window.devicePixelRatio || 1, LOW_END ? 1.75 : 2.5),
+  480, LOW_END ? 720 : TOUCH ? 1000 : 1200,
+));
+/**
+ * Text is rasterized at RES x its world size so it stays crisp under the camera zoom (about canvas / world).
+ * Phones stay lower to keep text textures small.
+ */
+export const RES = Phaser.Math.Clamp(Math.ceil((Math.max(CANVAS_SIDE / H, CANVAS_SIDE / 820)) * 2) / 2, 1, LOW_END ? 1 : TOUCH ? 1.5 : 2);
 
 /** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */
 export const FONT_H = 'Michroma, Arial, sans-serif';
@@ -196,7 +203,8 @@ export const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) =
 
 /** Shadow-realm arena: slow indigo smoke with drifting brass embers. Shared by every scene. */
 export function sceneBackground(scene: Phaser.Scene, animated = true) {
-  if (animated && scene.game.renderer.type === Phaser.WEBGL) {
+  // low-end phones get the still background: the animated one redraws a full-screen shader 30 times a second
+  if (animated && !LOW_END && scene.game.renderer.type === Phaser.WEBGL) {
     const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0.0' : '1.0';
     const fragment = `
       #ifdef GL_FRAGMENT_PRECISION_HIGH

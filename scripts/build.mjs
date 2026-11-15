@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { accessSync } from 'node:fs';
+import { accessSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,10 @@ function run(script, ...args) {
 checkProject('before OCGCore preparation');
 console.log(`Building from ${root}`);
 run(fileURLToPath(new URL('./prepare-ocgcore.mjs', import.meta.url)));
+// keep only the cards this game can duel with: the browser downloads this, not the full bundle
+execFileSync(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('./trim-ocgcore.ts', import.meta.url))], { cwd: root, stdio: 'inherit' });
 checkProject('after OCGCore preparation');
 run(require.resolve('typescript/bin/tsc'), '--project', project);
 run(resolve(require.resolve('vite/package.json'), '../bin/vite.js'), 'build');
+// the full bundle only feeds trim-ocgcore.ts and is never fetched by the game
+rmSync(resolve(root, 'dist/ocgcore/data.json.gz'), { force: true });

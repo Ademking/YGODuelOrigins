@@ -9,7 +9,7 @@ import { cpuChoice, decision } from '../../src/ocgcore/choices';
 import { openDuel } from '../../src/ocgcore/session';
 import { CARDS } from '../../src/ocgcore/catalog';
 
-const readBundle = (): Bundle => JSON.parse(gunzipSync(readFileSync('assets/ocgcore/data.json.gz')).toString('utf8'));
+const readBundle = (): Bundle => JSON.parse(gunzipSync(readFileSync('assets/ocgcore/duel.json.gz')).toString('utf8'));
 
 test('Mirror Force destroys an attacking monster and emits effect destruction', async () => {
   const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');

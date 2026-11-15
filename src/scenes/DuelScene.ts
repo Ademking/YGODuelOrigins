@@ -8,7 +8,7 @@ import type { Opponent } from '../data/decks';
 import { BACK, CARD_K, CH, CW, cardKey, faceKey } from '../ui/cardArt';
 import { cardImagePasscode } from '../data/cardImages';
 import { getCard } from '../ocgcore/catalog';
-import { loadRuntime } from '../ocgcore/runtime';
+import { loadRuntime, onRuntimeProgress, runtimeReady } from '../ocgcore/runtime';
 import { OcgDuel, opp, SURRENDER } from '../ocgcore/duel';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
@@ -94,7 +94,7 @@ const PORTRAIT = {
   panelTop: 960,
   panelScale: 1.5, // card details likewise
   minPanelH: 240, maxPanelH: 440,
-  ui: 1.45, // dialogs and menus are drawn this much larger, as far as the width allows
+  ui: 1.9, // dialogs and menus are drawn this much larger, as far as the screen allows
 };
 function applyLayout(portrait: boolean) {
   CX = portrait ? W / 2 : 798;
@@ -318,7 +318,7 @@ export class DuelScene extends Phaser.Scene {
         this.showEnd(opp(this.me), 'You surrendered');
         return;
       }
-      const [core, bundle] = await loadRuntime();
+      const [core, bundle] = await this.waitForRuntime();
       if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined, d.multiplayer?.network);
     })().catch((error: unknown) => {
       if (this.dead || this.ended || duel !== this.duel) return;
@@ -340,15 +340,43 @@ export class DuelScene extends Phaser.Scene {
     return this.portrait ? viewOf(this).left : this.sidePanelX + 12 + LEFT_W;
   }
   /**
-   * Portrait only: draw a dialog larger, scaled about (cx, cy), as far as its width allows.
+   * Portrait only: draw a dialog larger, as far as its width (and `height`, when given) allows. The dialog is scaled
+   * about (cx, cy), and that point is moved to `to` (default: the middle of the screen when it is the board centre).
    * Returns the scale used (1 in landscape).
    */
-  private enlarge(layer: Phaser.GameObjects.Container, width: number, cx = CX, cy = CY) {
+  private enlarge(layer: Phaser.GameObjects.Container, width: number, cx = CX, cy = CY, height = 0, to?: number) {
     if (!this.portrait) return 1;
-    const scale = Math.min(PORTRAIT.ui, (PORTRAIT.w - 24) / width);
+    const view = viewOf(this);
+    const scale = Math.min(PORTRAIT.ui, (PORTRAIT.w - 24) / width, height ? (view.height - 40) / height : Infinity);
     if (scale <= 1) return 1;
-    layer.setScale(scale).setPosition(cx * (1 - scale), cy * (1 - scale));
+    const target = to ?? (cy === CY ? view.cy : cy);
+    layer.setScale(scale).setPosition(cx * (1 - scale), target - cy * scale);
     return scale;
+  }
+
+  /** The engine usually finished loading on the title screen; if not, show its progress until it has. */
+  private async waitForRuntime() {
+    const loading = loadRuntime();
+    if (runtimeReady()) return loading;
+    const layer = this.add.container(0, 0).setDepth(960);
+    layer.add(this.playfieldBlocker(0x06050d, 0.85));
+    this.enlarge(layer, 360);
+    layer.add(panel(this, CX - 180, CY - 70, 360, 140, 0.98));
+    layer.add(htxt(this, CX, CY - 32, 'Loading duel engine', 18).setOrigin(0.5));
+    const bar = this.add.graphics();
+    const label = txt(this, CX, CY + 40, '0%', 13, COL.dim).setOrigin(0.5);
+    layer.add([bar, label]);
+    const stop = onRuntimeProgress((fraction) => {
+      if (!layer.active) return;
+      bar.clear().fillStyle(0x231f38, 1).fillRect(CX - 140, CY + 4, 280, 8).fillStyle(COL.gold, 1).fillRect(CX - 140, CY + 4, 280 * fraction, 8);
+      label.setText(`${Math.round(fraction * 100)}%`);
+    });
+    try {
+      return await loading;
+    } finally {
+      stop();
+      layer.destroy();
+    }
   }
 
   private createFpsCounter() {
@@ -406,7 +434,9 @@ export class DuelScene extends Phaser.Scene {
       const layer = this.add.container(0, 0).setDepth(950);
       this.dialog = layer;
       layer.add(this.playfieldBlocker(0x06050d, 0.95));
-      this.enlarge(layer, 560);
+      // portrait: the three hands sit closer together so the whole picker can be drawn larger
+      const gap = this.portrait ? 136 : 180;
+      this.enlarge(layer, this.portrait ? 440 : 560, CX, CY, 420);
       const reduced = this.reducedMotion;
       const SIZE = 116;
       const moving: object[] = [];
@@ -425,10 +455,10 @@ export class DuelScene extends Phaser.Scene {
       const icon = (choice: RpsChoice) => `rps_${choice.toLowerCase()}`;
 
       if (!player || !opponent) {
-        label(CX, CY - 150, 'ROCK  PAPER  SCISSORS', 22, '#fff6e0').setLetterSpacing(2);
+        label(CX, CY - 150, 'ROCK  PAPER  SCISSORS', this.portrait ? 19 : 22, '#fff6e0').setLetterSpacing(this.portrait ? 1 : 2);
         label(CX, CY - 116, 'Choose your hand to decide who goes first', 11, COL.dim);
         RPS_CHOICES.forEach((choice, index) => {
-          const item = this.add.container(CX + (index - 1) * 180, CY + 16);
+          const item = this.add.container(CX + (index - 1) * gap, CY + 16);
           const halo = this.add.graphics().lineStyle(2, COL.gold, 1).strokeCircle(0, 0, SIZE / 2 + 9).setAlpha(0);
           const image = this.add.image(0, 0, icon(choice)).setDisplaySize(SIZE, SIZE);
           const base = image.scale;
@@ -455,7 +485,7 @@ export class DuelScene extends Phaser.Scene {
       }
 
       // showdown: you on the left, the opponent (mirrored) on the right
-      const y = CY + 6, dx = 150;
+      const y = CY + 6, dx = this.portrait ? 130 : 150;
       const hand = (x: number, who: string, flip: boolean) => {
         label(x, y - SIZE / 2 - 34, who, 11, COL.dim).setLetterSpacing(2);
         const image = this.add.image(x, y, 'rps_rock').setDisplaySize(SIZE, SIZE).setFlipX(flip);
@@ -1144,7 +1174,7 @@ export class DuelScene extends Phaser.Scene {
     const w = cols * (bw + 10) + 40, h = 90 + rows * (bh + 6);
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.35));
-    this.enlarge(layer, w);
+    this.enlarge(layer, w, CX, CY, h);
     const x0 = CX - w / 2, y0 = Math.max(8, CY - h / 2);
     layer.add(panel(this, x0, y0, w, h));
     const title = htxt(this, CX, y0 + 26, text, 16).setOrigin(0.5);
@@ -1705,7 +1735,7 @@ export class DuelScene extends Phaser.Scene {
     const rows = Math.min(opts.length, fit);
     const h = fixed + rows * step;
     const x0 = CX - w / 2, y0 = Math.max(8, CY - h / 2);
-    const k = this.enlarge(layer, w);
+    const k = this.enlarge(layer, w, CX, CY, h + (modal && this.pending ? 60 : 0));
     layer.add(panel(this, x0, y0, w, h));
     layer.add(htxt(this, CX, y0 + 22, title, 20).setOrigin(0.5));
     bodyT.setPosition(CX, y0 + 44);
@@ -1801,7 +1831,10 @@ export class DuelScene extends Phaser.Scene {
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {
     const layer = this.add.container(0, 0).setDepth(850);
     // portrait: larger, over the opponent's plate so it leaves the whole board clear
-    if (this.enlarge(layer, 600, CX, 40) > 1) layer.y += PORTRAIT.top + 4 - 40;
+    if (this.enlarge(layer, 600, CX, 40, 0, PORTRAIT.top + 4) > 1) {
+      // a solid backing hides the opponent's plate underneath
+      layer.add(this.add.graphics().fillStyle(0x0e0c1b, 1).fillRect(CX - 300, 36, 600, 96).lineStyle(1, COL.line, 1).strokeRect(CX - 300, 36, 600, 96));
+    }
     const title = htxt(this, CX, 62, prompt.text, 14).setOrigin(0.5);
     if (title.width > 560) title.setScale(560 / title.width);
     layer.add(panel(this, CX - 300, 40, 600, 45, 0.95, 6));
@@ -1822,8 +1855,11 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.45));
-    const perPage = 6;
-    const w = 768, h = 350, x0 = CX - w / 2, y0 = CY - h / 2;
+    // portrait: three cards a page in a narrower window that is drawn much larger
+    const tall = this.portrait;
+    const perPage = tall ? 3 : 6;
+    const w = tall ? 440 : 768, h = tall ? 410 : 350, x0 = CX - w / 2, y0 = CY - h / 2;
+    this.enlarge(layer, w, CX, CY, h);
     layer.add(panel(this, x0, y0, w, h));
     const title = htxt(this, CX, y0 + 34, p.text, 17, COL.text, { align: 'center', wordWrap: { width: w - 70 } }).setOrigin(0.5);
     layer.add(title);
@@ -1831,7 +1867,7 @@ export class DuelScene extends Phaser.Scene {
     layer.add(info);
     const chosen = new Set<Card>();
     const single = p.min === 1 && p.max === 1 && !p.validate;
-    const ok = button(this, CX, y0 + h - 30, 200, 38, p.reveal ? 'Continue' : 'Confirm', () => this.choose([...chosen]), { primary: true });
+    const ok = button(this, CX, y0 + h - (tall ? 80 : 30), 200, 38, p.reveal ? 'Continue' : 'Confirm', () => this.choose([...chosen]), { primary: true });
     const grid = this.add.container(0, 0);
     layer.add([grid, ok]);
     let page = 0;
@@ -1863,7 +1899,7 @@ export class DuelScene extends Phaser.Scene {
         if (page < pages - 1) grid.add(button(this, x0 + w - 34, y0 + 176, 34, 48, '›', () => { page++; render(); }, { size: 24 }));
       }
       if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
-      info.setText(p.reveal ? 'Revealed cards' : single ? 'Click one card to choose it.' : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})`);
+      info.setText(p.reveal ? 'Revealed cards' : single ? (tall ? 'Tap one card to choose it.' : 'Click one card to choose it.') : `Selected ${chosen.size} (need ${p.min === p.max ? p.min : `${p.min}–${p.max}`})`);
       ok.setVisible(!single).setEnabled(valid());
     };
     render();
@@ -1876,7 +1912,7 @@ export class DuelScene extends Phaser.Scene {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(950);
     layer.add(this.playfieldBlocker(0x000000, 0.45));
-    this.enlarge(layer, 440);
+    this.enlarge(layer, 440, CX, CY, 300);
     layer.add(panel(this, CX - 220, CY - 150, 440, 300));
     layer.add(htxt(this, CX, CY - 123, 'Summon position', 19).setOrigin(0.5));
     layer.add(txt(this, CX, CY - 90, c.def.name, 13, COL.goldTxt, { wordWrap: { width: 400 }, align: 'center' }).setOrigin(0.5));
@@ -1969,7 +2005,7 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(980);
     const blocker = this.playfieldBlocker(0x000000, 0.55);
     layer.add(blocker);
-    this.enlarge(layer, 340, CX, 145);
+    this.enlarge(layer, 340, CX, 145, 0, PORTRAIT.top + 60);
     const all: [string, () => void][] = [
       ['Resume', () => this.closeMenu()],
       [`Chain prompts: ${this.chainMode === 'auto' ? 'Smart' : 'Always'}`, () => {
@@ -2868,6 +2904,9 @@ export class DuelScene extends Phaser.Scene {
     const head = crashed ? 'ABORTED' : winner === -1 ? 'DRAW' : watching ? `${this.duel.name(winner)} wins`.toUpperCase() : win ? 'VICTORY' : 'DEFEAT';
     const layer = this.add.container(0, 0).setDepth(1000);
     layer.add(this.playfieldBlocker(0x06050d, 0.74));
+    // portrait: drawn larger; the title and text are kept narrower to fit
+    const narrow = this.portrait ? 500 : 700;
+    this.enlarge(layer, this.init0.multiplayer ? 740 : 520, CX, 370, 360);
     const accent = win ? COL.gold : winner === -1 ? COL.glow : COL.red;
     const rules = this.add.graphics();
     for (const [x, a0, a1] of [[CX - 380, 0, 1], [CX, 1, 0]] as const) {
@@ -2876,11 +2915,11 @@ export class DuelScene extends Phaser.Scene {
     layer.add(rules);
     const title = this.add.text(CX, 282, head, { fontFamily: FONT_H, fontSize: '84px', fontStyle: 'bold', color: '#fff6e0' })
       .setOrigin(0.5).setLetterSpacing(5);
-    const scale = Math.min(1, 700 / title.width);
+    const scale = Math.min(1, narrow / title.width);
     title.setScale(scale * 1.25).setAlpha(0);
     this.tweens.add({ targets: title, scale, alpha: 1, duration: 420, ease: 'Cubic.out' });
     layer.add(title);
-    const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: 680 } }).setOrigin(0.5);
+    const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: narrow - 20 } }).setOrigin(0.5);
     detail.setScale(Math.min(1, 44 / detail.height));
     layer.add(detail);
     const online = this.init0.multiplayer?.session;

@@ -7,23 +7,22 @@ import { DuelScene } from './scenes/DuelScene';
 import { DebugScene } from './scenes/DebugScene';
 import { DeckEditorScene } from './scenes/DeckEditorScene';
 import { WatchScene } from './scenes/WatchScene';
-import { H, W } from './ui/theme';
+import { CANVAS_SIDE } from './ui/theme';
 
 const options = new URLSearchParams(location.search);
-const canvasMode = options.has('compat') || options.has('compact');
-const availableScale = Math.min(window.innerWidth / W, window.innerHeight / H) * window.devicePixelRatio;
-const boardScale = canvasMode ? 1 : Math.max(1, Math.min(1.5, Math.round(availableScale * 4) / 4));
 const game = new Phaser.Game({
-  type: canvasMode ? Phaser.CANVAS : Phaser.AUTO,
+  // WebGL, falling back to Canvas only where WebGL is unavailable
+  type: Phaser.AUTO,
   parent: 'game',
   callbacks: { postBoot: (game) => {
     game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
   } },
-  // Give large displays smoother edges without returning to a 2× framebuffer.
-  width: W * boardScale,
-  height: H * boardScale,
+  // A square that EXPAND stretches to the screen's shape: see CANVAS_SIDE.
+  width: CANVAS_SIDE,
+  height: CANVAS_SIDE,
   backgroundColor: '#06050d',
   antialias: true,
+  powerPreference: 'high-performance',
   dom: { createContainer: true },
   scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
   input: { mouse: { preventDefaultWheel: false } },

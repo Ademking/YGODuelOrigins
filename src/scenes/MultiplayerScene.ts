@@ -6,6 +6,7 @@ import { btn, chatComposer, element as el, frame, picker, renderChat } from '../
 import { fitCamera, sceneBackground } from '../ui/theme';
 import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
 import { sfx } from '../ui/sfx';
+import { loadRuntime } from '../ocgcore/runtime';
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
@@ -14,6 +15,8 @@ const CHALLENGE_MS = 30000;
 export class MultiplayerScene extends Phaser.Scene {
   constructor() { super('Multiplayer'); }
   create(data: { rejoin?: boolean } = {}) {
+    // invite links come straight here: warm the duel engine while the lobby is open
+    loadRuntime().catch(() => undefined);
     fitCamera(this);
     sceneBackground(this);
     const root = el('main', '', 'mp-root');
