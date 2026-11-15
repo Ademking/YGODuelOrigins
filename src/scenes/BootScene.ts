@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
-import { fitCamera, FONT_LOADS } from '../ui/theme';
+import { fitCamera, FONT_LOADS, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
 import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
 
@@ -14,7 +14,9 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
   preload() {
-    fitCamera(this);
+    // portrait phones frame just the loading animation and its percentage, so it is not a speck
+    const tall = portraitScreen(this);
+    fitCamera(this, () => tall ? { cx: 640, cy: 392, w: 440, h: 440 } : { cx: 640, cy: 360, w: 1280, h: 720 });
     this.screen = new LoadingScreen(this);
     this.load.on('progress', (progress: number) => this.screen.progress(progress * 0.8));
     this.load.on('filecomplete', (key: string) => { if (key === BACK) this.normalizeCard(BACK); });

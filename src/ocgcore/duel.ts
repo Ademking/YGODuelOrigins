@@ -41,6 +41,21 @@ function zoneOf(location: Location): Zone | undefined {
   }
 }
 
+// ---- CPU judgement helpers
+const EXODIA_PIECES = new Set(['Exodia the Forbidden One', 'Left Arm of the Forbidden One', 'Right Arm of the Forbidden One',
+  'Left Leg of the Forbidden One', 'Right Leg of the Forbidden One']);
+const HARMFUL_TEXT = /cannot (?:attack|declare an attack|change (?:its|their) battle position|be tributed)|loses? \d+ (?:ATK|DEF)|(?:inflict|take) \d+ damage to (?:the )?(?:its )?controller|effects? (?:is|are) negated/i;
+const BOOST_TEXT = /gains? \d+ (?:ATK|DEF)|increases?/i;
+/** A card meant for the opponent's monsters (Mask of the Accursed, Paralyzing Potion…), not one that powers up its target. */
+export const hurtsTarget = (card: CardDef) => HARMFUL_TEXT.test(card.text) && !BOOST_TEXT.test(card.text);
+/** The LP a card charges each turn to stay on the field ("pay 100 LP or destroy this card"), or 0. */
+export const upkeepCost = (card: CardDef) => Number(/pay (\d+) (?:LP|Life Points) or destroy this card/i.exec(card.text)?.[1] ?? 0);
+/** The CPU stops paying an upkeep that would leave it at or below this many LP. */
+export const UPKEEP_FLOOR = 1000;
+/** Selection hints for effects that remove or take the chosen card: aimed at the opponent's cards. */
+const REMOVAL_HINTS = new Set([502n, 503n, 505n, 507n, 520n]);
+const EQUIP_HINT = 518n, TARGET_HINT = 551n;
+
 /** Projects OCGCore state and decisions into the existing Phaser scene's view types. */
 export class OcgDuel {
   players: [Player, Player];
@@ -64,6 +79,10 @@ export class OcgDuel {
   private attackTarget?: Card | null;
   private choosingAttack = false;
   private destroyed = new Set<number>();
+  /** The side that just summoned a monster, until play moves on: the CPU answers summons with its traps. */
+  private lastSummon: Side | null = null;
+  /** The card the CPU is activating, so its target choices can follow what the card does. */
+  private cpuEffect?: CardDef;
   constructor(private decks: [DeckList, DeckList], names: [string, string], private ask: Ask | null,
     private emit: (event: UIEvent) => Promise<void> | void, readonly startingLP = 8000,
     public delay = 200, public nearDelay = 200, private refresh = () => {}) {
@@ -169,6 +188,7 @@ export class OcgDuel {
         break;
       case M.NEW_TURN:
         this.activeAttack = null;
+        this.lastSummon = null;
         this.cpuAttacker = undefined;
         this.cancelledCpuAttacks.clear();
         this.tp = this.side(message.player);
@@ -179,6 +199,7 @@ export class OcgDuel {
       case M.NEW_PHASE:
         if (phases[message.phase] && this.phase !== phases[message.phase]) {
           this.phase = phases[message.phase]!;
+          this.lastSummon = null;
           if (this.phase !== 'BP') this.activeAttack = null;
           this.log(({ DP: 'Draw Phase', SP: 'Standby Phase', M1: 'Main Phase 1', BP: 'Battle Phase', M2: 'Main Phase 2', EP: 'End Phase' })[this.phase] + '.');
           event = { t: 'phase', phase: this.phase };
@@ -240,6 +261,7 @@ export class OcgDuel {
         else {
           const how = message.type === M.SUMMONING ? 'normal' : message.type === M.FLIPSUMMONING ? 'flip' : card.def.mtype === 'fusion' ? 'fusion' : card.def.mtype === 'ritual' ? 'ritual' : 'special';
           this.log(`${this.name(card.ctrl)} ${how === 'normal' ? 'Normal' : how === 'flip' ? 'Flip' : 'Special'} Summons ${card.def.name}.`);
+          this.lastSummon = card.ctrl;
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
           if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: [] });
           event = { t: 'summon', card, how };
@@ -371,8 +393,19 @@ export class OcgDuel {
       const index = response.index ?? -1;
       switch (response.action) {
         case I.SELECT_ACTIVATE: {
-          const card = this.definition(message.activates[index].code);
+          const loc = message.activates[index];
+          const card = this.definition(loc.code);
           choice.score = card.kind === 'spell' && card.stype !== 'quick' ? 24 : card.kind === 'monster' ? 14 : -2;
+          const source = this.lookup(loc);
+          const newCopy = !source || !source.faceUp || !this.onField(source);
+          // a second copy of a face-up Continuous or Field Spell (Toon World) only costs a card, and often LP
+          const lasting = card.kind === 'spell' && (card.stype === 'continuous' || card.stype === 'field');
+          if (lasting && newCopy && [...player.s, player.f].some(other => other?.faceUp && other !== source && other.def.name === card.name)) choice.score = -20;
+          // equip only where it helps: curses on the opponent's monsters, boosts on the CPU's own
+          if (card.kind === 'spell' && card.stype === 'equip' && newCopy) {
+            const targets = hurtsTarget(card) ? defenders : monsters;
+            if (!targets.some(monster => monster.faceUp)) choice.score = -20;
+          }
           break;
         }
         case I.SELECT_SPELL_SET: {
@@ -388,6 +421,7 @@ export class OcgDuel {
           const tributes = special ? 0 : normalTributes(message.summons[index].code, card.lv);
           const existingATK = Math.max(0, ...monsters.map(monster => this.atk(monster)));
           choice.score = 8 + atk / 300 + (special ? 3 : 0) - tributes * 3;
+          if (EXODIA_PIECES.has(card.name) && !this.playsNecross(side)) { choice.score = -20; break; }
           if (tributes && existingATK >= atk && monsters.length <= tributes + 1) choice.score = -4;
           if (!special && atk < threat && (card.def ?? 0) >= atk) choice.score -= 6;
           break;
@@ -397,6 +431,7 @@ export class OcgDuel {
           const defense = Math.max(0, card.def ?? 0);
           const lowLevel = (card.lv ?? 0) < 5;
           choice.score = lowLevel && monsters.length === 0 ? 5 + defense / 400 : -3;
+          if (EXODIA_PIECES.has(card.name) && !this.playsNecross(side)) choice.score = -20;
           break;
         }
         case I.SELECT_POS_CHANGE: {
@@ -416,6 +451,67 @@ export class OcgDuel {
     }
   }
 
+  /**
+   * Exodia pieces stay in the hand (they win from there) unless the deck plays Exodia Necross, which wants them in the
+   * Graveyard: only then may the CPU summon or set them.
+   */
+  private playsNecross(side: Side) {
+    return [...this.decks[side].main, ...this.decks[side].extra].some(id => getCard(id).name === 'Exodia Necross');
+  }
+
+  /**
+   * Whether the CPU activates a card in an optional chain window. It answers the opponent: their attack declaration,
+   * their summon, or a card they just activated (Counter Traps and negation). Lasting traps (Call of the Haunted,
+   * Dust Tornado…) are sprung in the opponent's End Phase. It never chains to its own cards and holds everything
+   * during its own turn.
+   */
+  private cpuChains(side: Side, card: CardDef): boolean {
+    const foe = opp(side);
+    const links = [...this.chain.values()];
+    const last = links[links.length - 1];
+    if (last && last.ctrl === side) return false;
+    if (card.kind === 'monster') return false;
+    const negates = card.stype === 'counter' || /negate/i.test(card.text);
+    if (last) return negates;
+    if (this.tp !== foe) return false;
+    // "damage to both players" (Ring of Destruction): only when the CPU can afford it
+    if (/damage to both players/i.test(card.text)) {
+      const strongest = Math.max(0, ...this.players[foe].m.filter((m): m is Card => !!m?.faceUp).map(m => this.atk(m)));
+      if (!strongest || strongest >= this.players[side].lp) return false;
+    }
+    if (this.activeAttack && this.activeAttack.attacker.ctrl === foe) return card.kind === 'trap' || card.stype === 'quick';
+    if (this.lastSummon === foe) return card.kind === 'trap';
+    return this.phase === 'EP' && card.kind === 'trap' && card.stype !== 'counter';
+  }
+
+  /**
+   * CPU card choices for effects whose aim is clear: removal and curses take the opponent's best cards, boosts go on
+   * the CPU's own best monster. Returns the chosen indices (best first), or undefined to fall back to the default.
+   */
+  private cpuTargets(message: Extract<OcgMessage, { type: M.SELECT_CARD }>, side: Side, hint: bigint | undefined, valid: (indices: number[]) => boolean) {
+    const effect = this.cpuEffect;
+    const removal = hint !== undefined && REMOVAL_HINTS.has(hint);
+    const aimed = effect && (hint === EQUIP_HINT || hint === TARGET_HINT || removal);
+    if (!removal && !aimed) return;
+    const atOpponent = removal || (effect ? hurtsTarget(effect) : false);
+    const lp = this.players[side].lp;
+    const bothHurt = effect && /damage to both players/i.test(effect.text);
+    const value = (index: number) => {
+      const loc = message.selects[index];
+      const card = this.lookup(loc);
+      const theirs = this.side(loc.controller) !== side;
+      const worth = card?.def.kind === 'monster' ? (card.faceUp ? this.atk(card) : 1200) : 600;
+      // Ring of Destruction must not take a monster whose ATK would also finish the CPU
+      if (bothHurt && card?.faceUp && this.atk(card) >= lp) return -1e6;
+      return theirs === atOpponent ? 1e4 + worth : -worth;
+    };
+    const ranked = message.selects.map((_, index) => index).sort((a, b) => value(b) - value(a));
+    for (let count = Math.max(1, message.min); count <= Math.max(1, message.max); count++) {
+      const picked = ranked.slice(0, count);
+      if (valid(picked)) return picked;
+    }
+  }
+
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
     const side = this.side(message.player);
     const hint = this.selectionHint?.player === message.player ? this.selectionHint.id : undefined;
@@ -430,8 +526,23 @@ export class OcgDuel {
       if (index >= 0 && prompt.selection!.valid([index])) return prompt.selection!.response([index]);
       return cpuChoice(prompt);
     }
+    if (message.type === M.SELECT_IDLECMD || message.type === M.SELECT_BATTLECMD) this.lastSummon = null;
     if (side !== 0 || !this.ask) {
       if (message.type === M.SELECT_IDLECMD) this.rankIdleChoices(message, side, prompt.choices);
+      if (message.type === M.SELECT_CHAIN && !message.forced) {
+        const pick = message.selects.findIndex(loc => this.cpuChains(side, this.definition(loc.code)));
+        await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
+        if (this.stopped) return;
+        if (pick < 0) return { type: R.SELECT_CHAIN, index: null };
+        this.cpuEffect = this.definition(message.selects[pick].code);
+        return { type: R.SELECT_CHAIN, index: pick };
+      }
+      // upkeep costs (Messenger of Peace): stop paying before the LP run out
+      if (message.type === M.SELECT_YESNO && message.description >= 0x100000n) {
+        const card = this.definition(Number(message.description >> 20n));
+        const cost = upkeepCost(card);
+        if (cost && this.players[side].lp - cost <= UPKEEP_FLOOR) return { type: R.SELECT_YESNO, yes: false };
+      }
       if (message.type === M.SELECT_BATTLECMD) {
         this.cpuAttacker = undefined;
         this.choosingAttack = false;
@@ -491,8 +602,20 @@ export class OcgDuel {
         }
         if (ranked.length) return { type: R.SELECT_CARD, indicies: [ranked[0].index] };
       }
+      if (message.type === M.SELECT_CARD && prompt.selection) {
+        const picked = this.cpuTargets(message, side, hint, prompt.selection.valid);
+        if (picked) {
+          await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
+          return this.stopped ? undefined : prompt.selection.response(picked);
+        }
+      }
       await new Promise(resolve => setTimeout(resolve, side === 0 ? this.nearDelay : this.delay));
-      return this.stopped ? undefined : cpuChoice(prompt);
+      if (this.stopped) return;
+      const response = cpuChoice(prompt);
+      if (response.type === R.SELECT_IDLECMD && response.action === I.SELECT_ACTIVATE && message.type === M.SELECT_IDLECMD && response.index !== null) {
+        this.cpuEffect = this.definition(message.activates[response.index].code);
+      }
+      return response;
     }
     const ask = (p: Prompt) => this.ask!(p, this);
     if (message.type === M.SELECT_IDLECMD || message.type === M.SELECT_BATTLECMD || message.type === M.SELECT_CHAIN) {

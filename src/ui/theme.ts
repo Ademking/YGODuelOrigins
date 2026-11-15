@@ -4,17 +4,24 @@ import { sfx } from './sfx';
 // ---------------------------------------------------------------- sharp rendering
 /** World size every scene is laid out in. */
 export const W = 1280, H = 720;
+/** Phones and tablets. */
+export const TOUCH = window.matchMedia('(pointer: coarse)').matches;
+/** A phone or tablet with little memory or few cores: it gets a smaller canvas and a still background. */
+export const LOW_END = TOUCH && (((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4);
 /**
- * Internal render scale. The canvas is RES x the world size and each camera zooms by RES, so layout
- * code keeps using 1280x720 coordinates while vectors, text and cards are rasterized at screen
- * resolution. Cap mobile resolution to keep the canvas and text textures smaller.
+ * Canvas size: a square of the screen's short side in device pixels, capped. Phaser's EXPAND mode fits it in the
+ * window and lengthens the long side, so the canvas has the screen's shape and about its pixel count, never more.
+ * Cameras zoom from the world to the canvas (fitCamera), so layout code keeps using world coordinates.
  */
-const touchDevice = window.matchMedia('(pointer: coarse)').matches;
-export const RES = Phaser.Math.Clamp(
-  Math.ceil(((window.screen?.width ?? W) * (window.devicePixelRatio || 1)) / W * 2) / 2,
-  touchDevice ? 1 : 1.5,
-  touchDevice ? 1 : 2,
-);
+export const CANVAS_SIDE = Math.round(Phaser.Math.Clamp(
+  Math.min(window.innerWidth, window.innerHeight) * Math.min(window.devicePixelRatio || 1, LOW_END ? 1.75 : 2.5),
+  480, LOW_END ? 720 : TOUCH ? 1000 : 1200,
+));
+/**
+ * Text is rasterized at RES x its world size so it stays crisp under the camera zoom (about canvas / world).
+ * Phones stay lower to keep text textures small.
+ */
+export const RES = Phaser.Math.Clamp(Math.ceil((Math.max(CANVAS_SIDE / H, CANVAS_SIDE / 820)) * 2) / 2, 1, LOW_END ? 1 : TOUCH ? 1.5 : 2);
 
 /** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */
 export const FONT_H = 'Michroma, Arial, sans-serif';
@@ -32,16 +39,57 @@ factory.text = function (x, y, s, style) {
   return addText.call(this, x, y, s, st);
 };
 
-/** Call first in every scene: maps the RES x canvas back onto the 1280x720 world. */
-export function fitCamera(scene: Phaser.Scene) {
+/** The world rectangle a scene's camera keeps in view (the 1280x720 world unless the scene asks otherwise). */
+export interface Frame { cx: number; cy: number; w: number; h: number }
+const frames = new WeakMap<Phaser.Scene, () => Frame>();
+const defaultFrame = (): Frame => ({ cx: W / 2, cy: H / 2, w: W, h: H });
+
+/**
+ * Call first in every scene: maps the RES x canvas back onto the world. By default the 1280x720 world is
+ * fitted and centred; `frame` lets a scene fit and centre another region (portrait duels frame the board).
+ */
+export function fitCamera(scene: Phaser.Scene, frame: () => Frame = defaultFrame) {
+  frames.set(scene, frame);
   const camera = scene.cameras.main;
   const resize = () => {
     const size = scene.scale.baseSize;
-    camera.setSize(size.width, size.height).setZoom(Math.min(size.width / W, size.height / H)).centerOn(W / 2, H / 2);
+    const f = frame();
+    camera.setSize(size.width, size.height).setZoom(Math.min(size.width / f.w, size.height / f.h)).centerOn(f.cx, f.cy);
   };
   resize();
   scene.scale.on('resize', resize);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));
+}
+
+/** Is the screen held upright (taller than wide)? Scenes pick their portrait layout from this when they start. */
+export function portraitScreen(scene: Phaser.Scene) {
+  const { width, height } = scene.scale.baseSize;
+  return height > width * 1.15;
+}
+
+/**
+ * Portrait only: draw a dialog that is laid out around the world centre (640, 360) larger, as far as `width`
+ * allows, and move it to the middle of the screen. Returns the scale used (1 when nothing changed).
+ */
+export function fitDialog(scene: Phaser.Scene, layer: Phaser.GameObjects.Container, width: number, maxScale = 1.45) {
+  if (!portraitScreen(scene)) return 1;
+  const view = viewOf(scene);
+  const k = Math.max(1, Math.min(maxScale, (view.width - 24) / width));
+  layer.setScale(k).setPosition(view.cx - 640 * k, view.cy - 360 * k);
+  return k;
+}
+
+/** DOM elements do not follow containers: put one where (x, y) of a fitDialog layer appears, at its scale. */
+export function placeDom(dom: Phaser.GameObjects.DOMElement, layer: Phaser.GameObjects.Container, x: number, y: number) {
+  dom.setPosition(layer.x + x * layer.scaleX, layer.y + y * layer.scaleY).setScale(layer.scaleX);
+}
+
+/** The part of the world currently on screen, in world coordinates. */
+export function viewOf(scene: Phaser.Scene) {
+  const f = (frames.get(scene) ?? defaultFrame)();
+  const zoom = scene.cameras.main.zoom;
+  const width = scene.scale.baseSize.width / zoom, height = scene.scale.baseSize.height / zoom;
+  return { cx: f.cx, cy: f.cy, width, height, left: f.cx - width / 2, top: f.cy - height / 2, right: f.cx + width / 2, bottom: f.cy + height / 2 };
 }
 
 // ---------------------------------------------------------------- palette & type
@@ -155,7 +203,8 @@ export const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) =
 
 /** Shadow-realm arena: slow indigo smoke with drifting brass embers. Shared by every scene. */
 export function sceneBackground(scene: Phaser.Scene, animated = true) {
-  if (animated && scene.game.renderer.type === Phaser.WEBGL) {
+  // low-end phones get the still background: the animated one redraws a full-screen shader 30 times a second
+  if (animated && !LOW_END && scene.game.renderer.type === Phaser.WEBGL) {
     const motion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0.0' : '1.0';
     const fragment = `
       #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -256,10 +305,9 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
     };
     scene.events.on('postupdate', update);
     const resize = () => {
-      const width = scene.scale.baseSize.width / scene.cameras.main.zoom;
-      const height = scene.scale.baseSize.height / scene.cameras.main.zoom;
+      const { width, height, cx, cy } = viewOf(scene);
       shader.setUniform('viewport.value', { x: width, y: height });
-      background.setDisplaySize(width, height);
+      background.setPosition(cx, cy).setDisplaySize(width, height);
     };
     background.once('destroy', () => {
       scene.events.off('postupdate', update);
@@ -288,7 +336,10 @@ export function sceneBackground(scene: Phaser.Scene, animated = true) {
     texture.refresh();
   }
   const background = scene.add.image(W / 2, H / 2, 'duel-bg').setDepth(-100);
-  const resize = () => background.setDisplaySize(scene.scale.baseSize.width / scene.cameras.main.zoom, scene.scale.baseSize.height / scene.cameras.main.zoom);
+  const resize = () => {
+    const { width, height, cx, cy } = viewOf(scene);
+    background.setPosition(cx, cy).setDisplaySize(width, height);
+  };
   resize();
   scene.scale.on('resize', resize);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off('resize', resize));
@@ -396,6 +447,9 @@ export function modal(scene: Phaser.Scene, o: { title: string; text?: string; in
       field.value = o.input;
       y += 64;
     }
+    fitDialog(scene, layer, 440);
+    if (dom) placeDom(dom, layer, 640, dom.y);
+    dom?.setDepth(4001);
     const done = (v: string | boolean | null) => { dom?.destroy(); layer.destroy(); resolve(v); };
     const accept = () => {
       if (!field) return done(true);
@@ -424,29 +478,35 @@ export function chooseFromList(scene: Phaser.Scene, title: string, options: read
   const backdrop = scene.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
   backdrop.on('pointerup', close);
   layer.add(backdrop);
-  layer.add(scene.add.zone(320, 130, 640, 460).setOrigin(0).setInteractive());
-  layer.add(panel(scene, 320, 130, 640, 460, 0.98, 10));
-  layer.add(htxt(scene, 640, 166, title, 22).setOrigin(0.5));
+  // portrait: a single column, drawn larger by fitDialog
+  const tall = portraitScreen(scene);
+  const px = tall ? 400 : 320, pw = tall ? 480 : 640, top = tall ? 40 : 130, ph = tall ? 640 : 460;
+  layer.add(scene.add.zone(px, top, pw, ph).setOrigin(0).setInteractive());
+  layer.add(panel(scene, px, top, pw, ph, 0.98, 10));
+  layer.add(htxt(scene, 640, top + 36, title, 22).setOrigin(0.5));
   const entries = scene.add.container(0, 0);
   layer.add(entries);
-  const pageSize = 12;
+  const pageSize = tall ? 10 : 12;
+  const bottom = top + ph - 38;
   const lastPage = Math.max(0, Math.ceil(options.length / pageSize) - 1);
   let page = Math.max(0, Math.floor(selected / pageSize));
   const render = () => {
     entries.removeAll(true);
     options.slice(page * pageSize, (page + 1) * pageSize).forEach((label, i) => {
       const index = page * pageSize + i;
-      entries.add(button(scene, 484 + (i % 2) * 312, 218 + Math.floor(i / 2) * 49, 290, 39, label, () => {
+      const x = tall ? 640 : 484 + (i % 2) * 312, y = tall ? top + 92 + i * 49 : 218 + Math.floor(i / 2) * 49;
+      entries.add(button(scene, x, y, tall ? 420 : 290, 39, label, () => {
         close();
         onChoose(index);
       }, { size: 14 }).setSelected(index === selected));
     });
     if (lastPage) {
-      entries.add(button(scene, 404, 552, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
-      entries.add(button(scene, 876, 552, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+      entries.add(button(scene, px + 84, bottom, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, px + pw - 84, bottom, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
     }
   };
-  layer.add(button(scene, 640, 552, 160, 36, 'Close', close, { size: 14 }));
+  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, 'Close', close, { size: 14 }));
+  fitDialog(scene, layer, pw);
   scene.input.keyboard?.once('keydown-ESC', close);
   layer.once('destroy', () => scene.input.keyboard?.off('keydown-ESC', close));
   render();

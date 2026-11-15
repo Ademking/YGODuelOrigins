@@ -32,11 +32,17 @@ export class CardPanel {
   private maskW: number;
   private bar: ScrollBar;
 
-  constructor(private scene: Phaser.Scene, private x: number, previewY: number, previewH: number, infoY: number, infoH: number, private w = 246, compact = false) {
-    panel(scene, x, previewY, w, previewH, 0.95, 8);
-    const scale = Math.min((previewH - 26) / CH, (w - 26) / CW);
-    scene.add.rectangle(x + w / 2 + 3, previewY + previewH / 2 + 5, CW * scale, CH * scale, 0x000000, 0.45);
-    this.img = scene.add.image(x + w / 2, previewY + previewH / 2, BACK).setScale(scale);
+  /**
+   * The preview sits above the description by default; `preview` places it elsewhere (beside it, in the
+   * portrait duel layout) with its own left edge and width.
+   */
+  constructor(private scene: Phaser.Scene, private x: number, previewY: number, previewH: number, infoY: number, infoH: number, private w = 246, compact = false,
+    preview: { x: number; w: number } = { x, w }) {
+    const px = preview.x, pw = preview.w;
+    panel(scene, px, previewY, pw, previewH, 0.95, 8);
+    const scale = Math.min((previewH - 26) / CH, (pw - 26) / CW);
+    scene.add.rectangle(px + pw / 2 + 3, previewY + previewH / 2 + 5, CW * scale, CH * scale, 0x000000, 0.45);
+    this.img = scene.add.image(px + pw / 2, previewY + previewH / 2, BACK).setScale(scale);
     panel(scene, x, infoY, w, infoH, 0.95, 8);
     this.name = scene.add.text(x + 14, infoY + 12, '', { fontFamily: FONT_H, fontSize: compact ? '14px' : '16px', color: COL.goldTxt, fontStyle: 'bold', wordWrap: { width: w - 28 } });
     this.type = scene.add.text(x + 14, infoY + 36, '', { fontFamily: FONT_B, fontSize: compact ? '10px' : '13px', color: COL.dim, wordWrap: { width: w - 28 } });
@@ -76,6 +82,18 @@ export class CardPanel {
     this.maskG.x = x;
   }
 
+  /** Match the mask to a caller's container that is moved and scaled. */
+  setTransform(x: number, y: number, scale: number) {
+    this.maskG.setPosition(x, y).setScale(scale);
+  }
+
+  /** Change the placeholder line shown while no card is selected. */
+  setHint(text: string) {
+    this.hint = text;
+    if (!this.img.getData('cardId') && this.name.text === '') this.desc.setText(text);
+  }
+  private hint = 'Hover over a card to see its details.';
+
   private setMaskArea() {
     this.descH = Math.max(0, this.bottom - this.descTop);
     this.maskG.clear().fillStyle(0xffffff).fillRect(this.maskX, this.descTop - 2, this.maskW, this.descH + 2);
@@ -108,7 +126,7 @@ export class CardPanel {
       this.levelIcon.setVisible(false);
       this.levelText.setVisible(false);
       this.descTop = this.type.y + 8;
-      this.desc.setText(concealed ? 'This card has not been revealed.' : 'Hover over a card to see its details.').setColor(COL.dim);
+      this.desc.setText(concealed ? 'This card has not been revealed.' : this.hint).setColor(COL.dim);
       this.desc.y = this.descTop;
       this.stats.setVisible(false);
       this.bottom = this.fullBottom;

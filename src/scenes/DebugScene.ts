@@ -8,7 +8,8 @@ import { setCardTexture } from '../ui/cardLoader';
 import { button, caption, COL, fitCamera, htxt, panel, sceneBackground, txt, type Button } from '../ui/theme';
 import type { DuelInit } from './DuelScene';
 
-type Field = keyof DebugSetup;
+// the debug screen edits the zones every duel engine supports; opponentTraps is for OCGCore tests
+type Field = Exclude<keyof DebugSetup, 'opponentTraps'>;
 const zones: { key: Field; label: string; limit: number }[] = [
   { key: 'hand', label: 'Your hand', limit: 30 },
   { key: 'monsters', label: 'Your monsters', limit: 5 },

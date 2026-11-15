@@ -35,6 +35,7 @@ export function volumeControls(scene: Phaser.Scene, layer: Phaser.GameObjects.Co
   });
   layer.once('destroy', () => slider.destroy());
   refresh();
+  return slider;
 }
 
 export function settingsRows(scene: Phaser.Scene, layer: Phaser.GameObjects.Container, x: number, y: number) {

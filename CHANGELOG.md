@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.3.0 — 2026-11-15
+
+Play on your phone held upright, load faster everywhere, and face CPU opponents that use their traps.
+
+### Phones and portrait
+
+- Every screen has a portrait layout for phones held upright: title, Duel Setup, Replays, Deck Builder, the duel and the loading screen. Landscape is unchanged.
+- Duels drop the sidebar and show the board at full width, with a larger hand, LP plates above and below the board, big Menu and Log buttons, and card details across the bottom.
+- Prompts, Rock Paper Scissors, card choices, the menu, the log and the result screen are drawn up to 1.9x larger in portrait.
+- The Deck Builder has Deck and Card List tabs; tap a listed card to add it and a deck card to remove it.
+- In online duels, the chat and emote buttons move to the top-left corner in portrait, clear of the deck and Graveyard.
+- Field Spell backdrops crop the artwork's sides on tall screens instead of stretching it.
+- Removed the "turn your device sideways" prompt.
+
+### Speed
+
+- The duel engine's card data is now 0.9 MB instead of 6.8 MB: it carries only the cards this game can play and the cards their scripts refer to.
+- The engine loads in the background on the title screen and in the lobby, so duels start without a wait. If it is not ready yet, a progress panel shows.
+- The canvas is sized to the screen. Portrait phones drew about 8 million pixels before; they now draw about 2 million, and low-end phones less with a still background.
+- Removed compatibility mode: every device uses the same renderer (WebGL, with the automatic Canvas fallback).
+- A page opened before an update reloads itself once instead of failing every duel with "Failed to fetch dynamically imported module".
+
+### CPU opponents
+
+- The CPU now uses its traps: it answers your attacks (Sakuretsu Armor, Mirror Force), your summons (Trap Hole) and your cards (Counter Traps), and springs lasting traps in your End Phase. Before, it always passed.
+- Curses such as Mask of the Accursed go on your monsters, power-ups on the CPU's own; destroy and banish effects aim at your cards first.
+- The CPU no longer activates a second copy of a face-up Continuous or Field Spell, such as Toon World.
+- Exodia pieces stay in the CPU's hand unless its deck plays Exodia Necross.
+- The CPU stops paying upkeep costs such as Messenger of Peace's before its LP fall to 1,000.
+
+### Cards
+
+- Ring of Destruction plays by its 2004 text: either turn, any face-up monster, and both players take damage equal to its ATK.
+- The Seal of Orichalcos and the three Egyptian Gods show their full text in the Deck Builder.
+
+### Other
+
+- Quit to Home leaves without the result screen and its win or loss jingle.
+- The Replays page has a portrait layout.
+
 ## 1.2.0 — 2026-11-15
 
 Online duels: play other people in real time, with no account and no server to run.

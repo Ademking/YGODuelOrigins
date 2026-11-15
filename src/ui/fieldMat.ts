@@ -190,8 +190,11 @@ export function fieldMatShader(name: FieldMatName, reducedMotion: boolean): stri
       vec2 uv = vec2(fragCoord.x, resolution.y - fragCoord.y) / resolution;
       float t = time * ${reducedMotion ? '0.0' : '0.22'};
       float aspect = resolution.x / resolution.y;
-      // Fit the square art to the wide screen (ponytail: up to ~1.4x horizontal stretch so more of the art shows), then a slow Ken Burns zoom and pan.
-      vec2 a = vec2(uv.x, 0.5 + (uv.y - 0.5) * min(1.0, 1.4 / aspect));
+      // Cover the screen with the square art, cropping the long side (ponytail: up to ~1.4x stretch along it so more
+      // of the art shows), then a slow Ken Burns zoom and pan. Wide screens crop top and bottom, tall (portrait) ones the sides.
+      vec2 a = aspect >= 1.0
+        ? vec2(uv.x, 0.5 + (uv.y - 0.5) * min(1.0, 1.4 / aspect))
+        : vec2(0.5 + (uv.x - 0.5) * min(1.0, 1.4 * aspect), uv.y);
       a = 0.5 + (a - 0.5) / (1.06 + 0.04 * sin(t * 0.25)) + vec2(sin(t * 0.17), cos(t * 0.13)) * 0.012;
       ${FX[fx]}
       vec3 col = texture2D(iChannel0, clamp(a, 0.0, 1.0)).rgb;
