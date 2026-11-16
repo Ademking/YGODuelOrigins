@@ -5,6 +5,8 @@
 ### Fixes
 
 - Declaring a number (Card Trooper and other cards that ask for one) no longer ends the duel with "OCGCore rejected the selection", and the declared number is the one the effect uses. Numbers are listed from lowest to highest.
+- The CPU no longer activates a second copy of a Continuous card it already has face-up (two Toon Defense in a row).
+- "Chain prompts: Smart" asks far less often. It stops you when a card answers something specific, when the opponent's card is on the chain, and once each for the opponent's summon, attack, Battle Phase and End Phase. It no longer stops at every phase start, on your own chain links, or in every Damage Step window. "Chain prompts: Always" still shows every window.
 
 ## 1.4.0 — 2026-11-16
 

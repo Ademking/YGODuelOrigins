@@ -284,3 +284,54 @@ test('Card Trooper accepts every declared number', { timeout: 10000 }, async () 
     assert.equal(duel.players[0].gy.length, Number(declared));
   }
 });
+
+test('CPU does not activate a second copy of a Continuous Trap it already has face-up', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+  const activations: string[] = [];
+  let mains = 0;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (prompt.t === 'main') {
+      if (++mains > 1) return SURRENDER;
+      return prompt.actions.find(action => action.a === 'summon' && action.card.def.name === 'Command Knight');
+    }
+    if (prompt.t === 'chain') return null;
+    if (prompt.t === 'position') return 'atk';
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => { if (event.t === 'activate') activations.push(event.card.def.name); }, 8000, 0, 0);
+  await duel.run(core, readBundle(), {
+    hand: [id('Command Knight')], monsters: [], opponentMonsters: [], traps: [], extra: [],
+    opponentTraps: [id('Toon Defense'), id('Toon Defense')],
+  }, 0);
+  assert.ok(activations.filter(name => name === 'Toon Defense').length <= 1, activations.join(', '));
+});
+
+test('Smart chain prompts skip phase openings and the human\'s own chain links', { timeout: 20000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+  const windows: { optional: boolean; phase: string; tp: number }[] = [];
+  let mains = 0;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async (prompt, d) => {
+    if (prompt.t === 'main') {
+      if (++mains > 2) return SURRENDER;
+      return prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    }
+    if (prompt.t === 'chain') { windows.push({ optional: prompt.optionalWindow === true, phase: d.phase, tp: d.tp }); return null; }
+    if (prompt.t === 'option') return 0;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, () => {}, 8000, 0, 0);
+  // A set Dust Tornado can be activated in every window of both turns.
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [], opponentMonsters: [], traps: [id('Dust Tornado')], extra: [],
+    opponentTraps: [id('Mystical Space Typhoon')],
+  }, 0);
+  assert.ok(windows.length > 0);
+  const shown = windows.filter(w => !w.optional);
+  // Only the opponent's End Phase opening is worth stopping for here.
+  assert.ok(shown.length <= 2, JSON.stringify(windows));
+  assert.ok(shown.every(w => w.tp === 1), JSON.stringify(windows));
+});
