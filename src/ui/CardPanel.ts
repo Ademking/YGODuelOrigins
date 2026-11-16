@@ -5,7 +5,7 @@ import { ATTR_COLOR, BACK, CH, CW } from './cardArt';
 import { setCardTexture } from './cardLoader';
 import { cardStat } from './cardStat';
 import { COL, FONT_B, FONT_H, panel, ScrollBar } from './theme';
-import { t as tr } from '../i18n';
+import { isRTL, t as tr } from '../i18n';
 import { cardName, cardText } from '../i18n/cards';
 
 export interface PanelInfo { atk?: number; def?: number; notes?: string[]; hidden?: boolean }
@@ -55,7 +55,9 @@ export class CardPanel {
     this.rule = scene.add.graphics();
     this.descTop = infoY + 58;
     this.descH = infoH - 58 - 34;
-    this.desc = scene.add.text(x + 14, this.descTop, '', { fontFamily: FONT_B, fontSize: compact ? '11px' : '14px', color: COL.text, wordWrap: { width: w - 30 }, lineSpacing: compact ? 3 : 4 });
+    // Arabic card text reads right to left, so its lines sit against the right edge
+    const rtl = isRTL() ? { align: 'right', fixedWidth: w - 30 } : {};
+    this.desc = scene.add.text(x + 14, this.descTop, '', { fontFamily: FONT_B, fontSize: compact ? '11px' : '14px', color: COL.text, wordWrap: { width: w - 30 }, lineSpacing: compact ? 3 : 4, ...rtl });
     this.statsBottom = infoY + infoH - 42;
     this.fullBottom = infoY + infoH - 10;
     this.bottom = this.statsBottom;

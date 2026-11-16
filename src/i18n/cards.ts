@@ -1,14 +1,15 @@
-// Card names, text, effect-choice labels and engine prompts in the interface language: Konami's official translations
-// (French, German, Italian, Portuguese, Spanish), imported by scripts/import-card-text.ts into
-// assets/i18n/cards/<locale>.json and loaded at boot. Anything without one, and the languages Konami does not print
-// (Russian, Arabic, Indonesian), stays in English.
+// Card names, text, effect-choice labels and engine prompts in the interface language, from
+// assets/i18n/cards/<locale>.json, loaded at boot:
+//   - French, German, Italian, Portuguese, Spanish: Konami's official translations (scripts/import-card-text.ts);
+//   - Arabic: the community translations of Arab Duelists (scripts/import-arabic-card-text.ts), names and text only.
+// Anything without a translation, and the other languages, stays in English.
 import type { CardDef } from '../engine/types';
 import { cardImagePasscode } from '../data/cardImages';
 import { locale, type Locale } from '.';
 import { OVERRIDES } from '../ocgcore/overrides';
 
-/** Languages with official card text: the file name for each. */
-export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it' };
+/** Languages with translated card text: the file name for each. */
+export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it', ar: 'ar' };
 
 /** The file's shape: names and text, effect-choice labels by index (str1 = 0), engine prompts by id. */
 export interface CardTextFile {
@@ -34,7 +35,7 @@ export function setCardTexts(data: CardTextFile | undefined, englishTextFor: num
 }
 
 /**
- * Fetch and install the current language's card text (or clear it for English and languages without official text).
+ * Fetch and install the current language's card text (or clear it for English and languages without card text).
  * Never fails: on any error the cards simply stay in English.
  */
 export async function loadCardTexts(): Promise<void> {

@@ -20,6 +20,8 @@ const about = (): [string, string][] => [
   [t('It is about old-school Yu-Gi-Oh!, from the days when dueling was simple: the classic 2004 rules, Normal and Tribute Summons, Fusions and Rituals, Spells and Traps. No Synchro, Xyz, Pendulum or Link monsters, and no turns that take ten minutes.'), COL.text],
   [t('It is a fan project and is not associated with Konami.'), COL.text],
   [t('The literal and graphical information presented in this game about Yu-Gi-Oh!, including card images, the attribute, level/rank and type symbols, and card text, is copyright 4K Media Inc, a subsidiary of Konami Digital Entertainment, Inc. This game is not produced by, endorsed by, supported by, or affiliated with 4K Media or Konami Digital Entertainment.'), COL.dim],
+  // the Arabic card text is the Arab Duelists community's work (scripts/import-arabic-card-text.ts); only Arabic shows it
+  ...(locale() === 'ar' ? [['نصوص البطاقات العربية من ترجمة مجتمع المبارزين العرب (arab-duelists.com).', COL.dim] as [string, string]] : []),
   [t('Questions, bug reports and duel partners: join the Discord server.'), COL.text],
   [t('Version {v}', { v: __APP_VERSION__ }), COL.dim],
 ];

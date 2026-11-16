@@ -8,7 +8,7 @@
 //   1. YGOProDeck (fr, de, it, pt): names and text as first printed, which suits the game's 2004 era.
 //   2. mycard/ygopro-database (es, fr, de, it, pt): fills cards YGOProDeck lacks, all of Spanish (YGOProDeck has none),
 //      and the effect-choice labels and engine prompts. Pinned to one commit so the output is reproducible.
-// Russian, Arabic and Indonesian have no official card text, so those languages keep the English cards.
+// Konami prints no Russian, Arabic or Indonesian cards. Arabic uses community text (scripts/import-arabic-card-text.ts).
 //
 // Run after changing the card catalog: npm run import:card-text (Node needs NODE_USE_ENV_PROXY=1 behind a proxy).
 import { execFileSync } from 'node:child_process';
