@@ -4,6 +4,7 @@ import { fitCamera, FONT_LOADS, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
 import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
 import { loadCardTexts } from '../i18n/cards';
+import { LOCALES } from '../i18n';
 
 // Boot loads only the card back and zone icons. Card faces are fetched on demand by ui/cardLoader.
 const CARD_BACK_URL = '/ui/card-back.png';
@@ -39,6 +40,8 @@ export class BootScene extends Phaser.Scene {
     }
     for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, `/portraits/${id}.png`);
     for (const choice of ['rock', 'paper', 'scissors']) this.load.image(`rps_${choice}`, `/ui/rps-${choice}.png`);
+    // language flags (flag-icons, MIT), rasterized at twice the largest size they are drawn
+    for (const { flag } of LOCALES) this.load.svg(`flag_${flag}`, `/flags/${flag}.svg`, { width: 96, height: 72 });
   }
 
   create() {

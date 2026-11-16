@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BACK, CARD_K } from '../ui/cardArt';
 import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
-import { button, caption, chooseFromList, COL, fitCamera, fitDialog, htxt, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
+import { button, caption, COL, fitCamera, fitDialog, htxt, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';
 import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
@@ -143,6 +143,7 @@ export class TitleScene extends Phaser.Scene {
     };
     this.input.keyboard?.on('keydown', shortcut);
     this.events.once('shutdown', () => this.input.keyboard?.off('keydown', shortcut));
+    this.languageButton(tall);
     const credit = `${t('Fan-made duel simulator')}  ·  ${t('2004 Expert Rules')}  ·  v${__APP_VERSION__}`;
     if (tall) caption(this, 640, TALL.bottom - 16, credit, COL.dim, 11).setOrigin(0.5);
     else caption(this, 24, 683, credit, COL.dim, 9);
@@ -152,23 +153,68 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(800, () => { loadRuntime().catch(() => undefined); });
   }
 
+  /** The current language with its flag, top right; it opens the language list. */
+  private languageButton(tall: boolean) {
+    const current = LOCALES.find((l) => l.code === locale())!;
+    const [x, y, w, h, size] = tall ? [830, 52, 240, 56, 18] : [1150, 36, 220, 40, 14];
+    const control = button(this, x, y, w, h, `${current.name}  ▾`, () => this.showLanguages(), { size });
+    this.withFlag(control, current.flag, w, h);
+  }
+
+  /** Put a flag at the left of a button and move its label to make room. */
+  private withFlag(control: Phaser.GameObjects.Container, flag: string, w: number, h: number) {
+    const flagH = Math.min(h * 0.5, 30), flagW = flagH * 4 / 3, left = -w / 2 + 14;
+    const label = control.list[1] as Phaser.GameObjects.Text;
+    label.setX((flagW + 8) / 2);
+    if (label.displayWidth > w - flagW - 36) label.setScale((w - flagW - 36) / label.width);
+    if (this.textures.exists(`flag_${flag}`)) {
+      control.add(this.add.image(left + flagW / 2, 0, `flag_${flag}`).setDisplaySize(flagW, flagH));
+      control.add(this.add.graphics().lineStyle(1, 0x000000, 0.35).strokeRect(left, -flagH / 2, flagW, flagH));
+    }
+  }
+
+  /** Every language with its flag; picking one restarts the title screen in it. */
+  private showLanguages() {
+    const layer = this.add.container(0, 0).setDepth(110);
+    const close = () => layer.destroy();
+    const backdrop = this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
+    backdrop.on('pointerup', close);
+    layer.add(backdrop);
+    const tall = this.portrait;
+    // landscape: two columns; portrait: one tall column of larger rows
+    const cols = tall ? 1 : 2, bw = tall ? 380 : 250, bh = tall ? 54 : 46, gap = 10;
+    const rows = Math.ceil(LOCALES.length / cols);
+    const pw = cols * bw + (cols - 1) * gap + 60, ph = 110 + rows * (bh + gap) + 60;
+    const x0 = 640 - pw / 2, y0 = 360 - ph / 2;
+    layer.add(this.add.zone(x0, y0, pw, ph).setOrigin(0).setInteractive());
+    layer.add(panel(this, x0, y0, pw, ph, 0.98, 10));
+    layer.add(htxt(this, 640, y0 + 40, t('Language'), 24).setOrigin(0.5));
+    LOCALES.forEach((language, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = x0 + 30 + col * (bw + gap) + bw / 2, y = y0 + 90 + row * (bh + gap) + bh / 2;
+      const control = button(this, x, y, bw, bh, language.name, () => {
+        if (language.code === locale()) { close(); return; }
+        setLocale(language.code);
+        void loadCardTexts().then(() => this.scene.restart());
+      }, { size: tall ? 19 : 16 }).setSelected(language.code === locale());
+      this.withFlag(control, language.flag, bw, bh);
+      layer.add(control);
+    });
+    layer.add(button(this, 640, y0 + ph - 38, 160, 40, t('Close'), close, { size: 14 }));
+    fitDialog(this, layer, pw);
+    this.input.keyboard?.once('keydown-ESC', close);
+    layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
+  }
+
   private showSettings() {
     const layer = this.add.container(0, 0).setDepth(110);
     const close = () => layer.destroy();
     layer.add(this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive());
-    layer.add(panel(this, 420, 105, 440, 530, 0.98, 10));
-    layer.add(htxt(this, 640, 141, t('Settings'), 24).setOrigin(0.5));
-    const slider = volumeControls(this, layer, 640, 205);
-    settingsRows(this, layer, 640, 320);
-    // language: the title screen restarts so every text is drawn again in the new language
-    const current = LOCALES.find((l) => l.code === locale())!;
-    layer.add(button(this, 640, 512, 286, 38, `🌐  ${current.name} ▾`, () => {
-      chooseFromList(this, t('Language'), LOCALES.map((l) => l.name), LOCALES.indexOf(current), (index) => {
-        setLocale(LOCALES[index].code);
-        void loadCardTexts().then(() => this.scene.restart());
-      });
-    }, { size: 14 }));
-    layer.add(button(this, 640, 584, 160, 40, t('Close'), close, { size: 14 }));
+    layer.add(panel(this, 420, 125, 440, 470, 0.98, 10));
+    layer.add(htxt(this, 640, 161, t('Settings'), 24).setOrigin(0.5));
+    const slider = volumeControls(this, layer, 640, 225);
+    settingsRows(this, layer, 640, 340);
+    layer.add(button(this, 640, 554, 160, 40, t('Close'), close, { size: 14 }));
     if (fitDialog(this, layer, 440) > 1) placeDom(slider, layer, slider.x, slider.y);
     this.input.keyboard?.once('keydown-ESC', close);
     layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));

@@ -11,17 +11,17 @@ import { PT_BR } from './locales/pt-BR';
 import { RU } from './locales/ru';
 
 export type Locale = 'en' | 'pt-BR' | 'fr' | 'es' | 'de' | 'it' | 'ru' | 'ar' | 'id';
-/** Every language, named in itself, in menu order. */
-export const LOCALES: { code: Locale; name: string }[] = [
-  { code: 'en', name: 'English' },
-  { code: 'pt-BR', name: 'Português (Brasil)' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'ar', name: 'العربية' },
-  { code: 'id', name: 'Bahasa Indonesia' },
+/** Every language, named in itself, with the flag shown beside it (assets/flags/<flag>.svg), in menu order. */
+export const LOCALES: { code: Locale; name: string; flag: string }[] = [
+  { code: 'en', name: 'English', flag: 'gb' },
+  { code: 'pt-BR', name: 'Português (Brasil)', flag: 'br' },
+  { code: 'es', name: 'Español', flag: 'es' },
+  { code: 'fr', name: 'Français', flag: 'fr' },
+  { code: 'de', name: 'Deutsch', flag: 'de' },
+  { code: 'it', name: 'Italiano', flag: 'it' },
+  { code: 'ru', name: 'Русский', flag: 'ru' },
+  { code: 'ar', name: 'العربية', flag: 'sa' },
+  { code: 'id', name: 'Bahasa Indonesia', flag: 'id' },
 ];
 export type Dictionary = Record<string, string>;
 export const DICTIONARIES: Record<Exclude<Locale, 'en'>, Dictionary> = { 'pt-BR': PT_BR, fr: FR, es: ES, de: DE, it: IT, ru: RU, ar: AR, id: ID };
