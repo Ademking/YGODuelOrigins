@@ -38,9 +38,10 @@ test('Official card text feeds names, card text, effect labels and engine prompt
     const darkMagician = CARDS.find((card) => card.name === 'Dark Magician')!;
     assert.equal(cardName(darkMagician), 'Mago Oscuro');
     assert.notEqual(cardText(darkMagician), darkMagician.text);
-    // Ring of Destruction plays by its 2004 English text (src/ocgcore/overrides.ts), so its text is not replaced
+    // Ring of Destruction plays by its 2004 text (src/ocgcore/overrides.ts): it shows our translation of that, not today's text
     const ring = CARDS.find((card) => card.name === 'Ring of Destruction')!;
-    assert.equal(cardText(ring), ring.text);
+    assert.equal(cardText(ring), spanish.olderText['83555666']);
+    assert.notEqual(cardText(ring), spanish.cards['83555666'][1]);
     assert.equal(effectDescription(31n, new Map()), '¿Atacar directamente con este monstruo?');
     assert.equal(translatedDescription((62121n << 20n) | 0n), spanish.strings['62121']['0']);
   } finally {
@@ -60,5 +61,16 @@ test('Arabic card text (Arab Duelists) feeds names and text, and leaves effect l
     assert.equal(translatedDescription((62121n << 20n) | 0n), undefined);
   } finally {
     setCardTexts(undefined);
+  }
+});
+
+test('Every card the game can show is translated in every language with card text', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { englishCards } = await import('../scripts/card-text-supplement');
+  const english = englishCards();
+  for (const file of ['fr', 'de', 'it', 'pt', 'es', 'ar']) {
+    const { cards } = JSON.parse(readFileSync(`assets/i18n/cards/${file}.json`, 'utf8'));
+    const missing = [...english.keys()].filter((code) => !cards[code]?.[0]);
+    assert.deepEqual(missing, [], `${file} has untranslated cards; add them to scripts/card-text-supplement.json`);
   }
 });

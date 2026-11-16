@@ -1,6 +1,7 @@
 // Arabic card names and text: the community translations of Arab Duelists (https://arab-duelists.com), credited to
 // their translators there. Konami prints no Arabic cards. Writes assets/i18n/cards/ar.json in the same shape as
 // scripts/import-card-text.ts ({ cards: { passcode: [name, text] } }); effect-choice labels and engine prompts stay English.
+// Cards the site lacks are filled from scripts/card-text-supplement.json (our own translations).
 //
 // One request at a time with a pause between them, and a resumable cache, so the site is never hammered:
 //   npm run import:card-text:ar   (Node needs NODE_USE_ENV_PROXY=1 behind a proxy)
@@ -10,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { gunzipSync } from 'node:zlib';
 import { CARDS } from '../src/ocgcore/catalog';
 import { cardImagePasscode } from '../src/data/cardImages';
+import { supplement } from './card-text-supplement';
 
 const bundle = JSON.parse(gunzipSync(readFileSync('assets/ocgcore/duel.json.gz')).toString('utf8')) as { cards: { id: string }[] };
 const wanted = [...new Set([...bundle.cards.map((card) => Number(card.id)), ...CARDS.flatMap((card) => {
@@ -61,6 +63,9 @@ const cards = Object.fromEntries(wanted.flatMap((code) => {
   const entry = cache[code];
   return entry && entry[0] && entry[1] ? [[String(code), entry]] : [];
 }));
-mkdirSync('assets/i18n/cards', { recursive: true });
-writeFileSync('assets/i18n/cards/ar.json', JSON.stringify({ cards }));
 console.log(`ar: ${Object.keys(cards).length} of ${wanted.length} cards from Arab Duelists`);
+const data: { cards: Record<string, [string, string]>; olderText?: Record<string, string> } = { cards };
+const missing = supplement('ar', data); // cards the site lacks: our own translations (scripts/card-text-supplement.json)
+if (missing.length) console.warn(`ar: untranslated ${missing.join(' ')}; add them to scripts/card-text-supplement.json`);
+mkdirSync('assets/i18n/cards', { recursive: true });
+writeFileSync('assets/i18n/cards/ar.json', JSON.stringify(data));

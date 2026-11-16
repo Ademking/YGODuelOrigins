@@ -10,6 +10,8 @@
 //      and the effect-choice labels and engine prompts. Pinned to one commit so the output is reproducible.
 // Konami prints no Russian, Arabic or Indonesian cards. Arabic uses community text (scripts/import-arabic-card-text.ts).
 //
+// Cards neither source has are filled from scripts/card-text-supplement.json (our own translations).
+//
 // Run after changing the card catalog: npm run import:card-text (Node needs NODE_USE_ENV_PROXY=1 behind a proxy).
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -18,6 +20,7 @@ import { resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { CARDS } from '../src/ocgcore/catalog';
 import { cardImagePasscode } from '../src/data/cardImages';
+import { supplement } from './card-text-supplement';
 
 const MYCARD_REPO = 'https://github.com/mycard/ygopro-database.git';
 const MYCARD_REVISION = '83f27ca6e9b85cf026c77e9561589d89b6e9da85';
@@ -74,7 +77,10 @@ try {
     const system = Object.fromEntries([...readFileSync(resolve(workspace, 'locales', folder, 'strings.conf'), 'utf8')
       .matchAll(/^!system (\d+) (.+)$/gm)].map(([, id, label]) => [id, label.trim()]));
     const sorted = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).sort(([a], [b]) => Number(a) - Number(b)));
-    writeFileSync(resolve(out, `${file}.json`), JSON.stringify({ cards: sorted(cards), strings: sorted(strings), system: sorted(system) }));
+    const data = { cards, strings: sorted(strings), system: sorted(system) };
+    const missing = supplement(file, data); // cards no source has: our own translations (scripts/card-text-supplement.json)
+    if (missing.length) console.warn(`${file}: untranslated ${missing.join(' ')}; add them to scripts/card-text-supplement.json`);
+    writeFileSync(resolve(out, `${file}.json`), JSON.stringify({ ...data, cards: sorted(data.cards) }));
     console.log(`${file}: ${Object.keys(cards).length} of ${wanted.size} cards (${fromYgoprodeck} from YGOProDeck), ${Object.keys(strings).length} with effect labels, ${Object.keys(system).length} engine prompts`);
     await new Promise((done) => setTimeout(done, 500)); // stay well under YGOProDeck's rate limit
   }

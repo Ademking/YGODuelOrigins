@@ -1,8 +1,9 @@
 // Card names, text, effect-choice labels and engine prompts in the interface language, from
 // assets/i18n/cards/<locale>.json, loaded at boot:
 //   - French, German, Italian, Portuguese, Spanish: Konami's official translations (scripts/import-card-text.ts);
-//   - Arabic: the community translations of Arab Duelists (scripts/import-arabic-card-text.ts), names and text only.
-// Anything without a translation, and the other languages, stays in English.
+//   - Arabic: the community translations of Arab Duelists (scripts/import-arabic-card-text.ts), names and text only;
+//   - the few cards no source has: our own translations (scripts/card-text-supplement.ts), so every card is translated.
+// Russian and Indonesian cards stay in English.
 import type { CardDef } from '../engine/types';
 import { cardImagePasscode } from '../data/cardImages';
 import { locale, type Locale } from '.';
@@ -16,12 +17,15 @@ export interface CardTextFile {
   cards: Record<string, [string, string]>;
   strings?: Record<string, Record<string, string>>;
   system?: Record<string, string>;
+  /** Translations of the older English text the game plays some cards by (src/ocgcore/overrides.ts). */
+  olderText?: Record<string, string>;
 }
 
 /** passcode → [name, text] for the current language. */
 let texts = new Map<string, [string, string]>();
 let labels: CardTextFile['strings'] = {};
 let system: CardTextFile['system'] = {};
+let olderText: CardTextFile['olderText'] = {};
 /** Passcodes whose text the game plays differently from the official current text (src/ocgcore/overrides.ts). */
 const keepEnglishText = new Set<string>();
 
@@ -30,6 +34,7 @@ export function setCardTexts(data: CardTextFile | undefined, englishTextFor: num
   texts = new Map(Object.entries(data?.cards ?? {}));
   labels = data?.strings ?? {};
   system = data?.system ?? {};
+  olderText = data?.olderText ?? {};
   keepEnglishText.clear();
   for (const code of englishTextFor) keepEnglishText.add(String(code));
 }
@@ -43,7 +48,7 @@ export async function loadCardTexts(): Promise<void> {
   if (!url) { setCardTexts(undefined); return; }
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-    // cards the game plays by older rules (Ring of Destruction) keep their English text, which matches the engine
+    // cards the game plays by older rules (Ring of Destruction) show that older text, not the current official one
     setCardTexts(response.ok ? await response.json() : undefined, Object.keys(OVERRIDES).map(Number));
   } catch { setCardTexts(undefined); }
 }
@@ -65,9 +70,10 @@ export function cardTextUrl(base = '/'): string | null {
   return file ? `${base}i18n/cards/${file}.json` : null;
 }
 
+/** The card's key in the text files: its passcode, or its id for the few video-game cards that have none. */
 const passcodeOf = (card: CardDef) => {
   if (card.id.startsWith('ocg_')) return card.id.slice(4);
-  try { return String(cardImagePasscode(card.id)); } catch { return ''; }
+  try { return cardImagePasscode(card.id) ?? card.id; } catch { return card.id; }
 };
 
 /** The card's name in the interface language. */
@@ -80,7 +86,7 @@ export function cardName(card: CardDef): string {
 export function cardText(card: CardDef): string {
   if (!card.id) return card.text;
   const code = passcodeOf(card);
-  if (keepEnglishText.has(code)) return card.text;
+  if (keepEnglishText.has(code)) return olderText?.[code] || card.text;
   return texts.get(code)?.[1] || card.text;
 }
 
