@@ -7,6 +7,7 @@ import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, type Event
 import * as nip44 from 'nostr-tools/nip44';
 import { cleanName, cleanChat } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
+import { t } from '../i18n';
 
 export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
 export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
@@ -98,7 +99,7 @@ export class Lobby {
     const tags = [['t', LOBBY_TAG], ...(to ? [['p', to]] : [])];
     const event = finalizeEvent({ kind: LOBBY_KIND, created_at: now(), tags, content: JSON.stringify(content) }, this.secret);
     try { await this.transport.publish(event); }
-    catch { if (!closing) this.onError('Lost touch with the matchmaking servers. Check your internet connection.', 'relay-failed'); }
+    catch { if (!closing) this.onError(t('Lost touch with the matchmaking servers. Check your internet connection.'), 'relay-failed'); }
   }
   private async announce(ask = false) {
     await this.send({ type: 'presence', name: this.name, busy: this.busy, ...this.look, ...(ask ? { ask: true } : {}) });

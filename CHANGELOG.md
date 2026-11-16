@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.4.0 — 2026-11-16
+
+Play in nine languages, with card names and text in your language.
+
+### Languages
+
+- The interface is translated into Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian: menus, Duel Setup, the Deck Builder, Replays, every duel prompt, the duel log, deck rules, the online lobby and chat, and connection errors.
+- A flag button at the top of the title screen opens the language list. The first visit follows the browser's language, and the choice is saved.
+- Settings is back to sound and options; the volume slider no longer covers anything.
+
+### Card text
+
+- French, German, Italian, Portuguese (Brazilian TCG text) and Spanish use Konami's official card names and text, including the effect-choice buttons and the engine's prompts.
+- Arabic uses the card translations of the Arab Duelists community (arab-duelists.com), credited in About.
+- The few cards no source covers (video-game-only cards, some Tokens, Ring of Destruction's 2004 text) were translated for the game, so every card shows in your language.
+- Russian and Indonesian keep English card text.
+- The Deck Builder search finds cards by their translated names and text as well as English.
+
+### Arabic
+
+- Arabic text uses the Cairo font and reads right to left: right-aligned paragraphs, punctuation and English words on the correct side, and Previous and Next mirrored.
+
 ## 1.3.0 — 2026-11-15
 
 Play on your phone held upright, load faster everywhere, and face CPU opponents that use their traps.

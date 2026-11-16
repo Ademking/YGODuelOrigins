@@ -1,13 +1,17 @@
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
-import { fitCamera, FONT_LOADS, portraitScreen } from '../ui/theme';
+import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
 import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
+import { loadCardTexts } from '../i18n/cards';
+import { LOCALES } from '../i18n';
 
 // Boot loads only the card back and zone icons. Card faces are fetched on demand by ui/cardLoader.
 const CARD_BACK_URL = '/ui/card-back.png';
 // The UI fonts are requested right away so they are usually ready before the loading screen's text is drawn.
-const fontReady = Promise.all(FONT_LOADS.map((font) => document.fonts.load(font))).catch(() => undefined);
+const fontReady = loadFonts();
+// Card names and text in the player's language load alongside (English needs nothing).
+const cardTextReady = loadCardTexts();
 
 export class BootScene extends Phaser.Scene {
   private screen!: LoadingScreen;
@@ -36,6 +40,8 @@ export class BootScene extends Phaser.Scene {
     }
     for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, `/portraits/${id}.png`);
     for (const choice of ['rock', 'paper', 'scissors']) this.load.image(`rps_${choice}`, `/ui/rps-${choice}.png`);
+    // language flags (flag-icons, MIT), rasterized at twice the largest size they are drawn
+    for (const { flag } of LOCALES) this.load.svg(`flag_${flag}`, `/flags/${flag}.svg`, { width: 96, height: 72 });
   }
 
   create() {
@@ -49,7 +55,7 @@ export class BootScene extends Phaser.Scene {
       dice.add(`white_${value}`, 0, value <= 3 ? 140 : 210, ((value - 1) % 3) * 70, 70, 70);
     }
     this.screen.progress(0.85);
-    Promise.race([fontReady, new Promise((resolve) => setTimeout(resolve, 3000))]).then(async () => {
+    Promise.race([Promise.all([fontReady, cardTextReady]), new Promise((resolve) => setTimeout(resolve, 6000))]).then(async () => {
       this.screen.refresh();
       this.screen.progress(1);
       await new Promise((resolve) => setTimeout(resolve, 350));

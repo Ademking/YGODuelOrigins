@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from './sfx';
+import { isRTL, t } from '../i18n';
 
 // ---------------------------------------------------------------- sharp rendering
 /** World size every scene is laid out in. */
@@ -23,17 +24,65 @@ export const CANVAS_SIDE = Math.round(Phaser.Math.Clamp(
  */
 export const RES = Phaser.Math.Clamp(Math.ceil((Math.max(CANVAS_SIDE / H, CANVAS_SIDE / 820)) * 2) / 2, 1, LOW_END ? 1 : TOUCH ? 1.5 : 2);
 
-/** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */
-export const FONT_H = 'Michroma, Arial, sans-serif';
+/**
+ * One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals.
+ * Michroma has no Arabic letters, so Arabic falls through to Cairo, a modern Arabic face that suits it (both from Google
+ * Fonts, index.html); Latin letters and digits in Arabic text stay in Michroma.
+ */
+export const FONT_H = 'Michroma, Cairo, Arial, sans-serif';
 export const FONT_B = FONT_H;
 export const FONT_N = FONT_H;
-/** Boot waits for these before the first text is rasterized. */
-export const FONT_LOADS = ['16px Michroma'];
+
+/**
+ * Load the faces the current language draws with; Boot and the language picker wait for this before text is
+ * rasterized. Cairo is fetched only for Arabic (Google serves it per script, so other languages download nothing).
+ */
+export function loadFonts(): Promise<unknown> {
+  const loads = [document.fonts.load('16px Michroma')];
+  if (isRTL()) loads.push(document.fonts.load('400 16px Cairo', 'عربي'), document.fonts.load('700 16px Cairo', 'عربي'));
+  return Promise.all(loads).catch(() => undefined);
+}
 
 // Every text object is rasterized at RES so it stays crisp under the camera zoom.
 type TextFactory = (this: unknown, x: number, y: number, s: string | string[], style?: Phaser.Types.GameObjects.Text.TextStyle) => Phaser.GameObjects.Text;
 const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as { text: TextFactory };
 const addText = factory.text;
+// Letter spacing draws text one character at a time, which breaks Arabic's joined letters: off for Arabic.
+const setLetterSpacing = Phaser.GameObjects.Text.prototype.setLetterSpacing;
+Phaser.GameObjects.Text.prototype.setLetterSpacing = function (this: Phaser.GameObjects.Text, spacing: number) {
+  return setLetterSpacing.call(this, isRTL() ? 0 : spacing);
+};
+// Arabic reads right to left: each drawn line holding Arabic letters is wrapped in a right-to-left embedding (RLE … PDF),
+// so a sentence's punctuation and any English words in it fall on the correct side. Lines without Arabic (stats, names
+// in Latin letters) draw as they are. (Phaser's own rtl mode is not used: it right-aligns every line, centred ones too.)
+// Arrows at a label's start or end stay outside the embedding, so they draw exactly where and as the label writes them
+// (Arabic labels put them on the outer side: «السابق ›», «‹ التالي»).
+const ARABIC = /[\u0600-\u06ff\u0750-\u077f\ufb50-\ufdff\ufe70-\ufeff]/;
+const ARROWS = /^([‹›\s]*)([\s\S]*?)([‹›\s]*)$/;
+const rtlLine = (s: string) => {
+  if (!ARABIC.test(s)) return s;
+  const [, lead, body, trail] = ARROWS.exec(s)!;
+  return `${lead}\u202b${body}\u202c${trail}`;
+};
+const updateText = Phaser.GameObjects.Text.prototype.updateText;
+Phaser.GameObjects.Text.prototype.updateText = function (this: Phaser.GameObjects.Text & { rtlLines?: boolean }) {
+  // wrapped left-aligned paragraphs (About, What's New, the card panel) sit against the right edge in Arabic
+  const style = this.style as Phaser.GameObjects.TextStyle & { wordWrapWidth: number | null };
+  if (isRTL() && style.wordWrapWidth && style.align === 'left' && this.originX === 0 && !style.fixedWidth) {
+    style.fixedWidth = style.wordWrapWidth;
+    style.align = 'right';
+  }
+  if (isRTL() && !this.rtlLines && this.context) {
+    this.rtlLines = true;
+    const ctx = this.context;
+    const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
+    // the page is dir="rtl" in Arabic and a resized canvas inherits it, which would reorder each line a second time:
+    // lines start left to right, and the embedding alone turns the Arabic around
+    ctx.fillText = (s, x, y, max) => { ctx.direction = 'ltr'; fill(rtlLine(s), x, y, max); };
+    ctx.strokeText = (s, x, y, max) => { ctx.direction = 'ltr'; stroke(rtlLine(s), x, y, max); };
+  }
+  return updateText.call(this);
+};
 factory.text = function (x, y, s, style) {
   const st = { resolution: RES, ...(style ?? {}) };
   return addText.call(this, x, y, s, st);
@@ -458,7 +507,7 @@ export function modal(scene: Phaser.Scene, o: { title: string; text?: string; in
     };
     const cancel = () => done(field ? null : false);
     layer.add(button(scene, 640 + (o.cancel === '' ? 0 : 100), y + 26, 170, 40, o.ok, accept, { primary: !o.danger, danger: o.danger, size: 15 }));
-    if (o.cancel !== '') layer.add(button(scene, 540, y + 26, 170, 40, o.cancel ?? 'Cancel', cancel, { size: 15 }));
+    if (o.cancel !== '') layer.add(button(scene, 540, y + 26, 170, 40, o.cancel ?? t('Cancel'), cancel, { size: 15 }));
     if (field) {
       const f = field;
       f.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') accept(); if (e.key === 'Escape') cancel(); });
@@ -501,11 +550,13 @@ export function chooseFromList(scene: Phaser.Scene, title: string, options: read
       }, { size: 14 }).setSelected(index === selected));
     });
     if (lastPage) {
-      entries.add(button(scene, px + 84, bottom, 120, 34, '‹ Previous', () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
-      entries.add(button(scene, px + pw - 84, bottom, 120, 34, 'Next ›', () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+      // Arabic reads right to left: Previous on the right, Next on the left
+      const [prevX, nextX] = isRTL() ? [px + pw - 84, px + 84] : [px + 84, px + pw - 84];
+      entries.add(button(scene, prevX, bottom, 120, 34, t('‹ Previous'), () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, nextX, bottom, 120, 34, t('Next ›'), () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
     }
   };
-  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, 'Close', close, { size: 14 }));
+  layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, t('Close'), close, { size: 14 }));
   fitDialog(scene, layer, pw);
   scene.input.keyboard?.once('keydown-ESC', close);
   layer.once('destroy', () => scene.input.keyboard?.off('keydown-ESC', close));

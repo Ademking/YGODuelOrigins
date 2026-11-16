@@ -2,6 +2,7 @@
 import type { CardDef } from '../engine/types';
 import { SOURCE_CARDS } from '../data/sourceCards';
 import { BANLIST } from '../data/banlist';
+import { t } from '../i18n';
 
 const specials: CardDef[] = [
   { id: 'ocg_89194033', name: 'Mystical Beast of Serket', kind: 'monster', mtype: 'effect', race: 'Fairy', attr: 'EARTH', lv: 6, atk: 2500, def: 2000, art: '',
@@ -25,12 +26,16 @@ export function getCard(id: string): CardDef {
 export const isExtraDeckCard = (card: CardDef) => card.mtype === 'fusion';
 export const copyLimit = (card: CardDef, enforceBanlist = true) => card.limit ?? (enforceBanlist ? BANLIST.get(card.name.toLowerCase()) : undefined) ?? 3;
 
+/** The card's type in brackets, in the interface language: [Dragon/Effect], Spell Card (Field). */
 export function typeLine(card: CardDef): string {
+  const cap = (word: string) => word[0].toUpperCase() + word.slice(1);
   if (card.kind === 'monster') {
     const sub = card.ability ?? (card.mtype === 'normal' ? '' : card.mtype!);
-    const subtype = sub ? `/${sub[0].toUpperCase()}${sub.slice(1)}` : '';
-    return `[${card.race}${subtype}]`;
+    const subtype = sub ? `/${t(cap(sub))}` : '';
+    return `[${card.race ? t(card.race) : ''}${subtype}]`;
   }
-  const subtype = card.stype === 'normal' ? '' : ` (${card.stype === 'quick' ? 'Quick-Play' : card.stype![0].toUpperCase() + card.stype!.slice(1)})`;
-  return `${card.kind === 'spell' ? 'Spell' : 'Trap'} Card${subtype}`;
+  // Counter Traps are one phrase: "Counter" alone is also a card's counters (Spell Counter)
+  if (card.kind === 'trap' && card.stype === 'counter') return t('Counter Trap Card');
+  const subtype = card.stype === 'normal' ? '' : ` (${t(card.stype === 'quick' ? 'Quick-Play' : cap(card.stype!))})`;
+  return `${card.kind === 'spell' ? t('Spell Card') : t('Trap Card')}${subtype}`;
 }

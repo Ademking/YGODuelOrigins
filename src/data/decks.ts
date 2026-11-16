@@ -2,6 +2,8 @@ import type { DeckList } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
 import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from '../ocgcore/catalog';
 import { PREMADE, PREVIOUS_PREMADE } from './premadeDecks';
+import { t } from '../i18n';
+import { cardName } from '../i18n/cards';
 
 export interface Opponent { id: string; name: string; title: string; art: string; ace: string; style: string; deck: DeckList; suggested: Difficulty }
 
@@ -21,19 +23,19 @@ export const STARTERS: Record<string, DeckList> = Object.fromEntries(PREMADE.map
 export function validateDeck(d: DeckList, opts: { enforceBanlist?: boolean } = {}): string[] {
   const enforceBanlist = opts.enforceBanlist ?? true;
   const errs: string[] = [];
-  if (d.main.length < 40) errs.push(`Main Deck has ${d.main.length} cards (minimum 40).`);
-  if (d.main.length > 60) errs.push(`Main Deck has ${d.main.length} cards (maximum 60).`);
-  if (d.extra.length > 15) errs.push(`Fusion Deck has ${d.extra.length} cards (maximum 15).`);
+  if (d.main.length < 40) errs.push(t('Main Deck has {n} cards (minimum 40).', { n: d.main.length }));
+  if (d.main.length > 60) errs.push(t('Main Deck has {n} cards (maximum 60).', { n: d.main.length }));
+  if (d.extra.length > 15) errs.push(t('Fusion Deck has {n} cards (maximum 15).', { n: d.extra.length }));
   const counts: Record<string, number> = {};
   for (const id of [...d.main, ...d.extra]) {
-    if (!CARD_MAP[id]) { errs.push(`Unknown card "${id}".`); continue; }
+    if (!CARD_MAP[id]) { errs.push(t('Unknown card "{id}".', { id })); continue; }
     counts[id] = (counts[id] ?? 0) + 1;
   }
-  for (const id of d.main) if (CARD_MAP[id] && isExtraDeckCard(getCard(id))) errs.push(`${getCard(id).name} belongs in the Fusion Deck.`);
-  for (const id of d.extra) if (CARD_MAP[id] && !isExtraDeckCard(getCard(id))) errs.push(`${getCard(id).name} cannot be in the Fusion Deck.`);
+  for (const id of d.main) if (CARD_MAP[id] && isExtraDeckCard(getCard(id))) errs.push(t('{card} belongs in the Fusion Deck.', { card: cardName(getCard(id)) }));
+  for (const id of d.extra) if (CARD_MAP[id] && !isExtraDeckCard(getCard(id))) errs.push(t('{card} cannot be in the Fusion Deck.', { card: cardName(getCard(id)) }));
   for (const [id, n] of Object.entries(counts)) {
     const lim = copyLimit(getCard(id), enforceBanlist);
-    if (n > lim) errs.push(`${getCard(id).name}: ${n} copies (limit ${lim}).`);
+    if (n > lim) errs.push(t('{card}: {n} copies (limit {limit}).', { card: cardName(getCard(id)), n, limit: lim }));
   }
   return [...new Set(errs)];
 }

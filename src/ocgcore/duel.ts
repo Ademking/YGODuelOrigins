@@ -11,6 +11,8 @@ import type { Bundle } from './data';
 import type { OcgCoreSync } from 'ocgcore-wasm';
 import { openDuel } from './session';
 import { cpuChoice, decision, type Choice } from './choices';
+import { t } from '../i18n';
+import { cardName } from '../i18n/cards';
 
 export const SURRENDER = '__surrender__';
 export const opp = (side: Side): Side => side === 0 ? 1 : 0;
@@ -40,6 +42,11 @@ function zoneOf(location: Location): Zone | undefined {
     case L.EXTRA: return 'extra';
   }
 }
+
+// ---- duel log: each line starts with an invisible character naming its kind, so the log can colour lines in any language
+export type LogKind = 'turn' | 'play' | 'hurt' | 'heal' | 'lost' | 'note';
+export const LOG_MARK: Record<LogKind, string> = { turn: '\u0001', play: '\u0002', hurt: '\u0003', heal: '\u0004', lost: '\u0005', note: '\u0006' };
+const PHASE_NAMES: Record<Phase, string> = { DP: 'Draw Phase', SP: 'Standby Phase', M1: 'Main Phase 1', BP: 'Battle Phase', M2: 'Main Phase 2', EP: 'End Phase' };
 
 // ---- CPU judgement helpers
 const EXODIA_PIECES = new Set(['Exodia the Forbidden One', 'Left Arm of the Forbidden One', 'Right Arm of the Forbidden One',
@@ -111,7 +118,8 @@ export class OcgDuel {
   nameOf(card: Card) { return card.def.name; }
   equipsOf(card: Card) { return [...this.fieldCards(0), ...this.fieldCards(1)].filter(c => c.equipTo === card.uid); }
   equippedTo(card: Card) { const target = card.equipTo === undefined ? undefined : this.byUid(card.equipTo); return target; }
-  log(text: string) { this.logLines.push(text); void this.emit({ t: 'log', text }); }
+  /** Add a duel-log line. `kind` picks its colour in the log (see LOG_KINDS); it rides along as an invisible first character. */
+  log(text: string, kind: LogKind = 'note') { const line = LOG_MARK[kind] + text; this.logLines.push(line); void this.emit({ t: 'log', text: line }); }
   stop() { this.stopped = true; this.session?.close(); }
 
   private card(owner: Side, zone: Zone, def = hidden): Card {
@@ -194,21 +202,21 @@ export class OcgDuel {
         this.tp = this.side(message.player);
         this.phase = 'DP';
         event = { t: 'turn', player: this.tp, turn: ++this.turn };
-        this.log(`Turn ${this.turn} · ${this.name(this.tp)}`);
+        this.log(t('Turn {n} · {player}', { n: this.turn, player: this.name(this.tp) }), 'turn');
         break;
       case M.NEW_PHASE:
         if (phases[message.phase] && this.phase !== phases[message.phase]) {
           this.phase = phases[message.phase]!;
           this.lastSummon = null;
           if (this.phase !== 'BP') this.activeAttack = null;
-          this.log(({ DP: 'Draw Phase', SP: 'Standby Phase', M1: 'Main Phase 1', BP: 'Battle Phase', M2: 'Main Phase 2', EP: 'End Phase' })[this.phase] + '.');
+          this.log(t(PHASE_NAMES[this.phase]) + '.');
           event = { t: 'phase', phase: this.phase };
         }
         break;
       case M.DRAW: {
         const side = this.side(message.player);
         const p = this.players[side];
-        if (message.drawn.length) this.log(`${this.name(side)} draws ${message.drawn.length} card${message.drawn.length === 1 ? '' : 's'}.`);
+        if (message.drawn.length) this.log(t(message.drawn.length === 1 ? '{player} draws 1 card.' : '{player} draws {n} cards.', { player: this.name(side), n: message.drawn.length }));
         for (const draw of message.drawn) {
           const card = p.deck.pop() ?? this.card(side, 'deck');
           Object.assign(card, { zone: 'hand', slot: p.hand.length, faceUp: !!(draw.position & 5), def: this.definition(side === 0 ? draw.code : 0) });
@@ -235,8 +243,8 @@ export class OcgDuel {
         if (to) this.put(card, message.to, message.card);
         else this.ids.delete(card.uid);
         if (to === 'banished' || to === 'gy') {
-          const name = card.def.id ? card.def.name : 'A face-down card';
-          this.log(`${name} ${to === 'banished' ? 'was banished' : 'was sent to the Graveyard'}.`);
+          const name = card.def.id ? cardName(card.def) : t('A face-down card');
+          this.log(t(to === 'banished' ? '{card} was banished.' : '{card} was sent to the Graveyard.', { card: name }), 'lost');
         }
         if (from && to) event = { t: 'move', card, from, to };
         break;
@@ -255,12 +263,12 @@ export class OcgDuel {
         const card = this.lookup(message);
         if (!card) break;
         if (message.type === M.SET) {
-          this.log(`${this.name(card.ctrl)} sets a card.`);
+          this.log(t('{player} sets a card.', { player: this.name(card.ctrl) }), 'play');
           event = { t: 'set', card };
         }
         else {
           const how = message.type === M.SUMMONING ? 'normal' : message.type === M.FLIPSUMMONING ? 'flip' : card.def.mtype === 'fusion' ? 'fusion' : card.def.mtype === 'ritual' ? 'ritual' : 'special';
-          this.log(`${this.name(card.ctrl)} ${how === 'normal' ? 'Normal' : how === 'flip' ? 'Flip' : 'Special'} Summons ${card.def.name}.`);
+          this.log(t(how === 'normal' ? '{player} Normal Summons {card}.' : how === 'flip' ? '{player} Flip Summons {card}.' : '{player} Special Summons {card}.', { player: this.name(card.ctrl), card: cardName(card.def) }), 'play');
           this.lastSummon = card.ctrl;
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
           if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: [] });
@@ -273,7 +281,7 @@ export class OcgDuel {
         if (!card) break;
         const link = message.chain_size;
         this.chain.set(link, card);
-        this.log(`${this.name(this.side(message.controller))} activates ${this.definition(message.code).name}.`);
+        this.log(t('{player} activates {card}.', { player: this.name(this.side(message.controller)), card: cardName(this.definition(message.code)) }), 'play');
         event = { t: 'activate', card, link, player: this.side(message.controller) };
         break;
       }
@@ -301,7 +309,7 @@ export class OcgDuel {
         if (attacker) {
           const target = message.target ? this.lookup(message.target) ?? null : null;
           this.activeAttack = { attacker, target };
-          this.log(`${attacker.def.name} attacks ${target ? target.faceUp ? target.def.name : 'a face-down monster' : 'directly'}.`);
+          this.log(target ? t('{card} attacks {target}.', { card: cardName(attacker.def), target: target.faceUp ? cardName(target.def) : t('a face-down monster') }) : t('{card} attacks directly.', { card: cardName(attacker.def) }), 'play');
           event = { t: 'attack', attacker, target };
         }
         break;
@@ -317,7 +325,7 @@ export class OcgDuel {
         const lp = message.type === M.LPUPDATE ? message.lp : Math.max(0, previous + message.amount * (message.type === M.RECOVER ? 1 : -1));
         this.players[side].lp = lp;
         if (lp !== previous) {
-          this.log(`${this.name(side)} ${lp > previous ? 'gains' : 'loses'} ${Math.abs(lp - previous)} LP.`);
+          this.log(t(lp > previous ? '{player} gains {n} LP.' : '{player} loses {n} LP.', { player: this.name(side), n: Math.abs(lp - previous) }), lp > previous ? 'heal' : 'hurt');
           event = { t: 'lp', player: side, delta: lp - previous, lp };
         }
         break;
@@ -516,11 +524,11 @@ export class OcgDuel {
     const side = this.side(message.player);
     const hint = this.selectionHint?.player === message.player ? this.selectionHint.id : undefined;
     this.selectionHint = undefined;
-    const prompt = decision(message, code => this.definition(code).name, this.session?.describe);
+    const prompt = decision(message, code => cardName(this.definition(code)), this.session?.describe);
     if (message.type === M.SELECT_CHAIN && !message.forced && !message.selects.length) return { type: R.SELECT_CHAIN, index: null };
     if (message.type === M.SELECT_PLACE) {
       const index = this.slot === undefined ? -1 : prompt.selection!.labels.findIndex(
-        label => label.startsWith('Your ·') && label.endsWith(' ' + (this.slot! + 1)),
+        label => label.startsWith(`${t('Your')} ·`) && label.endsWith(' ' + (this.slot! + 1)),
       );
       this.slot = undefined;
       if (index >= 0 && prompt.selection!.valid([index])) return prompt.selection!.response([index]);
@@ -756,7 +764,7 @@ export class OcgDuel {
       const picked: number[] = [];
       for (;;) {
         const confirm = spec.valid(picked);
-        const options = [...spec.labels.map((label, i) => picked.includes(i) ? `✓ ${label}` : label), ...(confirm ? ['Confirm'] : [])];
+        const options = [...spec.labels.map((label, i) => picked.includes(i) ? `✓ ${label}` : label), ...(confirm ? [t('Confirm')] : [])];
         const choice = await ask({ t: 'option', text: prompt.title, options });
         if (choice === SURRENDER) return;
         const index = choice as number;

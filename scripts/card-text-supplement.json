@@ -1,0 +1,412 @@
+{
+ "cards": {
+  "fr": {
+   "10000110": [
+    "Inconnu",
+    ""
+   ],
+   "10000120": [
+    "Prince des Fées",
+    ""
+   ],
+   "501000004": [
+    "Testament des Seigneurs Arcaniques",
+    "Cette carte ne peut pas être Invoquée Spécialement. Offrez 3 monstres de type Magicien de votre Terrain en Sacrifice pour faire une Invocation Sacrifice de cette carte. Si le contrôleur de cette carte attaque avec celle-ci et réduit les Life Points de son adversaire à 0, il gagne le Match."
+   ],
+   "501000006": [
+    "Chimaera, le Maître des Bêtes",
+    "Cette carte ne peut pas être Invoquée Spécialement. Offrez 3 monstres de type Bête de votre Terrain en Sacrifice pour faire une Invocation Sacrifice de cette carte. Si le contrôleur de cette carte attaque avec celle-ci et réduit les Life Points de son adversaire à 0, il gagne le Match."
+   ],
+   "501000007": [
+    "Empereur de la Foudre",
+    "Cette carte ne peut pas être Invoquée Spécialement. Offrez 3 monstres de type Tonnerre de votre Terrain en Sacrifice pour faire une Invocation Sacrifice de cette carte. Si le contrôleur de cette carte attaque avec celle-ci et réduit les Life Points de son adversaire à 0, il gagne le Match."
+   ],
+   "ygo_106959": [
+    "Armement des Seigneurs Mortels",
+    "Cette carte ne peut pas être Invoquée Spécialement. Offrez 3 monstres de type Guerrier de votre Terrain en Sacrifice pour faire une Invocation Sacrifice de cette carte. Si le contrôleur de cette carte attaque avec celle-ci et réduit les Life Points de son adversaire à 0, il gagne le Match."
+   ]
+  },
+  "de": {
+   "10000110": [
+    "Unbekannt",
+    ""
+   ],
+   "10000120": [
+    "Prinz der Feen",
+    ""
+   ],
+   "ygo_106959": [
+    "Rüstung der Tödlichen Herrscher",
+    "Diese Karte kann nicht als Spezialbeschwörung beschworen werden. Diese Karte muss per Tributbeschwörung auf das Spielfeld gebracht werden, indem du 3 Monster vom Typ Krieger von deiner Seite des Spielfeldes als Tribut anbietest. Wenn diese Karte die Life Points deines Gegners direkt angreift und sie auf 0 reduziert, dann gewinnt derjenige, der diese Karte kontrolliert, das gesamte Match."
+   ]
+  },
+  "it": {
+   "10000110": [
+    "Sconosciuto",
+    ""
+   ],
+   "10000120": [
+    "Principe delle Fate",
+    ""
+   ],
+   "501000004": [
+    "Testamento dei Signori Arcani",
+    "Questa carta non può essere Evocata tramite Evocazione Speciale. Questa Carta deve essere mandata in Campo con un'Evocazione tramite Tributo offrendo 3 Carte di Tipo Incantatore presenti nella tua parte di Campo. Se questa Carta attacca direttamente i Life Point dell'avversario e li riduce a zero, chi controlla la Carta si aggiudica la Partita."
+   ],
+   "501000006": [
+    "Chimaera, Maestro delle Bestie",
+    "Questa carta non può essere Evocata tramite Evocazione Speciale. Questa Carta deve essere mandata in Campo con un'Evocazione tramite Tributo offrendo 3 Carte di Tipo Bestia presenti nella tua parte di Campo. Se questa Carta attacca direttamente i Life Point dell'avversario e li riduce a zero, chi controlla la Carta si aggiudica la Partita."
+   ],
+   "ygo_106959": [
+    "Armamento dei Sovrani Letali",
+    "Questa carta non può essere Evocata tramite Evocazione Speciale. Questa Carta deve essere mandata in Campo con un'Evocazione tramite Tributo offrendo 3 Carte di Tipo Guerriero presenti nella tua parte di Campo. Se questa Carta attacca direttamente i Life Point dell'avversario e li riduce a zero, chi controlla la Carta si aggiudica la Partita."
+   ]
+  },
+  "pt": {
+   "10000110": [
+    "Desconhecido",
+    ""
+   ],
+   "10000120": [
+    "Príncipe das Fadas",
+    ""
+   ],
+   "501000001": [
+    "Meteo, o Incomparável",
+    "Esta carta não pode ser Special Summoned. Para Tribute Summoned esta carta, você deve Tributar 3 monstros Beast-Warrior-Type no seu lado do campo. Se esta carta atacar o seu oponente diretamente e reduzir os LPs dele a 0, você vence o Match."
+   ],
+   "ygo_106959": [
+    "Armamento dos Senhores Letais",
+    "Esta carta não pode ser Special Summoned. Para Tribute Summoned esta carta, você deve Tributar 3 monstros Warrior-Type no seu lado do campo. Se esta carta atacar o seu oponente diretamente e reduzir os LPs dele a 0, você vence o Match."
+   ]
+  },
+  "es": {
+   "10000110": [
+    "Desconocido",
+    ""
+   ],
+   "10000120": [
+    "Príncipe de las Hadas",
+    ""
+   ],
+   "501000000": [
+    "Ulevo",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Bestia Alada en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000001": [
+    "Meteo el Invencible",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Guerrero-Bestia en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000002": [
+    "Rey de la Destrucción - Xexex",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Demonio en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000003": [
+    "Reina del Destino - Eternia",
+    "No puede ser Invocada de Modo Especial. Debe ser Invocada por Sacrificio Sacrificando 3 monstruos Hada en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000004": [
+    "Testamento de los Señores Arcanos",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Lanzador de Conjuros en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000006": [
+    "Chimaera, el Maestro de las Bestias",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Bestia en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "501000007": [
+    "Emperador del Relámpago",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Trueno en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ],
+   "ygo_106959": [
+    "Armamento de los Señores Letales",
+    "No puede ser Invocado de Modo Especial. Debe ser Invocado por Sacrificio Sacrificando 3 monstruos Guerrero en tu lado del Campo. Si esta carta ataca directamente a tu adversario y reduce sus Life Points a 0, el controlador de esta carta gana el Match."
+   ]
+  },
+  "ar": {
+   "1347977": [
+    "الحارس الغامض",
+    "قلب: أعد وحشاً 1 مكشوفاً في الملعب إلى أعلى مجموعة مالكه. أيضاً، إذا كان هناك وحش محارب مكشوف في ملعبك، يمكنك إعادة وحش مكشوف آخر إلى يد مالكه."
+   ],
+   "1412158": [
+    "روبويارو الخارق",
+    "\"روبويارو\" + \"روبوليدي\"\n\nيمكنك استدعاء \"روبوليدي الخارقة\" بشكل خاص بإعادة هذه البطاقة من الملعب إلى مجموعة الدمج. لا يمكنك استخدام هذا التأثير في الدور نفسه الذي اُستُدعي فيه هذا الوحش بشكل خاص. بالإضافة إلى ذلك، يكسب هذا الوحش 1000 نقطة هجوم خلال مرحلة الضرر عندما يتقاتل مع وحش."
+   ],
+   "1669772": [
+    "تطهير السحر",
+    "تخلص من بطاقة 1 من يدك. دمّر كل بطاقات السحر المستمر المكشوفة."
+   ],
+   "2047519": [
+    "الجنود المختبئون",
+    "تُفعَّل فقط عندما يستدعي خصمك وحشاً بشكل عادي أو بالقلب. استدعِ بشكل خاص وحش ظلام 1 من المستوى 4 أو أقل من يدك."
+   ],
+   "3285552": [
+    "رمز المغامر",
+    "يمكن استخدام هذه البطاقة كـ \"رمز المغامر\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "4440873": [
+    "السقوط الحاد",
+    "تُفعَّل فقط عندما يضيف خصمك بطاقة(ـات) من مجموعته إلى يده، بما في ذلك سحب بطاقة(ـات). يتخلص خصمك من بطاقة 1 من تلك البطاقات."
+   ],
+   "10000110": [
+    "مجهول",
+    ""
+   ],
+   "10000120": [
+    "أمير الجنيات",
+    ""
+   ],
+   "11738490": [
+    "رمز @إغنيستر",
+    "يمكن استخدام هذه البطاقة كـ \"رمز @إغنيستر\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "11925569": [
+    "غريزة الصيد",
+    "تُفعَّل فقط عندما يُستدعى وحش بشكل خاص في ملعب خصمك. استدعِ بشكل خاص وحش ديناصور 1 من يدك."
+   ],
+   "15507080": [
+    "تابع الأسرار",
+    "ساحر يعبد الظلام، تخدمه يد شريرة تجر الأعداء إلى غياهب النسيان."
+   ],
+   "18144506": [
+    "ريشة الهاربي",
+    "دمّر كل بطاقات السحر والفخ التي يتحكم بها خصمك في الملعب."
+   ],
+   "18807108": [
+    "دائرة التعويذة",
+    "اختر وحشاً 1. طالما بقيت هذه البطاقة مكشوفة في الملعب، لا يمكن للوحش المختار أن يهاجم أو يغير وضعيته القتالية إلا بتأثير بطاقة سحر أو فخ أو وحش تأثير. عندما يُدمَّر الوحش المختار، تُدمَّر هذه البطاقة أيضاً. إذا قُدِّم الوحش المختار كتضحية، لا تُدمَّر هذه البطاقة."
+   ],
+   "19230407": [
+    "قرابين الهالكين",
+    "دمّر وحشاً 1 مكشوفاً. تخطَّ مرحلة السحب التالية لك."
+   ],
+   "20001444": [
+    "رمز روح السيف",
+    "يمكن استخدام هذه البطاقة كـ \"رمز روح السيف\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "20368764": [
+    "رمز وحش الشبح الآلي",
+    "يُستدعى بشكل خاص بتأثير وحوش \"وحش الشبح الآلي\" والبطاقات المرتبطة بها."
+   ],
+   "20436034": [
+    "خاتم المغناطيسية",
+    "لا يمكن تجهيز هذه البطاقة إلا لوحش في ملعبك. يخسر الوحش المجهز بهذه البطاقة 500 نقطة هجوم ودفاع. بالإضافة إلى ذلك، يجب على كل وحوش خصمك مهاجمة الوحش المجهز بهذه البطاقة إذا اختارت الهجوم."
+   ],
+   "21297224": [
+    "الجنية الهستيرية",
+    "ضحِّ بوحشين 2 في ملعبك لتزيد نقاط حياتك بمقدار 1000 نقطة. لا تُحتسب الوحوش المستخدمة لاستدعاء تضحية أو المقدَّمة كتضحيات بتأثيرات بطاقات أخرى."
+   ],
+   "22411610": [
+    "رمز القنبلة",
+    "يمكن استخدام هذه البطاقة كـ \"رمز القنبلة\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "23116809": [
+    "رمز كرة النار",
+    "يُستدعى بشكل خاص بتأثير \"غوكا، محرقة الحِقد\"."
+   ],
+   "26533075": [
+    "كرة الحماية",
+    "تُفعَّل فقط عندما يعلن وحش خصمك هجوماً. غيّر الوضعية القتالية لذلك الوحش. عندما تُدمَّر هذه البطاقة المحجوبة وتُرسل إلى المقبرة بتأثير بطاقة سحر أو فخ يتحكم بها خصمك، دمّر وحشاً 1 في الملعب."
+   ],
+   "30353551": [
+    "تكتيك الموجة البشرية",
+    "خلال مرحلة النهاية لكل دور، اختر من مجموعتك عدداً من الوحوش العادية من المستوى 2 أو أقل يساوي عدد وحوشك العادية من المستوى 2 أو أقل التي دُمِّرت في معركة خلال ذلك الدور، واستدعها بشكل خاص في ملعبك. ثم تُخلط المجموعة."
+   ],
+   "30765616": [
+    "رمز المئة تفاحة",
+    "يمكن استخدام هذه البطاقة كـ \"رمز المئة تفاحة\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "35686187": [
+    "المأساة",
+    "تُفعَّل فقط عندما يتغير وحش في ملعب خصمك من وضعية الهجوم المكشوفة إلى وضعية الدفاع المكشوفة. دمّر كل الوحوش التي في وضعية الدفاع في ملعب خصمك."
+   ],
+   "37507488": [
+    "تبديل الوحش",
+    "تُفعَّل فقط عندما يعلن خصمك هجوماً. أعد وحشاً 1 تتحكم به إلى يد مالكه، ثم استدعِ بشكل خاص وحشاً 1 من المستوى 4 من يدك."
+   ],
+   "37534148": [
+    "شريط الولادة الجديدة",
+    "إذا دُمِّر الوحش المجهز في معركة وأُرسل إلى المقبرة، استدعه بشكل خاص في ملعبك خلال مرحلة النهاية."
+   ],
+   "37654624": [
+    "رمز الوحش الآلي",
+    "يُستدعى بشكل خاص بتأثير \"كولون، قلعة السماء\"."
+   ],
+   "38916461": [
+    "روبويارو",
+    "محارب مغطى بالكامل بالمعدن. يتطور بالدمج مع \"روبوليدي\"."
+   ],
+   "39399168": [
+    "بعث تشاكرا",
+    "تُستخدم هذه البطاقة لاستدعاء \"تشاكرا\" بالطقوس. يجب عليك أيضاً التضحية بوحوش مجموع مستوياتهم 7 أو أكثر من الملعب أو يدك."
+   ],
+   "39751093": [
+    "أوتوهيمي",
+    "لا يمكن استدعاء هذه البطاقة بشكل خاص. تعود هذه البطاقة إلى يد مالكها خلال مرحلة النهاية للدور الذي اُستُدعيت فيه بشكل عادي أو قُلبت مكشوفة. عندما تُستدعى هذه البطاقة بشكل عادي أو تُقلب مكشوفة، يمكنك تغيير الوضعية القتالية لوحش 1 مكشوف في ملعب خصمك."
+   ],
+   "40172183": [
+    "الممر الضيق",
+    "لا يمكن تفعيل هذه البطاقة إلا عندما يكون لدى كل لاعب وحشان 2 أو أقل في ملعبه. لا يمكن لكل لاعب أن يستدعي بشكل عادي في ملعبه أكثر من وحشين 2 إضافيين."
+   ],
+   "48068379": [
+    "رمز الرابط",
+    "يُستدعى بشكل خاص بتأثير \"مخلص الرابط\"."
+   ],
+   "49251811": [
+    "المسبار الغامض",
+    "يمكنك تفعيل هذه البطاقة عند تفعيل بطاقة سحر مستمر. ألغِ كل بطاقات السحر المستمر خلال الدور الذي تُفعَّل فيه هذه البطاقة."
+   ],
+   "49563947": [
+    "نيو أكوا مادور",
+    "الطبيعة الحقيقية لهذا الساحر الذي يحكم كل المياه. يدافع عن نفسه بجدار هائل من الجليد لا يمكن اختراقه."
+   ],
+   "49681811": [
+    "فريد الجنرال الذي لا يُضاهى",
+    "ألغِ تأثير أي بطاقة سحر تستهدف هذه البطاقة ودمّرها. طالما بقيت هذه البطاقة مكشوفة في الملعب، يمكنك مرة كل دور إضافة وحش محارب 1 من المستوى 4 أو أقل من مجموعتك إلى يدك بدلاً من سحب بطاقة 1 من مجموعتك خلال مرحلة السحب. ثم اخلط مجموعتك."
+   ],
+   "51208047": [
+    "رمز المخادعة",
+    "يُستدعى بشكل خاص بتأثير \"مسرح المخادعات الحي\"."
+   ],
+   "51616747": [
+    "الحارس النوبي",
+    "إذا ألحقت هذه البطاقة ضرر معركة بنقاط حياة خصمك، يمكنك إعادة بطاقة سحر مستمر 1 من مقبرتك إلى أعلى مجموعتك."
+   ],
+   "51962254": [
+    "البومة الصيادة",
+    "تكسب هذه البطاقة 500 نقطة هجوم لكل وحش رياح في ملعبك. طالما يوجد وحش رياح آخر في ملعبك، لا يمكن لخصمك اختيار هذه البطاقة كهدف للهجوم."
+   ],
+   "52900001": [
+    "رمز طائر النينجا",
+    "يُستدعى بشكل خاص بتأثير \"بارونة النينجا الطاووس\" أو \"بارون النينجا الطاووس\"."
+   ],
+   "54098121": [
+    "محرك الدمى الغامض",
+    "طالما بقيت هذه البطاقة مكشوفة في الملعب، تزداد نقاط حياة المتحكم بهذه البطاقة بمقدار 500 نقطة لكل وحش إضافي يُستدعى (باستثناء الاستدعاء الخاص، لكن بما في ذلك وحوش خصمك)."
+   ],
+   "54351224": [
+    "سلاح الطقوس",
+    "تُجهَّز فقط لوحش طقوس من المستوى 6 أو أقل. يكسب الوحش المجهز 1500 نقطة هجوم ودفاع."
+   ],
+   "56043446": [
+    "فايزر ديس",
+    "في مرحلة الاستعداد الثالثة لك بعد استدعاء هذه البطاقة بنجاح، يمكنك تدمير وحش 1 من وحوش خصمك. لا يمكن تدمير هذه البطاقة في معركة حتى يُنفَّذ هذا التأثير (يُحسب الضرر بشكل عادي)."
+   ],
+   "57617178": [
+    "الطائر الصوتي",
+    "عند استدعاء هذه البطاقة (باستثناء الاستدعاء الخاص)، يمكنك نقل بطاقة سحر طقوس 1 من مجموعتك إلى يدك. ثم تُخلط المجموعة."
+   ],
+   "58015506": [
+    "البصيرة الثانية لبيكيرو",
+    "حتى مرحلة النهاية الثانية لخصمك، يريك خصمك كل البطاقات التي يسحبها قبل إضافتها إلى يده."
+   ],
+   "60764583": [
+    "رمز الحمل",
+    "يُستدعى بشكل خاص بتأثير \"الحملان الضالة\"."
+   ],
+   "61068510": [
+    "الإعصار",
+    "تُفعَّل فقط عندما توجد 3 بطاقات أو أكثر في منطقة السحر والفخ لخصمك. دمّر بطاقة 1 في منطقة السحر والفخ لخصمك."
+   ],
+   "64335804": [
+    "التنين المعدني الأسود أحمر العينين",
+    "لا يمكن استدعاء هذه البطاقة بشكل خاص من المجموعة إلى الملعب إلا بالتضحية بـ \"التنين الأسود أحمر العينين\" المجهز بـ \"التحول المعدني\". ثم تُخلط مجموعتك."
+   ],
+   "64382841": [
+    "رمز إيفا",
+    "يُستدعى بشكل خاص بتأثير \"زيتا الشبكي\"."
+   ],
+   "67464807": [
+    "دورة القدر",
+    "لا يمكنك تفعيل هذه البطاقة إلا خلال دور خصمك. اختر وحشاً 1 مكشوفاً في ملعب خصمك. عندما تستدعي بشكل عادي خلال دورك التالي وحشاً مستواه أقل بـ1 من مستوى الوحش المختار، ألحق بنقاط حياة خصمك ضرراً يساوي مستوى الوحش المختار × 500 نقطة."
+   ],
+   "68540058": [
+    "التحول المعدني",
+    "بعد التفعيل، تُستخدم هذه البطاقة لتجهيز وحش مكشوف. يكسب الوحش المجهز بهذه البطاقة 300 نقطة هجوم ودفاع. عند الهجوم بوحش مجهز بهذه البطاقة، يمكنك زيادة نقاط هجومه أكثر بمقدار نصف نقاط هجوم هدفه."
+   ],
+   "70344351": [
+    "حقل الطاقة",
+    "ألغِ تفعيل بطاقة سحر تستهدف وحشاً 1 ودمّر بطاقة السحر تلك."
+   ],
+   "73134081": [
+    "اللهب الأخير",
+    "ألحق 600 نقطة ضرر مباشر بنقاط حياة خصمك."
+   ],
+   "73872164": [
+    "القضاء على العصبة",
+    "تخلص من بطاقة سحر 1. دمّر وحشاً 1 مكشوفاً يتحكم به خصمك. اكشف يد خصمك، وأرسل إلى المقبرة كل البطاقات في يده التي تحمل اسم البطاقة المدمَّرة نفسه."
+   ],
+   "75923050": [
+    "روبوليدي الخارقة",
+    "\"روبوليدي\" + \"روبويارو\"\n\nيمكنك استدعاء \"روبويارو الخارق\" بشكل خاص بإعادة هذه البطاقة من الملعب إلى مجموعة الدمج. لا يمكنك استخدام هذا التأثير في الدور نفسه الذي اُستُدعي فيه هذا الوحش بشكل خاص. بالإضافة إلى ذلك، يكسب هذا الوحش 1000 نقطة هجوم خلال مرحلة الضرر عندما يلحق ضرراً مباشراً بنقاط حياة خصمك."
+   ],
+   "80604091": [
+    "القربان الأعظم",
+    "مقابل 500 نقطة حياة لكل وحش، يُسمح للاعب باستدعاء عادي أو وضع محجوب إضافي."
+   ],
+   "81480460": [
+    "التنين البرميل",
+    "ارمِ عملة 3 مرات. إذا كانت نتيجتان 2 من 3 صورة، دمّر وحشاً 1 في ملعب خصمك. لا يمكن استخدام تأثير هذه البطاقة إلا خلال دورك، مرة كل دور."
+   ],
+   "83011277": [
+    "الطماطم الغامضة",
+    "عند إرسال هذه البطاقة إلى المقبرة نتيجة معركة، يمكنك اختيار وحش ظلام 1 بنقاط هجوم 1500 أو أقل من مجموعتك واستدعاؤه بشكل خاص في الملعب (لا تحتاج الوحوش من المستوى 5 أو أكثر إلى تضحية). ثم تُخلط المجموعة."
+   ],
+   "83764718": [
+    "بعث الوحش",
+    "اختر بطاقة وحش 1 من مقبرة خصمك أو مقبرتك وضعها في الملعب تحت سيطرتك في وضعية الهجوم أو الدفاع (مكشوفة). يُعامل هذا كاستدعاء خاص."
+   ],
+   "84080938": [
+    "العذراء المتسامحة",
+    "ضحِّ بهذه البطاقة المكشوفة لإعادة وحش 1 من وحوشك دُمِّر في معركة خلال هذا الدور إلى يدك."
+   ],
+   "84257639": [
+    "ديان كيتو سيد الشفاء",
+    "تزداد نقاط حياتك بمقدار 1000 نقطة."
+   ],
+   "84636823": [
+    "مُبطِل السحر",
+    "طالما بقيت هذه البطاقة مكشوفة في الملعب، لا يمكن تفعيل بطاقات السحر. تُلغى أيضاً تأثيرات كل بطاقات السحر."
+   ],
+   "87669905": [
+    "رمز روح الأفاتار المزدوج",
+    "يمكن استخدام هذه البطاقة كـ \"رمز روح الأفاتار المزدوج\".\n\n* إذا استُخدمت لرمز آخر، طبّق نوع/خاصية/مستوى/هجوم/دفاع ذلك الرمز."
+   ],
+   "92421852": [
+    "روبوليدي",
+    "محاربة مغطاة بالكامل بالمعدن. تتطور بالدمج مع \"روبويارو\"."
+   ],
+   "94739788": [
+    "إزالة غسيل الدماغ",
+    "طالما بقيت هذه البطاقة مكشوفة في الملعب، تعود السيطرة على كل الوحوش في الملعب إلى مالكيها الأصليين."
+   ],
+   "98049915": [
+    "المصباح الغامض",
+    "يمكن لهذا الوحش مهاجمة نقاط حياة خصمك مباشرة."
+   ],
+   "ygo_106959": [
+    "عتاد السادة الفتاكين",
+    "لا يمكن استدعاء هذه البطاقة بشكل خاص. يجب استدعاء هذه البطاقة بالتضحية بتقديم 3 وحوش من نوع محارب في ملعبك كتضحيات. إذا هاجمت هذه البطاقة نقاط حياة خصمك مباشرة وجعلتهم 0، يفوز المُتحكِم بهذه البطاقة بالمباراة."
+   ]
+  }
+ },
+ "olderText": {
+  "fr": {
+   "83555666": "Détruisez 1 Carte Monstre face recto et infligez des Dommages Directs égaux à l'ATK de la carte détruite aux Life Points des deux joueurs."
+  },
+  "de": {
+   "83555666": "Zerstöre 1 offene Monsterkarte und füge deinen Life Points und denen deines Gegners direkten Schaden in Höhe der ATK der zerstörten Karte zu."
+  },
+  "it": {
+   "83555666": "Distruggi 1 Carta Mostro scoperta e infliggi Danno Diretto pari all'ATK della carta distrutta ai Life Point tuoi e del tuo avversario."
+  },
+  "pt": {
+   "83555666": "Destrua 1 Card de Monstro com a face para cima e cause dano direto igual ao ATK do card destruído aos LPs de ambos os jogadores."
+  },
+  "es": {
+   "83555666": "Destruye 1 Carta de Monstruo boca arriba e inflige Daño Directo igual al ATK de la carta destruida a los Life Points de ambos jugadores."
+  },
+  "ar": {
+   "83555666": "دمّر بطاقة وحش 1 مكشوفة وألحق ضرراً مباشراً يساوي نقاط هجوم البطاقة المدمَّرة بنقاط حياتك ونقاط حياة خصمك."
+  }
+ }
+}

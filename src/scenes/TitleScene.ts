@@ -2,24 +2,28 @@ import Phaser from 'phaser';
 import { BACK, CARD_K } from '../ui/cardArt';
 import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
-import { button, caption, COL, fitCamera, fitDialog, htxt, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
+import { button, caption, COL, fitCamera, fitDialog, htxt, loadFonts, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';
 import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
 import { loadRuntime } from '../ocgcore/runtime';
+import { LOCALES, locale, setLocale, t } from '../i18n';
+import { loadCardTexts } from '../i18n/cards';
 
 const open = (url: string) => () => { window.open(url, '_blank', 'noopener'); };
 const openDiscord = open('https://discord.gg/VYfWyXyRuf');
 const openGithub = open('https://github.com/Ademking/YGODuelOrigins');
 
 // [text, colour]: who made it, what it is, then the notice that it is unofficial
-const ABOUT: [string, string][] = [
-  ['YGO Duel Origins is an unofficial fan game, made by Adem Kouki.', COL.goldTxt],
-  ['It is about old-school Yu-Gi-Oh!, from the days when dueling was simple: the classic 2004 rules, Normal and Tribute Summons, Fusions and Rituals, Spells and Traps. No Synchro, Xyz, Pendulum or Link monsters, and no turns that take ten minutes.', COL.text],
-  ['It is a fan project and is not associated with Konami.', COL.text],
-  ['The literal and graphical information presented in this game about Yu-Gi-Oh!, including card images, the attribute, level/rank and type symbols, and card text, is copyright 4K Media Inc, a subsidiary of Konami Digital Entertainment, Inc. This game is not produced by, endorsed by, supported by, or affiliated with 4K Media or Konami Digital Entertainment.', COL.dim],
-  ['Questions, bug reports and duel partners: join the Discord server.', COL.text],
-  [`Version ${__APP_VERSION__}`, COL.dim],
+const about = (): [string, string][] => [
+  [t('YGO Duel Origins is an unofficial fan game, made by Adem Kouki.'), COL.goldTxt],
+  [t('It is about old-school Yu-Gi-Oh!, from the days when dueling was simple: the classic 2004 rules, Normal and Tribute Summons, Fusions and Rituals, Spells and Traps. No Synchro, Xyz, Pendulum or Link monsters, and no turns that take ten minutes.'), COL.text],
+  [t('It is a fan project and is not associated with Konami.'), COL.text],
+  [t('The literal and graphical information presented in this game about Yu-Gi-Oh!, including card images, the attribute, level/rank and type symbols, and card text, is copyright 4K Media Inc, a subsidiary of Konami Digital Entertainment, Inc. This game is not produced by, endorsed by, supported by, or affiliated with 4K Media or Konami Digital Entertainment.'), COL.dim],
+  // the Arabic card text is the Arab Duelists community's work (scripts/import-arabic-card-text.ts); only Arabic shows it
+  ...(locale() === 'ar' ? [['نصوص البطاقات العربية من ترجمة مجتمع المبارزين العرب (arab-duelists.com).', COL.dim] as [string, string]] : []),
+  [t('Questions, bug reports and duel partners: join the Discord server.'), COL.text],
+  [t('Version {v}', { v: __APP_VERSION__ }), COL.dim],
 ];
 
 /** Portrait: a column 640 wide holding the logo, a larger menu, then Discord and Settings. */
@@ -106,12 +110,12 @@ export class TitleScene extends Phaser.Scene {
     else this.add.image(640, 165, 'game_logo').setDisplaySize(690, 230);
 
     const menu: [string, () => void][] = [
-      ['Online Duel', () => this.scene.start('Multiplayer')],
-      ['Solo Duel', () => this.scene.start('Setup')],
-      ['Deck Builder', () => this.scene.start('DeckEditor')],
-      ['Replays', () => this.scene.start('Watch')],
-      ['About', () => this.showAbout()],
-      ['What’s New', () => this.showChangelog()],
+      [t('Online Duel'), () => this.scene.start('Multiplayer')],
+      [t('Solo Duel'), () => this.scene.start('Setup')],
+      [t('Deck Builder'), () => this.scene.start('DeckEditor')],
+      [t('Replays'), () => this.scene.start('Watch')],
+      [t('About'), () => this.showAbout()],
+      [t('What’s New'), () => this.showChangelog()],
     ];
     menu.forEach(([label, run], index) => {
       if (tall) button(this, 640, TALL.menuY + index * TALL.step, 480, 72, label, run, { size: 25, primary: index === 0 });
@@ -120,14 +124,14 @@ export class TitleScene extends Phaser.Scene {
     const below = TALL.menuY + menu.length * TALL.step + 30;
     if (tall) {
       button(this, 520, below, 220, 56, 'Discord', openDiscord, { size: 19 });
-      button(this, 760, below, 220, 56, 'Settings', () => this.showSettings(), { size: 19 });
+      button(this, 760, below, 220, 56, t('Settings'), () => this.showSettings(), { size: 19 });
     } else {
       button(this, 1056, 688, 130, 32, 'Discord', openDiscord, { size: 13 });
-      button(this, 1196, 688, 130, 32, 'Settings', () => this.showSettings(), { size: 13 });
+      button(this, 1196, 688, 130, 32, t('Settings'), () => this.showSettings(), { size: 13 });
     }
     const debug = tall
-      ? button(this, 640, below + 74, 220, 50, 'Debug Duel', () => this.scene.start('Debug'), { size: 17 })
-      : button(this, 98, 640, 148, 36, 'Debug Duel', () => this.scene.start('Debug'), { size: 13 });
+      ? button(this, 640, below + 74, 220, 50, t('Debug Duel'), () => this.scene.start('Debug'), { size: 17 })
+      : button(this, 98, 640, 148, 36, t('Debug Duel'), () => this.scene.start('Debug'), { size: 13 });
     const showDebug = (visible: boolean) => {
       debug.setVisible(visible);
       debug.setEnabled(visible);
@@ -141,7 +145,10 @@ export class TitleScene extends Phaser.Scene {
     };
     this.input.keyboard?.on('keydown', shortcut);
     this.events.once('shutdown', () => this.input.keyboard?.off('keydown', shortcut));
-    const credit = `Fan-made duel simulator  ·  2004 Expert Rules  ·  v${__APP_VERSION__}`;
+    this.languageButton(tall);
+    // prefetch Cairo's Arabic letters for the language list's «العربية», so it is ready before the list opens
+    if (locale() !== 'ar') void document.fonts.load('700 16px Cairo', 'العربية').catch(() => undefined);
+    const credit = `${t('Fan-made duel simulator')}  ·  ${t('2004 Expert Rules')}  ·  v${__APP_VERSION__}`;
     if (tall) caption(this, 640, TALL.bottom - 16, credit, COL.dim, 11).setOrigin(0.5);
     else caption(this, 24, 683, credit, COL.dim, 9);
     document.dispatchEvent(new Event('duel-origins:ready'));
@@ -150,42 +157,99 @@ export class TitleScene extends Phaser.Scene {
     this.time.delayedCall(800, () => { loadRuntime().catch(() => undefined); });
   }
 
+  /** The current language with its flag, top right; it opens the language list. */
+  private languageButton(tall: boolean) {
+    const current = LOCALES.find((l) => l.code === locale())!;
+    const [x, y, w, h, size] = tall ? [830, 52, 240, 56, 18] : [1150, 36, 220, 40, 14];
+    const control = button(this, x, y, w, h, `${current.name}  ▾`, () => this.showLanguages(), { size });
+    this.withFlag(control, current.flag, w, h);
+  }
+
+  /** Put a flag at the left of a button and move its label to make room. */
+  private withFlag(control: Phaser.GameObjects.Container, flag: string, w: number, h: number) {
+    const flagH = Math.min(h * 0.5, 30), flagW = flagH * 4 / 3, left = -w / 2 + 14;
+    const label = control.list[1] as Phaser.GameObjects.Text;
+    label.setX((flagW + 8) / 2);
+    if (label.displayWidth > w - flagW - 36) label.setScale((w - flagW - 36) / label.width);
+    if (this.textures.exists(`flag_${flag}`)) {
+      control.add(this.add.image(left + flagW / 2, 0, `flag_${flag}`).setDisplaySize(flagW, flagH));
+      control.add(this.add.graphics().lineStyle(1, 0x000000, 0.35).strokeRect(left, -flagH / 2, flagW, flagH));
+    }
+  }
+
+  /** Every language with its flag; picking one restarts the title screen in it. */
+  private showLanguages() {
+    // the list names Arabic in Arabic: its letters are drawn in Cairo once loaded (prefetched when the title opens)
+    const layer = this.add.container(0, 0).setDepth(110);
+    const close = () => layer.destroy();
+    const backdrop = this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
+    backdrop.on('pointerup', close);
+    layer.add(backdrop);
+    const tall = this.portrait;
+    // landscape: two columns; portrait: one tall column of larger rows
+    const cols = tall ? 1 : 2, bw = tall ? 380 : 250, bh = tall ? 54 : 46, gap = 10;
+    const rows = Math.ceil(LOCALES.length / cols);
+    const pw = cols * bw + (cols - 1) * gap + 60, ph = 110 + rows * (bh + gap) + 60;
+    const x0 = 640 - pw / 2, y0 = 360 - ph / 2;
+    layer.add(this.add.zone(x0, y0, pw, ph).setOrigin(0).setInteractive());
+    layer.add(panel(this, x0, y0, pw, ph, 0.98, 10));
+    layer.add(htxt(this, 640, y0 + 40, t('Language'), 24).setOrigin(0.5));
+    LOCALES.forEach((language, i) => {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = x0 + 30 + col * (bw + gap) + bw / 2, y = y0 + 90 + row * (bh + gap) + bh / 2;
+      const control = button(this, x, y, bw, bh, language.name, () => {
+        if (language.code === locale()) { close(); return; }
+        setLocale(language.code);
+        void Promise.all([loadCardTexts(), loadFonts()]).then(() => this.scene.restart());
+      }, { size: tall ? 19 : 16 }).setSelected(language.code === locale());
+      this.withFlag(control, language.flag, bw, bh);
+      layer.add(control);
+    });
+    layer.add(button(this, 640, y0 + ph - 38, 160, 40, t('Close'), close, { size: 14 }));
+    fitDialog(this, layer, pw);
+    this.input.keyboard?.once('keydown-ESC', close);
+    layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
+  }
+
   private showSettings() {
     const layer = this.add.container(0, 0).setDepth(110);
     const close = () => layer.destroy();
     layer.add(this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive());
     layer.add(panel(this, 420, 125, 440, 470, 0.98, 10));
-    layer.add(htxt(this, 640, 161, 'Settings', 24).setOrigin(0.5));
+    layer.add(htxt(this, 640, 161, t('Settings'), 24).setOrigin(0.5));
     const slider = volumeControls(this, layer, 640, 225);
     settingsRows(this, layer, 640, 340);
-    layer.add(button(this, 640, 554, 160, 40, 'Close', close, { size: 14 }));
+    layer.add(button(this, 640, 554, 160, 40, t('Close'), close, { size: 14 }));
     if (fitDialog(this, layer, 440) > 1) placeDom(slider, layer, slider.x, slider.y);
     this.input.keyboard?.once('keydown-ESC', close);
     layer.once('destroy', () => this.input.keyboard?.off('keydown-ESC', close));
   }
 
   private showChangelog() {
-    this.showInfo("What's New", [
-      [`Version ${__APP_VERSION__}`, COL.goldTxt],
-      ['Play on your phone held upright: every screen has a portrait layout, with the duel board at full width and larger prompts.', COL.text],
-      ['Duels load much faster: the engine data is about 7x smaller and loads in the background on the title screen.', COL.text],
-      ['CPU opponents now use their traps, put curses like Mask of the Accursed on your monsters, and stop wasting cards (a second Toon World, Exodia pieces on the field).', COL.text],
-      ['Ring of Destruction plays by its 2004 text, and The Seal of Orichalcos shows its full text.', COL.text],
-      ['Version 1.2.0', COL.goldTxt],
-      ['New: Online Duel. Join the live lobby, challenge anyone online, or invite a friend with a room link.', COL.text],
-      ['Pick an avatar from 346 portraits; your country flag shows beside your name.', COL.text],
-      ['Lobby and duel chat with emoji, GIFs and one-click emotes, plus 10-minute duel clocks and rematches.', COL.text],
-      ['The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.', COL.text],
-      ['Version 1.1.0', COL.goldTxt],
-      ['Dueling moved to OCGCore WebAssembly with Project Ignis Lua card scripts; improved CPU decisions and expanded to 41 opponents.', COL.text],
-      ['Better card choices and field controls: direct field selection, clearer prompts, zone targeting, and corrected God summon labels/values.', COL.text],
-      ['Egyptian God summon reveals with bundled art, effects, and audio respecting settings.', COL.text],
-      ['Presentation/performance polish and build/compatibility improvements.', COL.text],
+    this.showInfo(t('What’s New'), [
+      [t('Version {v}', { v: __APP_VERSION__ }), COL.goldTxt],
+      [t('The game speaks your language: Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian. Pick one with the flag button on the title screen.'), COL.text],
+      [t("Card names and text are translated too: Konami's official text in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic."), COL.text],
+      [t('Version {v}', { v: '1.3.0' }), COL.goldTxt],
+      [t('Play on your phone held upright: every screen has a portrait layout, with the duel board at full width and larger prompts.'), COL.text],
+      [t('Duels load much faster: the engine data is about 7x smaller and loads in the background on the title screen.'), COL.text],
+      [t('CPU opponents now use their traps, put curses like Mask of the Accursed on your monsters, and stop wasting cards (a second Toon World, Exodia pieces on the field).'), COL.text],
+      [t('Ring of Destruction plays by its 2004 text, and The Seal of Orichalcos shows its full text.'), COL.text],
+      [t('Version {v}', { v: '1.2.0' }), COL.goldTxt],
+      [t('New: Online Duel. Join the live lobby, challenge anyone online, or invite a friend with a room link.'), COL.text],
+      [t('Pick an avatar from 346 portraits; your country flag shows beside your name.'), COL.text],
+      [t('Lobby and duel chat with emoji, GIFs and one-click emotes, plus 10-minute duel clocks and rematches.'), COL.text],
+      [t('The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.'), COL.text],
+      [t('Version {v}', { v: '1.1.0' }), COL.goldTxt],
+      [t('Dueling moved to OCGCore WebAssembly with Project Ignis Lua card scripts; improved CPU decisions and expanded to 41 opponents.'), COL.text],
+      [t('Better card choices and field controls: direct field selection, clearer prompts, zone targeting, and corrected God summon labels/values.'), COL.text],
+      [t('Egyptian God summon reveals with bundled art, effects, and audio respecting settings.'), COL.text],
+      [t('Presentation/performance polish and build/compatibility improvements.'), COL.text],
     ]);
   }
 
   private showAbout() {
-    this.showInfo('About', ABOUT, [['Join Discord', openDiscord], ['GitHub', openGithub]]);
+    this.showInfo(t('About'), about(), [[t('Join Discord'), openDiscord], ['GitHub', openGithub]]);
   }
 
   private showInfo(title: string, paragraphs: [string, string][], actions: [string, () => void][] = []) {
@@ -232,7 +296,7 @@ export class TitleScene extends Phaser.Scene {
       this.input.on('pointermove', onMove);
       this.input.on('pointerup', onUp);
       layer.add(zone);
-      layer.add(txt(this, 640, contentTop + viewHeight + 6, 'Scroll for more', tall ? 15 : 10, COL.dim).setOrigin(0.5));
+      layer.add(txt(this, 640, contentTop + viewHeight + 6, t('Scroll for more'), tall ? 15 : 10, COL.dim).setOrigin(0.5));
       layer.once('destroy', () => {
         this.input.off('wheel', onWheel);
         this.input.off('pointermove', onMove);
@@ -242,7 +306,7 @@ export class TitleScene extends Phaser.Scene {
       });
     }
     const close = () => layer.destroy();
-    const buttons: [string, () => void][] = [...actions, ['Close', close]];
+    const buttons: [string, () => void][] = [...actions, [t('Close'), close]];
     const btnY = contentTop + viewHeight + 24;
     buttons.forEach(([label, run], i) => {
       if (tall) layer.add(button(this, 640 + (i - (buttons.length - 1) / 2) * 196, btnY + 10, 186, 58, label, run, { size: 18, primary: i === 0 }));
