@@ -58,6 +58,8 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
   }
   let closed = false;
   let pending = false;
+  /** The prompt last answered: OCGCore asks it again (MSG_RETRY) when it rejects the answer. */
+  let lastPrompt: OcgMessage | undefined;
   return {
     rows,
     describe: (id: bigint) => effectDescription(id, rows, bundle.systemStrings),
@@ -69,7 +71,10 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
         messages.push(...core.duelGetMessage(handle));
         failIfErrors();
         if (messages.some(message => message.type === OcgMessageType.RETRY)) {
-          throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          // The answer was not legal. The core waits for a new answer to the same prompt: hand that prompt back.
+          if (!lastPrompt || status !== OcgProcessResult.WAITING) throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          pending = true;
+          return { messages: messages.filter(message => message.type !== OcgMessageType.RETRY), prompt: lastPrompt, ended: false, retry: true };
         }
         const win = messages.find(message => message.type === OcgMessageType.WIN);
         if (win || status === OcgProcessResult.END) return { messages, win, ended: true };
@@ -77,7 +82,8 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
           const prompt = messages[messages.length - 1];
           if (!prompt || !('player' in prompt)) throw new Error('OCGCore is waiting without a player prompt.');
           pending = true;
-          return { messages, prompt, ended: false };
+          lastPrompt = prompt;
+          return { messages, prompt, ended: false, retry: false };
         }
       }
       throw new Error('OCGCore exceeded the step limit.');

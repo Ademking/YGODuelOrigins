@@ -569,4 +569,5 @@ export const RU: Dictionary = {
   "Attack replay": "Повтор атаки",
   "The game speaks your language: Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian. Pick one with the flag button on the title screen.": "Игра говорит на вашем языке: бразильский португальский, французский, испанский, немецкий, итальянский, русский, арабский и индонезийский. Выберите язык кнопкой с флагом на титульном экране.",
   "Card names and text are translated too: Konami's official text in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic.": "Названия и тексты карт тоже переведены: официальный текст Konami на французском, немецком, итальянском, португальском и испанском, а на арабском — перевод сообщества Arab Duelists.",
+  "Only {n} of {total} lobby servers answered. If players are missing, a browser extension, antivirus or network filter may be blocking the others.": "Ответили только {n} из {total} серверов лобби. Если кого-то не видно, остальные может блокировать расширение браузера, антивирус или сетевой фильтр.",
 };

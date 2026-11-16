@@ -77,3 +77,37 @@ test('nostr lobby ignores forged, foreign, stale and malformed events', async ()
     assert.deepEqual([...a.peers.values()], [{ name: 'Mai', busy: false, avatar: undefined, country: undefined }]);
   } finally { a.close(); }
 });
+
+test('nostr lobby: a player whose clock is minutes off still sees everyone, and is seen', async () => {
+  const relay = bus();
+  /** A PC whose clock runs 5 minutes fast: before correction it dates its events ahead and finds everyone else stale. */
+  class FastClockLobby extends Lobby { override now() { return super.now() + 300; } }
+  const a = new Lobby('Yugi', { avatar: '1' }, relay.transport(), async () => 0);
+  const b = new Lobby('Kaiba', { avatar: '2' }, relay.transport(), async () => 0);
+  // The game's web server (Date header) says real time is 300 s behind this device's clock.
+  const c = new FastClockLobby('Joey', { avatar: '3' }, relay.transport(), async () => -300);
+  try {
+    await flush();
+    await new Promise(r => setTimeout(r, 3000));
+    assert.deepEqual([...a.peers.values()].map(p => p.name).sort(), ['Joey', 'Kaiba']);
+    assert.deepEqual([...c.peers.values()].map(p => p.name).sort(), ['Kaiba', 'Yugi']);
+  } finally { a.close(); b.close(); c.close(); }
+});
+
+test('nostr lobby: without the server time, two players agreeing that our clock is off correct it', async () => {
+  const relay = bus();
+  const sk1 = generateSecretKey(), sk2 = generateSecretKey();
+  const lobby = new Lobby('Yugi', { avatar: '1' }, relay.transport(), async () => undefined);
+  try {
+    // our clock is 10 minutes slow: the others' presence arrives dated 600 s ahead of us
+    const ahead = Math.floor(Date.now() / 1000) + 600;
+    const presence = (sk: Uint8Array, name: string) => finalizeEvent({ kind: LOBBY_KIND, created_at: ahead, tags: [['t', LOBBY_TAG]],
+      content: JSON.stringify({ type: 'presence', name, busy: false }) }, sk);
+    lobby.receive(presence(sk1, 'Mai'));
+    assert.equal(lobby.peers.size, 0);               // one far-off player alone does not move our clock
+    lobby.receive(presence(sk2, 'Rex'));
+    assert.ok(Math.abs(lobby.now() - ahead) < 5);    // two agree: our lobby clock now matches theirs
+    lobby.receive(presence(generateSecretKey(), 'Bakura'));
+    assert.deepEqual([...lobby.peers.values()].map(p => p.name), ['Bakura']);
+  } finally { lobby.close(); }
+});
