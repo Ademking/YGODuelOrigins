@@ -256,3 +256,31 @@ test('CPU activates Pot of Greed from hand and sets its Trap', { timeout: 5000 }
   assert.ok(opponent.players[1].s.some(card => card && !card.faceUp));
   assert.ok(!events.includes('set:Pot of Greed'));
 });
+
+test('Card Trooper accepts every declared number', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  for (const declared of ['1', '2', '3']) {
+    const core = await createCore({ sync: true });
+    const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+    let activated = false;
+    let offered: string[] = [];
+    const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+      if (prompt.t === 'main') {
+        if (activated) return SURRENDER;
+        const act = prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Card Trooper');
+        if (act) { activated = true; return act; }
+        return prompt.actions.find(action => action.a === 'summon' && action.card.def.name === 'Card Trooper');
+      }
+      if (prompt.t === 'chain') return null;
+      if (prompt.t === 'option') { offered = prompt.options; return prompt.options.indexOf(declared); }
+      if (prompt.t === 'position') return 'atk';
+      throw new Error(`Unexpected prompt ${prompt.t}`);
+    }, () => {}, 8000, 0, 0);
+    await duel.run(core, readBundle(), {
+      hand: [id('Card Trooper')], monsters: [], opponentMonsters: [], traps: [], extra: [],
+    }, 0);
+    assert.deepEqual([...offered].sort(), ['1', '2', '3']);
+    assert.equal(duel.players[0].gy.length, Number(declared));
+  }
+});

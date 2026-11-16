@@ -147,7 +147,9 @@ export function decision(message: OcgMessage, name: (code: number) => string, de
       break;
     case M.ANNOUNCE_NUMBER:
       result.title = t('Declare a number');
-      message.options.forEach(value => add(String(value), { type: R.ANNOUNCE_NUMBER, value: Number(value) }));
+      // OCGCore expects the index of the declared option, not the number itself.
+      message.options.map((value, index) => ({ value, index })).sort((a, b) => Number(a.value - b.value))
+        .forEach(({ value, index }) => add(String(value), { type: R.ANNOUNCE_NUMBER, value: index }));
       break;
     case M.ANNOUNCE_ATTRIB: {
       const attributes = ocgAttributeParse(message.available);
