@@ -6,6 +6,7 @@ import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 
 import type { ChatLine } from './lobby';
 import { t } from '../i18n';
+import { timeoutSignal } from '../timeoutSignal';
 /** The public lobby runs over Nostr (lobby.ts); private rooms and duels below stay peer to peer. */
 export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
@@ -66,7 +67,7 @@ export class PrivateRoom {
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
-    const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: AbortSignal.timeout(15000) });
+    const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: timeoutSignal(15000) });
     if (!response.ok) throw new Error(t('Could not verify the duel engine version. Reload and try again.'));
     const revision = (await response.text()).trim();
     return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look });

@@ -16,6 +16,21 @@ initMonitoring();
 // Vite reports a code file from an older deploy that is gone: reload once to pick up the current one.
 window.addEventListener('vite:preloadError', (event) => { if (reloadForUpdate()) event.preventDefault(); });
 
+/**
+ * When the browser restores a lost WebGL context, it can lose it again before Phaser re-reads the extensions.
+ * getSupportedExtensions() then returns null and Phaser throws (Firefox). Skip that read: the extensions found at
+ * boot stay in use, and the next restore event sets everything up again.
+ */
+function guardContextRestore(game: Phaser.Game) {
+  const renderer = game.renderer;
+  if (!(renderer instanceof Phaser.Renderer.WebGL.WebGLRenderer)) return;
+  const setExtensions = renderer.setExtensions.bind(renderer);
+  renderer.setExtensions = () => {
+    if (renderer.gl.isContextLost() || !renderer.gl.getSupportedExtensions()) return;
+    setExtensions();
+  };
+}
+
 const options = new URLSearchParams(location.search);
 const game = new Phaser.Game({
   // WebGL, falling back to Canvas only where WebGL is unavailable
@@ -23,6 +38,7 @@ const game = new Phaser.Game({
   parent: 'game',
   callbacks: { postBoot: (game) => {
     game.canvas.addEventListener('webglcontextlost', () => document.dispatchEvent(new Event('duel-origins:graphics-error')));
+    guardContextRestore(game);
   } },
   // A square that EXPAND stretches to the screen's shape: see CANVAS_SIDE.
   width: CANVAS_SIDE,

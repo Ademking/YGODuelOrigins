@@ -335,3 +335,29 @@ test('Smart chain prompts skip phase openings and the human\'s own chain links',
   assert.ok(shown.length <= 2, JSON.stringify(windows));
   assert.ok(shown.every(w => w.tp === 1), JSON.stringify(windows));
 });
+
+test('every card with an effect has a Lua script in the duel bundle', () => {
+  const bundle = readBundle();
+  const missing = bundle.cards.filter(row => {
+    const type = Number(row.type);
+    if (type & 0x4000) return false; // Tokens
+    if ((type & 0x1) && (type & 0x10) && !(type & 0x20)) return false; // Normal Monsters
+    return !bundle.scripts[`c${row.id}.lua`] && !(Number(row.alias) && bundle.scripts[`c${row.alias}.lua`]);
+  }).map(row => `${row.name} (${row.id})`);
+  assert.deepEqual(missing, []);
+});
+
+test('a duel with Red-Eyes Darkness Metal Dragon in the deck starts', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: [...Array(19).fill(id('Blue-Eyes White Dragon')), id('Red-Eyes Darkness Metal Dragon')], extra: [] };
+  let mains = 0;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (prompt.t === 'main') { mains++; return SURRENDER; }
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, () => {}, 8000, 0, 0);
+  await duel.run(core, readBundle(), undefined, 0);
+  assert.equal(mains, 1);
+});

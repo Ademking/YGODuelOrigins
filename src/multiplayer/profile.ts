@@ -2,6 +2,7 @@
  * Player look shared in the lobby: an avatar number (ygopro.online portraits 1 to AVATAR_COUNT) and a country code.
  * Both are validated before use, so peers cannot point the page at other URLs.
  */
+import { timeoutSignal } from '../timeoutSignal';
 const SEED_KEY = 'duel-origins.multiplayer.avatar';
 const COUNTRY_KEY = 'duel-origins.multiplayer.country';
 export const AVATAR_COUNT = 346;
@@ -48,7 +49,7 @@ export function savedSeed() {
 export async function lookupCountry(): Promise<string | undefined> {
   try { const cached = cleanCountry(localStorage.getItem(COUNTRY_KEY)); if (cached) return cached; } catch { /* private mode */ }
   try {
-    const response = await fetch('https://api.country.is/', { signal: AbortSignal.timeout(6000) });
+    const response = await fetch('https://api.country.is/', { signal: timeoutSignal(6000) });
     const country = cleanCountry(String((await response.json() as { country?: unknown }).country ?? '').toUpperCase());
     if (country) try { localStorage.setItem(COUNTRY_KEY, country); } catch { /* private mode */ }
     return country;

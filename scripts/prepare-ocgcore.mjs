@@ -8,7 +8,7 @@ const assets = resolve('assets/ocgcore');
 const scriptsRevision = '9a5738639924bbbf3b86c4599f3f7e70ea8711a6';
 const databaseRevision = '172462f1e7405c7544cc256471d3310df6e6b7c3';
 const localeRevision = '54a6e2395c532648ff762540e9615319fac4f51b';
-const version = `3-${scriptsRevision}-${databaseRevision}-${localeRevision}`;
+const version = `4-${scriptsRevision}-${databaseRevision}-${localeRevision}`;
 const output = resolve(assets, 'data.json.gz');
 if (existsSync(resolve(assets, 'revision')) && existsSync(output) && readFileSync(resolve(assets, 'revision'), 'utf8') === version) process.exit(0);
 
@@ -69,6 +69,10 @@ try {
   for (const folder of [lua, resolve(lua, 'official')]) {
     for (const name of readdirSync(folder).filter(name => name.endsWith('.lua'))) scripts[name] = readFileSync(resolve(folder, name), 'utf8');
   }
+  // A few cards keep their only script in pre-errata/ (Red-Eyes Darkness Metal Dragon at this revision): without one the
+  // duel cannot start, so use it when official/ has none.
+  const preErrata = resolve(lua, 'pre-errata');
+  for (const name of readdirSync(preErrata).filter(name => name.endsWith('.lua'))) scripts[name] ??= readFileSync(resolve(preErrata, name), 'utf8');
   mkdirSync(assets, { recursive: true });
   writeFileSync(output + '.tmp', gzipSync(JSON.stringify({ cards, scripts, systemStrings }, (_key, value) => typeof value === 'bigint' ? value.toString() : value)));
   renameSync(output + '.tmp', output);

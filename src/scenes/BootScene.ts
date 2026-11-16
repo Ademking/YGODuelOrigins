@@ -40,8 +40,9 @@ export class BootScene extends Phaser.Scene {
     }
     for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, `/portraits/${id}.png`);
     for (const choice of ['rock', 'paper', 'scissors']) this.load.image(`rps_${choice}`, `/ui/rps-${choice}.png`);
-    // language flags (flag-icons, MIT), rasterized at twice the largest size they are drawn
-    for (const { flag } of LOCALES) this.load.svg(`flag_${flag}`, `/flags/${flag}.svg`, { width: 96, height: 72 });
+    // Language flags (flag-icons, MIT), rendered from assets/flags/<flag>.svg to 96x72 PNGs, twice the largest size
+    // they are drawn. Phaser resizes an SVG with DOMParser, which can throw in Firefox and stall the whole loader.
+    for (const { flag } of LOCALES) this.load.image(`flag_${flag}`, `/flags/${flag}.png`);
   }
 
   create() {

@@ -8,6 +8,7 @@ import type { CardDef } from '../engine/types';
 import { cardImagePasscode } from '../data/cardImages';
 import { locale, type Locale } from '.';
 import { OVERRIDES } from '../ocgcore/overrides';
+import { timeoutSignal } from '../timeoutSignal';
 
 /** Languages with translated card text: the file name for each. */
 export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it', ar: 'ar' };
@@ -47,7 +48,7 @@ export async function loadCardTexts(): Promise<void> {
   const url = cardTextUrl(import.meta.env.BASE_URL);
   if (!url) { setCardTexts(undefined); return; }
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    const response = await fetch(url, { signal: timeoutSignal(20_000) });
     // cards the game plays by older rules (Ring of Destruction) show that older text, not the current official one
     setCardTexts(response.ok ? await response.json() : undefined, Object.keys(OVERRIDES).map(Number));
   } catch { setCardTexts(undefined); }
