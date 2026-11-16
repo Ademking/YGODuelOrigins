@@ -14,7 +14,8 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
     flags: OcgDuelMode.MODE_GOAT, seed, team1: team, team2: team,
     cardReader: (code) => {
       const row = rows.get(code);
-      if (!row) errors.push(`Unknown Project Ignis card ${code}`);
+      // code 0 is "no card": some scripts look it up (e.g. for an unnamed or hidden card); that is not an error
+      if (!row && code !== 0) errors.push(`Unknown Project Ignis card ${code}`);
       return row ? cardData(row) : null;
     },
     scriptReader: name => bundle.scripts[name] ?? null,
