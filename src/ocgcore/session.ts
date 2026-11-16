@@ -13,6 +13,9 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
   const handle = core.createDuel({
     flags: OcgDuelMode.MODE_GOAT, seed, team1: team, team2: team,
     cardReader: (code) => {
+      // Passcode 0 is "no card": the core asks for it, e.g. for the previous identity of a card milled from the
+      // Deck (Destiny Mirage's IsPreviousSetCard). Empty data is the answer, as in other OCGCore clients.
+      if (code === 0) return null;
       const row = rows.get(code);
       if (!row) errors.push(`Unknown Project Ignis card ${code}`);
       return row ? cardData(row) : null;
@@ -58,6 +61,8 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
   }
   let closed = false;
   let pending = false;
+  // The prompt the core last waited on: after it rejects a response (RETRY) it waits on the same prompt again.
+  let lastPrompt: (OcgMessage & { player: number }) | undefined;
   return {
     rows,
     describe: (id: bigint) => effectDescription(id, rows, bundle.systemStrings),
@@ -69,15 +74,18 @@ export function openDuel(core: OcgCoreSync, bundle: Bundle, decks: [number[], nu
         messages.push(...core.duelGetMessage(handle));
         failIfErrors();
         if (messages.some(message => message.type === OcgMessageType.RETRY)) {
-          throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          if (!lastPrompt) throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          pending = true;
+          return { messages: messages.filter(message => message.type !== OcgMessageType.RETRY), prompt: lastPrompt, ended: false, retry: true };
         }
         const win = messages.find(message => message.type === OcgMessageType.WIN);
-        if (win || status === OcgProcessResult.END) return { messages, win, ended: true };
+        if (win || status === OcgProcessResult.END) return { messages, win, ended: true, retry: false };
         if (status === OcgProcessResult.WAITING) {
           const prompt = messages[messages.length - 1];
           if (!prompt || !('player' in prompt)) throw new Error('OCGCore is waiting without a player prompt.');
           pending = true;
-          return { messages, prompt, ended: false };
+          lastPrompt = prompt as OcgMessage & { player: number };
+          return { messages, prompt: lastPrompt, ended: false, retry: false };
         }
       }
       throw new Error('OCGCore exceeded the step limit.');

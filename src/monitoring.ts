@@ -26,3 +26,29 @@ export function reportDuelError(error: unknown, context: { matchup: string[]; tu
     Sentry.captureException(error);
   });
 }
+
+/**
+ * Report an answer the duel engine rejected. The duel goes on (it asks again, then answers for the player), so this is
+ * a warning, grouped by prompt type, with the prompt and the answer to find the cause.
+ */
+export function reportRejectedAnswer(
+  info: { prompt: string; response: unknown; human: boolean; attempt: number; turn: number; phase: string },
+  context: { matchup: string[]; lastActions: string[]; multiplayer: boolean },
+) {
+  if (!import.meta.env.PROD) return;
+  Sentry.withScope((scope) => {
+    scope.setLevel('warning');
+    scope.setTag('area', 'duel');
+    scope.setTag('prompt', info.prompt);
+    scope.setTag('answered_by', info.human ? 'player' : 'cpu');
+    scope.setTag('phase', info.phase);
+    scope.setTag('multiplayer', String(context.multiplayer));
+    scope.setFingerprint(['ocgcore-rejected-answer', info.prompt, info.human ? 'player' : 'cpu']);
+    scope.setContext('rejected answer', {
+      ...info,
+      response: JSON.parse(JSON.stringify(info.response ?? null, (_key, value) => typeof value === 'bigint' ? value.toString() : value)),
+      ...context,
+    });
+    Sentry.captureMessage(`OCGCore rejected a ${info.human ? 'player' : 'CPU'} answer to ${info.prompt}`);
+  });
+}

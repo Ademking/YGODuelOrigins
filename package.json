@@ -15,6 +15,7 @@
     "verify:original": "node scripts/verify-original.mjs",
     "test": "tsx --test \"tests/**/*.test.ts\"",
     "fuzz": "tsx tests/fuzz.ts",
+    "fuzz:ocgcore": "tsx tests/ocgFuzz.ts",
     "coverage": "tsx --test tests/cards/smoke.test.ts && tsx tests/fuzz.ts 300 && tsx scripts/coverage.ts",
     "prepare:ocgcore": "node scripts/prepare-ocgcore.mjs && tsx scripts/trim-ocgcore.ts",
     "predev": "npm run prepare:ocgcore",

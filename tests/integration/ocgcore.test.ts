@@ -361,3 +361,60 @@ test('a duel with Red-Eyes Darkness Metal Dragon in the deck starts', { timeout:
   await duel.run(core, readBundle(), undefined, 0);
   assert.equal(mains, 1);
 });
+
+test('a rejected answer is asked again instead of ending the duel', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Blue-Eyes White Dragon')), extra: [] };
+  let mains = 0;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (prompt.t === 'main') return ++mains > 1 ? SURRENDER : prompt.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, () => {}, 8000, 0, 0);
+  const rejected: { prompt: string; human: boolean; attempt: number }[] = [];
+  duel.onRejected = info => rejected.push(info);
+  // The first Main Phase answer names a hand card that does not exist: the core rejects it.
+  const internals = duel as unknown as { answer: (message: { type: number }) => Promise<unknown> };
+  const answer = internals.answer.bind(duel);
+  let broken = false;
+  internals.answer = async message => {
+    if (!broken && message.type === OcgMessageType.SELECT_IDLECMD) {
+      broken = true;
+      return { type: OcgResponseType.SELECT_IDLECMD, action: SelectIdleCMDAction.SELECT_SUMMON, index: 99 };
+    }
+    return answer(message);
+  };
+  await duel.run(core, readBundle(), undefined, 0);
+  assert.deepEqual(rejected.map(r => [r.prompt, r.human, r.attempt]), [['SELECT_IDLECMD', true, 1]]);
+  // the human was asked again and ended the turn, then surrendered on the next Main Phase
+  assert.equal(mains, 2);
+});
+
+test('Destiny Mirage checking cards milled from the Deck does not stop the duel', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name.toLowerCase() === name.toLowerCase())!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Pot of Greed')), extra: [] };
+  const log: string[] = [];
+  let activated = false;
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (prompt.t === 'main') {
+      if (activated) return SURRENDER;
+      const act = prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Destruction of Destiny');
+      if (!act) throw new Error(prompt.actions.map(a => a.a + ('card' in a ? ' ' + a.card.def.name : '')).join(', '));
+      activated = true;
+      return act;
+    }
+    if (prompt.t === 'chain') return null;
+    throw new Error(`Unexpected prompt ${prompt.t}`);
+  }, event => { if (event.t === 'log') log.push(event.text); }, 8000, 0, 0);
+  // The opponent's set Destiny Mirage checks the previous identity of the 3 cards this mills (passcode 0).
+  await duel.run(core, readBundle(), {
+    hand: [], monsters: [], opponentMonsters: [], traps: [id('Destruction of Destiny')], extra: [],
+    opponentTraps: [id('Destiny Mirage')],
+  }, 0);
+  assert.ok(activated);
+  assert.ok(log.some(line => line.includes('Pot of Greed')), log.join('\n'));
+});

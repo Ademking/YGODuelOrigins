@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- If the duel engine rejects an answer, the duel no longer ends with "OCGCore rejected the selection": the question is asked again, and after that a legal answer is chosen. Each rejection is reported so its cause can be fixed.
+- Destiny Mirage no longer stops the duel when cards are sent from the Deck to the Graveyard.
 - Decks with Red-Eyes Darkness Metal Dragon can duel again: its card script was missing, and the duel stopped before the first turn.
 - Duels, Online Duel and card text load on iPhones and iPads running iOS 15 and older Safari.
 - The game no longer crashes when the browser restores a lost graphics context and loses it again straight away (Firefox).

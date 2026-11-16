@@ -1,5 +1,5 @@
 import type { Match, Lobby } from '../multiplayer/client';
-import { reportDuelError } from '../monitoring';
+import { reportDuelError, reportRejectedAnswer } from '../monitoring';
 import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
@@ -281,6 +281,7 @@ export class DuelScene extends Phaser.Scene {
       () => { if (duel === this.duel) this.layout(); },
     );
     this.events.once('shutdown', () => duel.stop());
+    duel.onRejected = (info) => reportRejectedAnswer(info, { matchup: [d.deckName, d.opp.name], lastActions: duel.logLines.slice(-8), multiplayer: !!d.multiplayer });
     this.duel = duel;
     if (d.multiplayer) {
       const session = d.multiplayer.session;
