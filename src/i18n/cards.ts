@@ -1,22 +1,34 @@
-// Card names and text in the interface language. Official translations (French, German, Italian, Portuguese)
-// are imported by scripts/import-card-text.ts into assets/i18n/cards/<locale>.json and loaded at boot; cards without
-// one, Spanish (not in YGOProDeck's API yet) and languages Konami does not print (Russian, Arabic, Indonesian) keep the English.
+// Card names, text, effect-choice labels and engine prompts in the interface language: Konami's official translations
+// (French, German, Italian, Portuguese, Spanish), imported by scripts/import-card-text.ts into
+// assets/i18n/cards/<locale>.json and loaded at boot. Anything without one, and the languages Konami does not print
+// (Russian, Arabic, Indonesian), stays in English.
 import type { CardDef } from '../engine/types';
 import { cardImagePasscode } from '../data/cardImages';
 import { locale, type Locale } from '.';
 import { OVERRIDES } from '../ocgcore/overrides';
 
 /** Languages with official card text: the file name for each. */
-export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', de: 'de', it: 'it' };
+export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it' };
+
+/** The file's shape: names and text, effect-choice labels by index (str1 = 0), engine prompts by id. */
+export interface CardTextFile {
+  cards: Record<string, [string, string]>;
+  strings?: Record<string, Record<string, string>>;
+  system?: Record<string, string>;
+}
 
 /** passcode → [name, text] for the current language. */
 let texts = new Map<string, [string, string]>();
+let labels: CardTextFile['strings'] = {};
+let system: CardTextFile['system'] = {};
 /** Passcodes whose text the game plays differently from the official current text (src/ocgcore/overrides.ts). */
 const keepEnglishText = new Set<string>();
 
 /** Install the current language's card text (from the JSON file loaded at boot). */
-export function setCardTexts(data: Record<string, [string, string]> | undefined, englishTextFor: number[] = []) {
-  texts = new Map(Object.entries(data ?? {}));
+export function setCardTexts(data: CardTextFile | undefined, englishTextFor: number[] = []) {
+  texts = new Map(Object.entries(data?.cards ?? {}));
+  labels = data?.strings ?? {};
+  system = data?.system ?? {};
   keepEnglishText.clear();
   for (const code of englishTextFor) keepEnglishText.add(String(code));
 }
@@ -33,6 +45,17 @@ export async function loadCardTexts(): Promise<void> {
     // cards the game plays by older rules (Ring of Destruction) keep their English text, which matches the engine
     setCardTexts(response.ok ? await response.json() : undefined, Object.keys(OVERRIDES).map(Number));
   } catch { setCardTexts(undefined); }
+}
+
+/**
+ * An effect-choice label or engine prompt in the interface language, by OCGCore description id (an engine prompt
+ * below 0x100000, else the card passcode in the high bits and the label index in the low 20). Undefined: use English.
+ */
+export function translatedDescription(id: bigint): string | undefined {
+  if (id < 0x100000n) return system?.[String(id)];
+  const code = String(id >> 20n);
+  if (keepEnglishText.has(code)) return undefined;
+  return labels?.[code]?.[String(id & 0xfffffn)];
 }
 
 /** The URL of the current language's card text, or null when cards stay in English. */

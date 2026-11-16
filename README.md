@@ -83,7 +83,7 @@ Open the URL Vite prints (port 5173 by default).
 | `npm run fuzz` | Run randomized duel simulations |
 | `npm run coverage` | Regenerate the per-card effect report in `coverage/effects.json` |
 | `npm run import:ygo` | Rebuild the card data from the bundled sources |
-| `npm run import:card-text` | Download official French, German, Italian and Portuguese card text from YGOProDeck into `assets/i18n/cards/` |
+| `npm run import:card-text` | Download official French, German, Italian, Portuguese and Spanish card text (YGOProDeck, then mycard/ygopro-database for the rest) into `assets/i18n/cards/` |
 | `npm run verify:original` | Compare the engine against the untouched baseline in `.recovery/original/` |
 
 ## Project structure

@@ -1,6 +1,7 @@
 import type { OcgCardData } from 'ocgcore-wasm';
 import { cardImagePasscode } from '../data/cardImages';
 import { getCard } from './catalog';
+import { translatedDescription } from '../i18n/cards';
 
 export interface DatabaseRow {
   id: string; alias: string; setcode: string; type: string; level: string;
@@ -10,6 +11,9 @@ export interface DatabaseRow {
 export interface Bundle { cards: DatabaseRow[]; scripts: Record<string, string>; systemStrings?: Record<string, string> }
 
 export function effectDescription(id: bigint, rows: ReadonlyMap<number, DatabaseRow>, systemStrings?: Bundle['systemStrings']) {
+  // the interface language's official text first (effect labels and engine prompts), else the English
+  const translated = translatedDescription(id);
+  if (translated) return translated;
   if (id < 0x100000n) return systemStrings?.[String(id)];
   // Project Ignis aux.Stringid packs the card passcode above the low 20 bits.
   const card = rows.get(Number(id >> 20n));

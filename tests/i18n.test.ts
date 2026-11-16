@@ -26,3 +26,24 @@ test('t fills placeholders and falls back to English', () => {
   assert.equal(t('Turn {n}', { n: 3 }), 'Turn 3');
   assert.equal(t('Not a translated string'), 'Not a translated string');
 });
+
+test('Official card text feeds names, card text, effect labels and engine prompts', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { setCardTexts, cardName, cardText, translatedDescription } = await import('../src/i18n/cards');
+  const { effectDescription } = await import('../src/ocgcore/data');
+  const { CARDS } = await import('../src/ocgcore/catalog');
+  const spanish = JSON.parse(readFileSync('assets/i18n/cards/es.json', 'utf8'));
+  setCardTexts(spanish, [83555666]);
+  try {
+    const darkMagician = CARDS.find((card) => card.name === 'Dark Magician')!;
+    assert.equal(cardName(darkMagician), 'Mago Oscuro');
+    assert.notEqual(cardText(darkMagician), darkMagician.text);
+    // Ring of Destruction plays by its 2004 English text (src/ocgcore/overrides.ts), so its text is not replaced
+    const ring = CARDS.find((card) => card.name === 'Ring of Destruction')!;
+    assert.equal(cardText(ring), ring.text);
+    assert.equal(effectDescription(31n, new Map()), '¿Atacar directamente con este monstruo?');
+    assert.equal(translatedDescription((62121n << 20n) | 0n), spanish.strings['62121']['0']);
+  } finally {
+    setCardTexts(undefined);
+  }
+});
