@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { cardName } from '../i18n/cards';
 
 export const SURRENDER = '__surrender__';
+export interface RejectedAnswer { prompt: string; response: OcgResponse | undefined; human: boolean; attempt: number; turn: number; phase: Phase }
 export const opp = (side: Side): Side => side === 0 ? 1 : 0;
 const hidden: CardDef = { id: '', name: 'Face-down card', kind: 'monster', mtype: 'normal', art: '', text: '' };
 const REASON_DESTROY = 0x1;
@@ -124,6 +125,13 @@ export class OcgDuel {
   /** Add a duel-log line. `kind` picks its colour in the log (see LOG_KINDS); it rides along as an invisible first character. */
   log(text: string, kind: LogKind = 'note') { const line = LOG_MARK[kind] + text; this.logLines.push(line); void this.emit({ t: 'log', text: line }); }
   stop() { this.stopped = true; this.session?.close(); }
+  /** Called when the core rejects an answer, with what was asked and answered (for error reports). */
+  onRejected?: (info: RejectedAnswer) => void;
+
+  /** A plain legal answer: the default CPU pick, which passes optional chains and takes the smallest valid selection. */
+  private fallback(message: OcgMessage & { player: number }): OcgResponse {
+    return cpuChoice(decision(message, code => cardName(this.definition(code)), this.session?.describe));
+  }
 
   private card(owner: Side, zone: Zone, def = hidden): Card {
     const card: Card = { uid: this.nextId++, def, owner, ctrl: owner, zone, slot: -1, faceUp: false, pos: 'atk',
@@ -732,9 +740,14 @@ export class OcgDuel {
     }
     if ((message.type === M.SELECT_CARD || message.type === M.SELECT_TRIBUTE || message.type === M.SELECT_SUM) && prompt.selection) {
       const created: Card[] = [];
+      const used = new Set<Card>();
       const cards = message.selects.map(loc => {
         const current = this.lookup(loc);
-        if (current && (this.onField(current) || loc.code === 0 || current.def.name === this.definition(loc.code).name)) return current;
+        // each offered location needs its own card: two pointing at one board card would answer the same index twice
+        if (current && !used.has(current) && (this.onField(current) || loc.code === 0 || current.def.name === this.definition(loc.code).name)) {
+          used.add(current);
+          return current;
+        }
         const card = this.card(this.side(loc.controller), zoneOf(loc) ?? 'hand', this.definition(loc.code));
         created.push(card);
         return card;
@@ -756,7 +769,7 @@ export class OcgDuel {
     }
     if (message.type === M.SELECT_UNSELECT_CARD) {
       const cards = [...message.select_cards, ...message.unselect_cards].map(loc => this.lookup(loc));
-      if (cards.length && cards.every((card): card is Card => !!card && this.onField(card))) {
+      if (cards.length && new Set(cards).size === cards.length && cards.every((card): card is Card => !!card && this.onField(card))) {
         const picked = await ask({ t: 'select', text: prompt.title, cards, min: 1, max: 1, purpose: 'good',
           selectionKind: 'target', marked: cards.slice(message.select_cards.length),
           finish: message.can_finish, cancel: message.can_cancel && !message.can_finish });
@@ -845,6 +858,8 @@ export class OcgDuel {
     const session = openDuel(core, bundle, [shuffled(order[0].main), shuffled(order[1].main)], [order[0].extra.map(codeFor), order[1].extra.map(codeFor)],
       this.startingLP, [seed[0], seed[1], seed[2], seed[3]], debug && { ...debug, codeFor });
     this.session = session;
+    let rejected = 0;
+    let lastResponse: OcgResponse | undefined;
     try {
       while (!this.stopped) {
         const next = session.advance();
@@ -862,10 +877,22 @@ export class OcgDuel {
           return;
         }
         if (!next.prompt || !('player' in next.prompt)) throw new Error('OCGCore did not return a player decision.');
-        const response = network
-          ? await network.exchange(next.prompt, this.side(next.prompt.player) === 0, () => this.answer(next.prompt! as OcgMessage & { player: number }))
-          : await this.answer(next.prompt);
+        const prompt = next.prompt as OcgMessage & { player: number };
+        const human = this.side(prompt.player) === 0 && !!this.ask;
+        if (next.retry) {
+          // The core rejected the last answer and asks the same question again. Report it, then ask once more (the
+          // human may pick differently) and after that fall back to a plain legal answer, instead of ending the duel.
+          rejected++;
+          this.onRejected?.({ prompt: M[prompt.type] ?? String(prompt.type), response: lastResponse, human, attempt: rejected, turn: this.turn, phase: this.phase });
+          if (rejected > 3) throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          this.slot = undefined;
+          this.choosingAttack = false;
+          this.attackTarget = undefined;
+        } else rejected = 0;
+        const reply = () => rejected >= 2 || (rejected === 1 && !human) ? Promise.resolve(this.fallback(prompt)) : this.answer(prompt);
+        const response = network ? await network.exchange(prompt, this.side(prompt.player) === 0, reply) : await reply();
         if (!response || this.stopped) break;
+        lastResponse = response;
         session.respond(response);
       }
       if (!this.stopped) await this.emit({ t: 'end', winner: network && this.tp !== 0 ? 0 : 1, reason: network ? 'A player surrendered' : 'You surrendered' });
