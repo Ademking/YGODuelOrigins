@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Error reporting
+
+- Deployed builds report errors to Sentry, including any duel that stops on an error, with the turn, phase, decks and last log lines. Local development and the tests send nothing.
+
 ### Fixes
 
 - Declaring a number (Card Trooper and other cards that ask for one) no longer ends the duel with "OCGCore rejected the selection", and the declared number is the one the effect uses. Numbers are listed from lowest to highest.

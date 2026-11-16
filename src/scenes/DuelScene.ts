@@ -1,4 +1,5 @@
 import type { Match, Lobby } from '../multiplayer/client';
+import { reportDuelError } from '../monitoring';
 import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
@@ -333,6 +334,7 @@ export class DuelScene extends Phaser.Scene {
       if (d.multiplayer) void d.multiplayer.session.leave();
       const detail = error instanceof Error ? error.message : String(error);
       console.error('Duel failed', { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), error });
+      reportDuelError(error, { matchup: [d.deckName, d.opp.name], turn: duel.turn, phase: duel.phase, lastActions: duel.logLines.slice(-8), multiplayer: !!d.multiplayer });
       if (isStaleBuild(error)) this.showEnd(-1, t('The game was updated while this page was open. Reload the page to load the new version.'));
       else this.showEnd(-1, t('Duel error on turn {n}, {phase}: {detail}', { n: duel.turn, phase: duel.phase, detail }));
     });
