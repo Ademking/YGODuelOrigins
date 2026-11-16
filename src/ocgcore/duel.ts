@@ -88,6 +88,9 @@ export class OcgDuel {
   private destroyed = new Set<number>();
   /** The side that just summoned a monster, until play moves on: the CPU answers summons with its traps. */
   private lastSummon: Side | null = null;
+  /** Chain windows already shown to the human this turn, so Smart chain prompts ask once per moment. */
+  private shownWindows = new Set<string>();
+  private summons = 0;
   /** The card the CPU is activating, so its target choices can follow what the card does. */
   private cpuEffect?: CardDef;
   constructor(private decks: [DeckList, DeckList], names: [string, string], private ask: Ask | null,
@@ -197,6 +200,7 @@ export class OcgDuel {
       case M.NEW_TURN:
         this.activeAttack = null;
         this.lastSummon = null;
+        this.shownWindows.clear();
         this.cpuAttacker = undefined;
         this.cancelledCpuAttacks.clear();
         this.tp = this.side(message.player);
@@ -270,6 +274,7 @@ export class OcgDuel {
           const how = message.type === M.SUMMONING ? 'normal' : message.type === M.FLIPSUMMONING ? 'flip' : card.def.mtype === 'fusion' ? 'fusion' : card.def.mtype === 'ritual' ? 'ritual' : 'special';
           this.log(t(how === 'normal' ? '{player} Normal Summons {card}.' : how === 'flip' ? '{player} Flip Summons {card}.' : '{player} Special Summons {card}.', { player: this.name(card.ctrl), card: cardName(card.def) }), 'play');
           this.lastSummon = card.ctrl;
+          this.summons++;
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
           if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: [] });
           event = { t: 'summon', card, how };
@@ -479,6 +484,10 @@ export class OcgDuel {
     const last = links[links.length - 1];
     if (last && last.ctrl === side) return false;
     if (card.kind === 'monster') return false;
+    // A second copy of a Continuous card already face-up (or already chained) adds nothing.
+    if ((card.stype === 'continuous' || card.stype === 'field')
+      && (links.some(link => link.ctrl === side && link.def.id === card.id)
+        || this.players[side].s.some(c => c?.faceUp && c.def.id === card.id))) return false;
     const negates = card.stype === 'counter' || /negate/i.test(card.text);
     if (last) return negates;
     if (this.tp !== foe) return false;
@@ -518,6 +527,36 @@ export class OcgDuel {
       const picked = ranked.slice(0, count);
       if (valid(picked)) return picked;
     }
+  }
+
+  /**
+   * Whether a human chain window can be skipped by Smart chain prompts. The human is asked when a card answers
+   * something specific (spe_count), when the opponent's card is on the chain, and once per moment that matters on
+   * the opponent's turn (their summon, the start of their Battle Phase, their attack, their End Phase). Damage step
+   * windows only ask when a card mentions the damage step. Everything else (phase starts, the human's own chain
+   * links, repeated windows of the same moment) passes on its own; "Chain prompts: Always" shows every window.
+   */
+  private optionalChainWindow(message: Extract<OcgMessage, { type: M.SELECT_CHAIN }>, side: Side): boolean {
+    if (message.spe_count > 0) return false;
+    const links = [...this.chain.values()];
+    const last = links[links.length - 1];
+    if (last) return last.ctrl === side;
+    const timing = message.hint_timing | message.hint_timing_other;
+    const once = (key: string) => {
+      if (this.shownWindows.has(key)) return true;
+      this.shownWindows.add(key);
+      return false;
+    };
+    if (timing & (T.DAMAGE_STEP | T.DAMAGE_CAL)) {
+      return !message.selects.some(loc => /damage (step|calculation)/i.test(this.definition(loc.code).text));
+    }
+    const foe = opp(side);
+    if (this.activeAttack) return this.activeAttack.attacker.ctrl === side || once(`attack:${this.activeAttack.attacker.uid}:${this.activeAttack.target?.uid ?? 0}`);
+    if (this.tp !== foe) return true;
+    if (this.lastSummon === foe) return once(`summon:${this.summons}`);
+    if (this.phase === 'BP') return once('bp');
+    if (this.phase === 'EP') return once('ep');
+    return true;
   }
 
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
@@ -671,12 +710,7 @@ export class OcgDuel {
         const options = [...actions.keys()];
         const selection = await ask(message.type === M.SELECT_CHAIN
           ? { t: 'chain', actions: options, ev: { e: 'open', phase: this.phase }, text: '', core: true,
-            optionalWindow: !this.chain.size && this.tp === side && (
-              message.spe_count === 0 && ['DP', 'SP', 'M1', 'M2'].includes(this.phase)
-              || (this.phase === 'DP' || this.phase === 'SP')
-                && ((message.hint_timing | message.hint_timing_other) & ~(T.DRAW_PHASE | T.STANDBY_PHASE | T.DRAW)) === 0
-                && message.selects.every(card => card.location === L.HAND && this.definition(card.code).stype === 'quick')
-            ) }
+            optionalWindow: this.optionalChainWindow(message, side) }
           : { t: 'main', actions: options, phase: this.phase });
         if (selection === SURRENDER) return;
         if (selection === null && message.type === M.SELECT_CHAIN) return { type: R.SELECT_CHAIN, index: null };
