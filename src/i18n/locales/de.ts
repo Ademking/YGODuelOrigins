@@ -564,4 +564,7 @@ export const DE: Dictionary = {
   "‹  Back": "‹  Zurück",
   "‹ Prev": "‹ Zurück",
   "‹ Previous": "‹ Zurück",
+  "Nothing said yet.": "Noch nichts gesagt.",
+  "Say hello, or send an emote from the rail.": "Sag Hallo oder schick ein Emote über die Leiste.",
+  "Attack replay": "Angriffswiederholung",
 };

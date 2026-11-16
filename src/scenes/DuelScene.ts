@@ -1683,7 +1683,7 @@ export class DuelScene extends Phaser.Scene {
         case 'zones': this.showZoneSelection(p); break;
         case 'option': this.showOptions(p.text, p.options); break;
         case 'replay':
-          this.showDialog(t('Replay'), t('The battle field changed. Choose a new target for {card}, or stop the attack.', { card: cardName(p.attacker.def) }), [
+          this.showDialog(t('Attack replay'), t('The battle field changed. Choose a new target for {card}, or stop the attack.', { card: cardName(p.attacker.def) }), [
             ...p.targets.map((target) => ({ label: attackTargetLabel(target), run: () => this.choose(target), hover: target?.faceUp ? target : undefined })),
             { label: t('Stop attacking'), run: () => this.choose(false) },
           ]);

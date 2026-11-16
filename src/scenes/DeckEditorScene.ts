@@ -8,7 +8,7 @@ import { loadCard, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { button, caption, chooseFromList, COL, FONT_N, htxt, modal, panel, portraitScreen, sceneBackground, txt, type Button, fitCamera } from '../ui/theme';
 import { sfx } from '../ui/sfx';
-import { num, t } from '../i18n';
+import { isRTL, num, t } from '../i18n';
 import { cardName, matchesTranslated } from '../i18n/cards';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
@@ -170,11 +170,13 @@ export class DeckEditorScene extends Phaser.Scene {
     // The card pool is paged: one page of art is fetched at a time instead of the whole catalog.
     const pageY = tall ? this.poolY + TALL.poolH - 30 : 684;
     if (tall) {
-      this.prevBtn = button(this, 275 + 70, pageY, 120, 40, t('‹ Prev'), () => this.turnPage(-1), { size: 15 });
-      this.nextBtn = button(this, 815 - 70, pageY, 120, 40, t('Next ›'), () => this.turnPage(1), { size: 15 });
+      const [prevX, nextX] = isRTL() ? [815 - 70, 275 + 70] : [275 + 70, 815 - 70]; // Arabic: Previous on the right
+      this.prevBtn = button(this, prevX, pageY, 120, 40, t('‹ Prev'), () => this.turnPage(-1), { size: 15 });
+      this.nextBtn = button(this, nextX, pageY, 120, 40, t('Next ›'), () => this.turnPage(1), { size: 15 });
     } else {
-      this.prevBtn = button(this, 885, 684, 90, 30, t('‹ Prev'), () => this.turnPage(-1), { size: 13 });
-      this.nextBtn = button(this, 1213, 684, 90, 30, t('Next ›'), () => this.turnPage(1), { size: 13 });
+      const [prevX, nextX] = isRTL() ? [1213, 885] : [885, 1213]; // Arabic: Previous on the right
+      this.prevBtn = button(this, prevX, 684, 90, 30, t('‹ Prev'), () => this.turnPage(-1), { size: 13 });
+      this.nextBtn = button(this, nextX, 684, 90, 30, t('Next ›'), () => this.turnPage(1), { size: 13 });
     }
     this.pageText = txt(this, tall ? 545 : 1049, pageY, '', 13, COL.dim).setOrigin(0.5);
     // the search box is a DOM element and stays out of the container (showTab hides it with the rest)

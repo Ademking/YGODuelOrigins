@@ -564,4 +564,7 @@ export const IT: Dictionary = {
   "‹  Back": "‹  Indietro",
   "‹ Prev": "‹ Prec.",
   "‹ Previous": "‹ Precedente",
+  "Nothing said yet.": "Ancora nessun messaggio.",
+  "Say hello, or send an emote from the rail.": "Saluta o invia un'emote dalla barra.",
+  "Attack replay": "Ripetizione dell'attacco",
 };

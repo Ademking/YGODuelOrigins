@@ -54,7 +54,7 @@ export class MultiplayerScene extends Phaser.Scene {
         </section>
         <section class="mp-frame mp-panel mp-chatpanel">
           <h2>${h('Lobby chat')}</h2>
-          <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite"></div>
+          <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite" data-empty="${h('Nothing said yet.')}"></div>
           <div id="mp-compose"></div>
         </section>
       </div>

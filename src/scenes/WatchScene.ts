@@ -25,8 +25,9 @@ export class WatchScene extends Phaser.Scene {
       htxt(this, 640, 607, t('VS'), 26).setOrigin(0.5);
     } else {
       button(this, 98, 46, 112, 36, t('‹  Back'), () => this.scene.start('Title'), { size: 13 });
-      htxt(this, 180, 45, t('Replay'), 24).setOrigin(0, 0.5);
-      txt(this, 318, 47, t('Watch two CPU duelists play each other'), 13, COL.dim).setOrigin(0, 0.5);
+      const title = htxt(this, 180, 45, t('Replay'), 24).setOrigin(0, 0.5);
+      // the subtitle follows the title, whose width depends on the language
+      txt(this, Math.max(318, title.x + title.width + 24), 47, t('Watch two CPU duelists play each other'), 13, COL.dim).setOrigin(0, 0.5);
       htxt(this, 640, 236, t('VS'), 34).setOrigin(0.5);
     }
     duelistPicker(this, tall ? 640 : 330, 80, t('Duelist 1  ·  near side'), picks[0], (index) => { picks[0] = index; });

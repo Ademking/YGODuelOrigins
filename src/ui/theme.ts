@@ -55,16 +55,31 @@ Phaser.GameObjects.Text.prototype.setLetterSpacing = function (this: Phaser.Game
 // Arabic reads right to left: each drawn line holding Arabic letters is wrapped in a right-to-left embedding (RLE … PDF),
 // so a sentence's punctuation and any English words in it fall on the correct side. Lines without Arabic (stats, names
 // in Latin letters) draw as they are. (Phaser's own rtl mode is not used: it right-aligns every line, centred ones too.)
-const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
-const rtlLine = (s: string) => (ARABIC.test(s) ? `‫${s}‬` : s);
+// Arrows at a label's start or end stay outside the embedding, so they draw exactly where and as the label writes them
+// (Arabic labels put them on the outer side: «السابق ›», «‹ التالي»).
+const ARABIC = /[\u0600-\u06ff\u0750-\u077f\ufb50-\ufdff\ufe70-\ufeff]/;
+const ARROWS = /^([‹›\s]*)([\s\S]*?)([‹›\s]*)$/;
+const rtlLine = (s: string) => {
+  if (!ARABIC.test(s)) return s;
+  const [, lead, body, trail] = ARROWS.exec(s)!;
+  return `${lead}\u202b${body}\u202c${trail}`;
+};
 const updateText = Phaser.GameObjects.Text.prototype.updateText;
 Phaser.GameObjects.Text.prototype.updateText = function (this: Phaser.GameObjects.Text & { rtlLines?: boolean }) {
+  // wrapped left-aligned paragraphs (About, What's New, the card panel) sit against the right edge in Arabic
+  const style = this.style as Phaser.GameObjects.TextStyle & { wordWrapWidth: number | null };
+  if (isRTL() && style.wordWrapWidth && style.align === 'left' && this.originX === 0 && !style.fixedWidth) {
+    style.fixedWidth = style.wordWrapWidth;
+    style.align = 'right';
+  }
   if (isRTL() && !this.rtlLines && this.context) {
     this.rtlLines = true;
     const ctx = this.context;
     const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
-    ctx.fillText = (s, x, y, max) => fill(rtlLine(s), x, y, max);
-    ctx.strokeText = (s, x, y, max) => stroke(rtlLine(s), x, y, max);
+    // the page is dir="rtl" in Arabic and a resized canvas inherits it, which would reorder each line a second time:
+    // lines start left to right, and the embedding alone turns the Arabic around
+    ctx.fillText = (s, x, y, max) => { ctx.direction = 'ltr'; fill(rtlLine(s), x, y, max); };
+    ctx.strokeText = (s, x, y, max) => { ctx.direction = 'ltr'; stroke(rtlLine(s), x, y, max); };
   }
   return updateText.call(this);
 };
@@ -535,8 +550,10 @@ export function chooseFromList(scene: Phaser.Scene, title: string, options: read
       }, { size: 14 }).setSelected(index === selected));
     });
     if (lastPage) {
-      entries.add(button(scene, px + 84, bottom, 120, 34, t('‹ Previous'), () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
-      entries.add(button(scene, px + pw - 84, bottom, 120, 34, t('Next ›'), () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
+      // Arabic reads right to left: Previous on the right, Next on the left
+      const [prevX, nextX] = isRTL() ? [px + pw - 84, px + 84] : [px + 84, px + pw - 84];
+      entries.add(button(scene, prevX, bottom, 120, 34, t('‹ Previous'), () => { page--; render(); }, { size: 12 }).setEnabled(page > 0));
+      entries.add(button(scene, nextX, bottom, 120, 34, t('Next ›'), () => { page++; render(); }, { size: 12 }).setEnabled(page < lastPage));
     }
   };
   layer.add(button(scene, 640, bottom, tall ? 140 : 160, 36, t('Close'), close, { size: 14 }));

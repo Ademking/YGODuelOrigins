@@ -286,6 +286,7 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   const close = element('button', '', 'mp-rail-btn small'); close.type = 'button'; close.innerHTML = CLOSE_ICON; close.setAttribute('aria-label', t('Close chat'));
   head.append(element('h2', session.opponent?.name ? t('Chat with {player}', { player: session.opponent.name }) : t('Chat with your opponent')), close);
   const messages = element('div', '', 'mp-scroll mp-messages'); messages.setAttribute('role', 'log');
+  messages.dataset.empty = t('Say hello, or send an emote from the rail.');
   const { form, input } = chatComposer(text => {
     void session.say(text).catch(() => { messages.append(element('div', t('Chat is disconnected.'), 'mp-message sys')); });
   }, t('Say something'));

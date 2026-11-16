@@ -564,4 +564,7 @@ export const RU: Dictionary = {
   "‹  Back": "‹  Назад",
   "‹ Prev": "‹ Назад",
   "‹ Previous": "‹ Назад",
+  "Nothing said yet.": "Пока никто ничего не написал.",
+  "Say hello, or send an emote from the rail.": "Поздоровайтесь или отправьте эмоцию с панели.",
+  "Attack replay": "Повтор атаки",
 };

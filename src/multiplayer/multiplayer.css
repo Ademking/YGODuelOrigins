@@ -128,7 +128,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-messages { overflow-wrap: anywhere; display: flex; flex-direction: column; }
 .mp-messages > :first-child { margin-top: auto; }
 .mp-messages > * { max-width: 72ch; }
-.mp-root .mp-messages:empty::before { content: 'Nothing said yet.'; display: block; padding: 28px 0; color: var(--faint); font-size: 12px; }
+.mp-root .mp-messages:empty::before { content: attr(data-empty); display: block; padding: 28px 0; color: var(--faint); font-size: 12px; }
 .mp-message { padding: 10px 0 2px; white-space: pre-wrap; color: #ddd6e8; }
 .mp-message.cont { padding-top: 2px; }
 .mp-msg-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
@@ -244,7 +244,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-drawer > header { display: flex; align-items: center; gap: 10px; padding: 10px 10px 8px 18px; border-bottom: 1px solid #2a2540; }
 .mp-drawer h2 { flex: 1; margin: 0; font-size: 14px; color: var(--brass-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mp-drawer .mp-scroll { padding: 4px 18px 10px; }
-.mp-drawer .mp-messages:empty::before { content: 'Say hello, or send an emote from the rail.'; display: block; padding: 24px 0; color: var(--faint); font-size: 12px; }
+.mp-drawer .mp-messages:empty::before { content: attr(data-empty); display: block; padding: 24px 0; color: var(--faint); font-size: 12px; }
 .mp-drawer .mp-compose { padding: 10px 12px 12px; border-top: 1px solid #2a2540; }
 .mp-drawer .mp-compose .mp-btn > span { padding: 12px 14px; }
 .mp-drawer .mp-popover { left: 12px; width: calc(100% - 24px); }

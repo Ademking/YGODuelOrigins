@@ -564,4 +564,7 @@ export const ID: Dictionary = {
   "‹  Back": "‹  Kembali",
   "‹ Prev": "‹ Seb.",
   "‹ Previous": "‹ Sebelumnya",
+  "Nothing said yet.": "Belum ada obrolan.",
+  "Say hello, or send an emote from the rail.": "Sapa lawanmu atau kirim emote dari bilah.",
+  "Attack replay": "Pengulangan serangan",
 };
