@@ -9,7 +9,7 @@
   --panel: #0e0c1be6; --glow: #7fdcea; --green: #5ee0a0;
   --cut: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)),
     calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
-  font: 14px/1.6 Michroma, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
+  font: 14px/1.6 Michroma, Cairo, Arial, sans-serif; color: var(--ink); box-sizing: border-box;
 }
 .mp-root *, .mp-modal *, .mp-duel *, .mp-pick-pop * { box-sizing: border-box; font-family: inherit; }
 .mp-duel { display: contents; }
@@ -73,7 +73,7 @@
 .mp-flag { position: absolute; left: 6px; top: 6px; width: 26px; height: auto; filter: drop-shadow(0 1px 2px #000c); }
 .mp-lic-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .mp-lic-name { display: block; font-size: 18px; line-height: 1.3; color: var(--brass-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 8px; border-bottom: 1px solid #7c663888; }
-input.mp-lic-name { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--brass-dim); border-radius: 0; padding: 4px 0 8px; outline: none; font: 18px Michroma, Arial, sans-serif; color: var(--brass-txt); }
+input.mp-lic-name { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--brass-dim); border-radius: 0; padding: 4px 0 8px; outline: none; font: 18px Michroma, Cairo, Arial, sans-serif; color: var(--brass-txt); }
 input.mp-lic-name::placeholder { color: #6b5f45; }
 input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 var(--glow); }
 
@@ -142,7 +142,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-message.sys { color: var(--faint); font-size: 12px; padding: 6px 0; }
 .mp-compose { position: relative; display: flex; align-items: center; gap: 8px; padding: 12px 20px 18px; }
 .mp-icon { flex: none; width: 44px; height: 44px; display: grid; place-items: center; background: var(--field); border: 1px solid var(--line); border-radius: 2px; color: var(--ink); font-size: 18px; cursor: pointer; }
-.mp-icon.gif { font: 12px Michroma, Arial, sans-serif; color: var(--brass-txt); }
+.mp-icon.gif { font: 12px Michroma, Cairo, Arial, sans-serif; color: var(--brass-txt); }
 .mp-icon:hover, .mp-icon.on { border-color: var(--brass); background: #1b1830; }
 .mp-compose > input { flex: 1; min-width: 0; }
 .mp-popover { position: absolute; left: 20px; bottom: calc(100% - 6px); z-index: 5; width: min(420px, calc(100% - 40px)); background: #0e0c1bfa; border: 1px solid var(--brass-dim); padding: 12px; box-shadow: 0 12px 40px #000a; }
@@ -151,7 +151,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-emoji-grid button:hover { border-color: var(--brass-dim); background: #1b1830; }
 .mp-popover > input { margin-bottom: 10px; }
 .mp-gif-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-.mp-gif-tabs button { background: var(--field); border: 1px solid var(--line); border-radius: 12px; color: var(--dim); padding: 4px 10px; font: 12px Michroma, Arial, sans-serif; cursor: pointer; }
+.mp-gif-tabs button { background: var(--field); border: 1px solid var(--line); border-radius: 12px; color: var(--dim); padding: 4px 10px; font: 12px Michroma, Cairo, Arial, sans-serif; cursor: pointer; }
 .mp-gif-tabs button:hover { border-color: var(--brass-dim); color: var(--ink); }
 .mp-gif-tabs button.on { border-color: var(--brass); color: var(--brass-txt); background: #1b1830; }
 .mp-gif-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--brass-dim) transparent; }
@@ -163,7 +163,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 
 /* ---------------------------------------------------------------- controls */
 /* Buttons: same shape and states as theme.ts button(). */
-.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: 14px Michroma, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
+.mp-btn { --c: 7px; border: 0; padding: 1px; cursor: pointer; background: var(--line); clip-path: var(--cut); color: var(--ink); font: 14px Michroma, Cairo, Arial, sans-serif; white-space: nowrap; transition: transform .09s; }
 .mp-btn > span { display: block; padding: 12px 20px; background: #14121ff5; clip-path: var(--cut); }
 .mp-btn:hover:not(:disabled) { background: var(--brass); color: var(--brass-txt); transform: scale(1.03); }
 .mp-btn:hover:not(:disabled) > span { background: #242039; }
@@ -180,7 +180,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 
 .mp-root input:not(.mp-lic-name), .mp-duel input, .mp-pick-pop input {
   width: 100%; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 2px;
-  padding: 11px 14px; font: 14px Michroma, Arial, sans-serif; outline: none;
+  padding: 11px 14px; font: 14px Michroma, Cairo, Arial, sans-serif; outline: none;
 }
 .mp-root input::placeholder, .mp-modal input::placeholder, .mp-duel input::placeholder, .mp-pick-pop input::placeholder { color: #5f5975; }
 .mp-root input:not(.mp-lic-name):focus, .mp-modal input:not(.mp-lic-name):focus, .mp-duel input:focus, .mp-pick-pop input:focus { border-color: var(--glow); }
@@ -188,7 +188,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-gif-pick:focus-visible, .mp-emoji-grid button:focus-visible, .mp-gif-tabs button:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
 
 /* Deck picker: the button sits on the license; its list floats in the nearest dialog or screen root. */
-.mp-pick-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; background: #0a0916cc; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); cursor: pointer; font: 14px Michroma, Arial, sans-serif; text-align: left; }
+.mp-pick-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; background: #0a0916cc; border: 1px solid var(--line); border-radius: 2px; color: var(--ink); cursor: pointer; font: 14px Michroma, Cairo, Arial, sans-serif; text-align: left; }
 .mp-pick-btn small { color: var(--dim); font-size: 12px; }
 .mp-pick-btn b { flex: 1; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mp-pick-btn i { font-style: normal; color: var(--brass-txt); transition: transform .15s; }
@@ -249,7 +249,7 @@ input.mp-lic-name:focus { border-bottom-color: var(--glow); box-shadow: 0 1px 0 
 .mp-drawer .mp-compose .mp-btn > span { padding: 12px 14px; }
 .mp-drawer .mp-popover { left: 12px; width: calc(100% - 24px); }
 .mp-emote-pop { display: flex; flex-direction: column; padding: 6px; min-width: 210px; }
-.mp-emote { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font: 14px Michroma, Arial, sans-serif; color: var(--ink); text-align: left; background: transparent; border: 1px solid transparent; border-radius: 2px; cursor: pointer; }
+.mp-emote { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font: 14px Michroma, Cairo, Arial, sans-serif; color: var(--ink); text-align: left; background: transparent; border: 1px solid transparent; border-radius: 2px; cursor: pointer; }
 .mp-emote:hover { background: #1b1830; border-color: var(--brass-dim); color: var(--brass-txt); }
 .mp-emote-glyph { font-size: 20px; width: 26px; text-align: center; }
 .mp-drawer[hidden], .mp-emote-pop[hidden], .mp-badge[hidden] { display: none; }

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BACK, CARD_K } from '../ui/cardArt';
 import { CARDS } from '../ocgcore/catalog';
 import { setCardTexture } from '../ui/cardLoader';
-import { button, caption, COL, fitCamera, fitDialog, htxt, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
+import { button, caption, COL, fitCamera, fitDialog, htxt, loadFonts, panel, placeDom, portraitScreen, sceneBackground, txt, viewOf } from '../ui/theme';
 import { settingsRows, volumeControls } from '../ui/settings';
 import { debugModeEnabled, toggleDebugMode } from '../ui/debugMode';
 import { gravityWellShader } from '../ui/gravityWell';
@@ -146,6 +146,8 @@ export class TitleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown', shortcut);
     this.events.once('shutdown', () => this.input.keyboard?.off('keydown', shortcut));
     this.languageButton(tall);
+    // prefetch Cairo's Arabic letters for the language list's «العربية», so it is ready before the list opens
+    if (locale() !== 'ar') void document.fonts.load('700 16px Cairo', 'العربية').catch(() => undefined);
     const credit = `${t('Fan-made duel simulator')}  ·  ${t('2004 Expert Rules')}  ·  v${__APP_VERSION__}`;
     if (tall) caption(this, 640, TALL.bottom - 16, credit, COL.dim, 11).setOrigin(0.5);
     else caption(this, 24, 683, credit, COL.dim, 9);
@@ -177,6 +179,7 @@ export class TitleScene extends Phaser.Scene {
 
   /** Every language with its flag; picking one restarts the title screen in it. */
   private showLanguages() {
+    // the list names Arabic in Arabic: its letters are drawn in Cairo once loaded (prefetched when the title opens)
     const layer = this.add.container(0, 0).setDepth(110);
     const close = () => layer.destroy();
     const backdrop = this.add.rectangle(640, 360, 4000, 4000, 0x05060a, 0.75).setInteractive();
@@ -197,7 +200,7 @@ export class TitleScene extends Phaser.Scene {
       const control = button(this, x, y, bw, bh, language.name, () => {
         if (language.code === locale()) { close(); return; }
         setLocale(language.code);
-        void loadCardTexts().then(() => this.scene.restart());
+        void Promise.all([loadCardTexts(), loadFonts()]).then(() => this.scene.restart());
       }, { size: tall ? 19 : 16 }).setSelected(language.code === locale());
       this.withFlag(control, language.flag, bw, bh);
       layer.add(control);

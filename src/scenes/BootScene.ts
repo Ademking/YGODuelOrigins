@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
-import { fitCamera, FONT_LOADS, portraitScreen } from '../ui/theme';
+import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
 import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
 import { loadCardTexts } from '../i18n/cards';
@@ -9,7 +9,7 @@ import { LOCALES } from '../i18n';
 // Boot loads only the card back and zone icons. Card faces are fetched on demand by ui/cardLoader.
 const CARD_BACK_URL = '/ui/card-back.png';
 // The UI fonts are requested right away so they are usually ready before the loading screen's text is drawn.
-const fontReady = Promise.all(FONT_LOADS.map((font) => document.fonts.load(font))).catch(() => undefined);
+const fontReady = loadFonts();
 // Card names and text in the player's language load alongside (English needs nothing).
 const cardTextReady = loadCardTexts();
 

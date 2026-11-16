@@ -24,12 +24,24 @@ export const CANVAS_SIDE = Math.round(Phaser.Math.Clamp(
  */
 export const RES = Phaser.Math.Clamp(Math.ceil((Math.max(CANVAS_SIDE / H, CANVAS_SIDE / 820)) * 2) / 2, 1, LOW_END ? 1 : TOUCH ? 1.5 : 2);
 
-/** One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals. */
-export const FONT_H = 'Michroma, Arial, sans-serif';
+/**
+ * One face everywhere (Michroma). The three names say which role a text plays: heading, body, numerals.
+ * Michroma has no Arabic letters, so Arabic falls through to Cairo, a modern Arabic face that suits it (both from Google
+ * Fonts, index.html); Latin letters and digits in Arabic text stay in Michroma.
+ */
+export const FONT_H = 'Michroma, Cairo, Arial, sans-serif';
 export const FONT_B = FONT_H;
 export const FONT_N = FONT_H;
-/** Boot waits for these before the first text is rasterized. */
-export const FONT_LOADS = ['16px Michroma'];
+
+/**
+ * Load the faces the current language draws with; Boot and the language picker wait for this before text is
+ * rasterized. Cairo is fetched only for Arabic (Google serves it per script, so other languages download nothing).
+ */
+export function loadFonts(): Promise<unknown> {
+  const loads = [document.fonts.load('16px Michroma')];
+  if (isRTL()) loads.push(document.fonts.load('400 16px Cairo', 'عربي'), document.fonts.load('700 16px Cairo', 'عربي'));
+  return Promise.all(loads).catch(() => undefined);
+}
 
 // Every text object is rasterized at RES so it stays crisp under the camera zoom.
 type TextFactory = (this: unknown, x: number, y: number, s: string | string[], style?: Phaser.Types.GameObjects.Text.TextStyle) => Phaser.GameObjects.Text;
@@ -40,8 +52,22 @@ const setLetterSpacing = Phaser.GameObjects.Text.prototype.setLetterSpacing;
 Phaser.GameObjects.Text.prototype.setLetterSpacing = function (this: Phaser.GameObjects.Text, spacing: number) {
   return setLetterSpacing.call(this, isRTL() ? 0 : spacing);
 };
-// (Arabic needs no rtl flag: the browser shapes and orders it when the canvas draws the text, and Phaser's rtl mode
-// shifts left-aligned text out of place.)
+// Arabic reads right to left: each drawn line holding Arabic letters is wrapped in a right-to-left embedding (RLE … PDF),
+// so a sentence's punctuation and any English words in it fall on the correct side. Lines without Arabic (stats, names
+// in Latin letters) draw as they are. (Phaser's own rtl mode is not used: it right-aligns every line, centred ones too.)
+const ARABIC = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+const rtlLine = (s: string) => (ARABIC.test(s) ? `‫${s}‬` : s);
+const updateText = Phaser.GameObjects.Text.prototype.updateText;
+Phaser.GameObjects.Text.prototype.updateText = function (this: Phaser.GameObjects.Text & { rtlLines?: boolean }) {
+  if (isRTL() && !this.rtlLines && this.context) {
+    this.rtlLines = true;
+    const ctx = this.context;
+    const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
+    ctx.fillText = (s, x, y, max) => fill(rtlLine(s), x, y, max);
+    ctx.strokeText = (s, x, y, max) => stroke(rtlLine(s), x, y, max);
+  }
+  return updateText.call(this);
+};
 factory.text = function (x, y, s, style) {
   const st = { resolution: RES, ...(style ?? {}) };
   return addText.call(this, x, y, s, st);
