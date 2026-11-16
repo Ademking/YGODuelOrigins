@@ -256,3 +256,28 @@ test('CPU activates Pot of Greed from hand and sets its Trap', { timeout: 5000 }
   assert.ok(opponent.players[1].s.some(card => card && !card.faceUp));
   assert.ok(!events.includes('set:Pot of Greed'));
 });
+
+test('An answer OCGCore rejects gives the same prompt back instead of ending the duel', async () => {
+  const bundle = readBundle();
+  const core = await createCore({ sync: true });
+  const pot = 55144522;
+  const duel = openDuel(core, bundle, [Array(15).fill(pot), Array(15).fill(pot)], [[], []], 4000, [1n, 2n, 3n, 4n]);
+  try {
+    let next = duel.advance();
+    while (next.prompt?.type === OcgMessageType.SELECT_CHAIN && !next.prompt.forced) {
+      duel.respond({ type: OcgResponseType.SELECT_CHAIN, index: null });
+      next = duel.advance();
+    }
+    const idle = next.prompt!;
+    assert.equal(idle.type, OcgMessageType.SELECT_IDLECMD);
+    // Activate a card that is not in the list: illegal.
+    duel.respond({ type: OcgResponseType.SELECT_IDLECMD, action: SelectIdleCMDAction.SELECT_ACTIVATE, index: 99 });
+    next = duel.advance();
+    assert.equal(next.retry, true);
+    assert.equal(next.prompt, idle);
+    // A legal answer to the same prompt carries on.
+    duel.respond({ type: OcgResponseType.SELECT_IDLECMD, action: SelectIdleCMDAction.TO_EP, index: null });
+    next = duel.advance();
+    assert.equal(next.retry, false);
+  } finally { duel.close(); }
+});

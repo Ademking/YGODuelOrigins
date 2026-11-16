@@ -19,13 +19,33 @@ export const LOBBY_KIND = 25050;
 export const LOBBY_TAG = 'duelorigins-lobby-v1';
 const HEARTBEAT_MS = 25000, EXPIRE_MS = 70000, MAX_AGE_S = 120, MAX_PEERS = 1000;
 const CODE = /^[A-HJ-NP-Z2-9]{12}$/;
-const now = () => Math.floor(Date.now() / 1000);
+/** This device's clock, in whole seconds. Lobby times add the measured skew to it (Lobby.now). */
+const deviceNow = () => Math.floor(Date.now() / 1000);
+
+/**
+ * How many seconds this device's clock is behind real time, read from the game's own web server (its Date header).
+ * A PC clock a few minutes off would otherwise date every lobby event wrongly and drop everyone else's as stale, so
+ * that player would see an empty lobby and nobody would see them. Undefined when the server cannot be asked.
+ */
+export async function measureClockSkew(url = typeof location === 'undefined' ? '' : location.href): Promise<number | undefined> {
+  if (!url) return undefined;
+  try {
+    const sent = Date.now();
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const received = Date.now();
+    const server = Date.parse(response.headers.get('date') ?? '');
+    // the header is truncated to the second: +500 ms centres it; the request's travel time is split evenly
+    return Number.isFinite(server) ? Math.round((server + 500 - (sent + received) / 2) / 1000) : undefined;
+  } catch { return undefined; }
+}
 
 /** What the lobby needs from the relays; tests swap in an in-memory bus. */
 export interface LobbyTransport {
   publish(event: Event): Promise<void>;
   subscribe(onEvent: (event: Event) => void): () => void;
   close(): void;
+  /** How many relays are connected, of how many. */
+  status?(): { connected: number; total: number };
 }
 export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
   const pool = new SimplePool({ enableReconnect: true });
@@ -35,10 +55,16 @@ export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
       if (!results.some(r => r.status === 'fulfilled')) throw new Error('No relay accepted the event.');
     },
     subscribe(onEvent) {
-      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG], since: now() - 10 }, { onevent: onEvent });
+      // No `since`: lobby events are ephemeral (relays forward them live and never store them), and a time filter
+      // taken from a wrong device clock would silently hide every player.
+      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG] }, { onevent: onEvent });
       return () => sub.close();
     },
     close() { pool.close(relays); },
+    status() {
+      const states = pool.listConnectionStatus();
+      return { connected: relays.filter(url => states.get(url) || states.get(url + '/')).length, total: relays.length };
+    },
   };
 }
 
@@ -55,16 +81,52 @@ export class Lobby {
   private closed = false;
   private unsubscribe: () => void;
   private timers: ReturnType<typeof setInterval>[] = [];
+  /** Seconds to add to this device's clock (see measureClockSkew), and whether the server or other players told us. */
+  private skew = 0;
+  private clockKnown = false;
+  /** Other players' clocks relative to ours, from events too far off to accept: a fallback when the server cannot say. */
+  private clockSamples = new Map<string, number>();
   onChange = () => {};
   onInvite = (_peer: string, _code: string) => {};
   onDecline = (_peer: string, _code: string) => {};
   onError = (_message: string, _code?: string) => {};
 
-  constructor(public name: string, private look: Look, private transport: LobbyTransport = nostrTransport()) {
+  constructor(public name: string, private look: Look, private transport: LobbyTransport = nostrTransport(),
+    clock: () => Promise<number | undefined> = measureClockSkew) {
     this.id = getPublicKey(this.secret);
     this.unsubscribe = transport.subscribe(event => this.receive(event));
     void this.announce(true);
     this.timers.push(setInterval(() => void this.announce(), HEARTBEAT_MS), setInterval(() => this.expire(), 10000));
+    void clock().then(skew => { if (skew !== undefined) this.setSkew(skew); });
+    // If most relays cannot be reached, players who only reach the others may be missing: say why.
+    const check = setTimeout(() => {
+      const status = this.transport.status?.();
+      if (!this.closed && status && status.connected > 0 && status.connected < Math.min(2, status.total)) {
+        this.addChat({ name: '', system: true, text: t('Only {n} of {total} lobby servers answered. If players are missing, a browser extension, antivirus or network filter may be blocking the others.', status) });
+      }
+    }, 10000);
+    this.timers.push(check as unknown as ReturnType<typeof setInterval>);
+  }
+  /** Lobby time: this device's clock corrected by the measured skew. */
+  now() { return deviceNow() + this.skew; }
+  private setSkew(skew: number) {
+    this.clockKnown = true;
+    if (Math.abs(skew - this.skew) < 5) return;
+    this.skew = skew;
+    void this.announce(true); // our earlier announcements were dated wrongly: introduce ourselves again
+  }
+  /**
+   * An event too far from our clock to accept. If at least two other players agree that our clock is off (within 30 s
+   * of each other), trust them: used only when the web server could not tell us the time.
+   */
+  private learnClock(peer: string, offset: number) {
+    if (this.clockKnown) return;
+    this.clockSamples.set(peer, offset);
+    if (this.clockSamples.size > 50) this.clockSamples.delete(this.clockSamples.keys().next().value!);
+    const sorted = [...this.clockSamples.values()].sort((a, b) => a - b);
+    if (sorted.length < 2) return;
+    const median = sorted[Math.floor(sorted.length / 2)];
+    if (sorted.filter(v => Math.abs(v - median) <= 30).length >= 2) this.setSkew(this.skew + median);
   }
   get avatar() { return this.look.avatar; }
   setBusy(busy: boolean) { this.busy = busy; void this.announce(); }
@@ -97,7 +159,7 @@ export class Lobby {
   private async send(content: Record<string, unknown>, to?: string, closing = false) {
     if (this.closed && !closing) return;
     const tags = [['t', LOBBY_TAG], ...(to ? [['p', to]] : [])];
-    const event = finalizeEvent({ kind: LOBBY_KIND, created_at: now(), tags, content: JSON.stringify(content) }, this.secret);
+    const event = finalizeEvent({ kind: LOBBY_KIND, created_at: this.now(), tags, content: JSON.stringify(content) }, this.secret);
     try { await this.transport.publish(event); }
     catch { if (!closing) this.onError(t('Lost touch with the matchmaking servers. Check your internet connection.'), 'relay-failed'); }
   }
@@ -130,7 +192,13 @@ export class Lobby {
   /** Everything from the relays is untrusted: check signature, tag, age, size and shape before use. */
   receive(event: Event) {
     if (this.closed || event.pubkey === this.id || event.kind !== LOBBY_KIND || event.content.length > 4096) return;
-    if (!event.tags.some(t => t[0] === 't' && t[1] === LOBBY_TAG) || Math.abs(now() - event.created_at) > MAX_AGE_S) return;
+    if (!event.tags.some(t => t[0] === 't' && t[1] === LOBBY_TAG)) return;
+    const offset = event.created_at - this.now();
+    if (Math.abs(offset) > MAX_AGE_S) {
+      // relays forward lobby events live, so a far-off date means one of the two clocks is wrong
+      if (!this.clockKnown && verifyEvent(event)) this.learnClock(event.pubkey, offset);
+      return;
+    }
     if (!verifyEvent(event)) return;
     let m: Record<string, unknown>;
     try { m = JSON.parse(event.content); } catch { return; }

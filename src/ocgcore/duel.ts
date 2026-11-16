@@ -520,6 +520,19 @@ export class OcgDuel {
     }
   }
 
+  /** The most conservative legal answer, used after OCGCore has rejected answers to this prompt. */
+  private safeAnswer(message: OcgMessage & { player: number }): OcgResponse {
+    if (message.type === M.SELECT_CHAIN && !message.forced) return { type: R.SELECT_CHAIN, index: null };
+    if (message.type === M.SELECT_BATTLECMD && (message.to_m2 || message.to_ep)) {
+      return { type: R.SELECT_BATTLECMD, action: message.to_m2 ? B.TO_M2 : B.TO_EP, index: null };
+    }
+    if (message.type === M.SELECT_IDLECMD && (message.to_bp || message.to_ep)) {
+      return { type: R.SELECT_IDLECMD, action: message.to_bp ? I.TO_BP : I.TO_EP, index: null };
+    }
+    if (message.type === M.SELECT_CARD && message.can_cancel) return { type: R.SELECT_CARD, indicies: null };
+    return cpuChoice(decision(message, code => cardName(this.definition(code)), this.session?.describe));
+  }
+
   private async answer(message: OcgMessage & { player: number }): Promise<OcgResponse | undefined> {
     const side = this.side(message.player);
     const hint = this.selectionHint?.player === message.player ? this.selectionHint.id : undefined;
@@ -811,9 +824,17 @@ export class OcgDuel {
     const session = openDuel(core, bundle, [shuffled(order[0].main), shuffled(order[1].main)], [order[0].extra.map(codeFor), order[1].extra.map(codeFor)],
       this.startingLP, [seed[0], seed[1], seed[2], seed[3]], debug && { ...debug, codeFor });
     this.session = session;
+    /** Answers OCGCore rejected in a row for the current prompt (see the retry handling below). */
+    let rejected = 0;
     try {
       while (!this.stopped) {
         const next = session.advance();
+        if (next.retry) {
+          // The last answer was not legal (a stale or mismatched choice). Ask again rather than ending the duel; from the
+          // second rejection on, answer the safest legal way (pass, end the phase, or the minimum selection).
+          if (++rejected > 4) throw new Error('OCGCore rejected the selection. Restart the duel to try again.');
+          console.warn(`OCGCore rejected an answer (${M[next.prompt!.type]}); asking again`);
+        } else rejected = 0;
         for (const message of next.messages) {
           if (this.stopped) break;
           await this.update(message);
@@ -828,9 +849,11 @@ export class OcgDuel {
           return;
         }
         if (!next.prompt || !('player' in next.prompt)) throw new Error('OCGCore did not return a player decision.');
+        const prompt = next.prompt as OcgMessage & { player: number };
+        const choose = () => rejected >= 2 ? Promise.resolve(this.safeAnswer(prompt)) : this.answer(prompt);
         const response = network
-          ? await network.exchange(next.prompt, this.side(next.prompt.player) === 0, () => this.answer(next.prompt! as OcgMessage & { player: number }))
-          : await this.answer(next.prompt);
+          ? await network.exchange(next.prompt, this.side(next.prompt.player) === 0, choose)
+          : await choose();
         if (!response || this.stopped) break;
         session.respond(response);
       }
