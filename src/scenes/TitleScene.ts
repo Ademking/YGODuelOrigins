@@ -228,6 +228,9 @@ export class TitleScene extends Phaser.Scene {
   private showChangelog() {
     this.showInfo(t('What’s New'), [
       [t('Version {v}', { v: __APP_VERSION__ }), COL.goldTxt],
+      [t('The game speaks your language: Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian. Pick one with the flag button on the title screen.'), COL.text],
+      [t("Card names and text are translated too: Konami's official text in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic."), COL.text],
+      [t('Version {v}', { v: '1.3.0' }), COL.goldTxt],
       [t('Play on your phone held upright: every screen has a portrait layout, with the duel board at full width and larger prompts.'), COL.text],
       [t('Duels load much faster: the engine data is about 7x smaller and loads in the background on the title screen.'), COL.text],
       [t('CPU opponents now use their traps, put curses like Mask of the Accursed on your monsters, and stop wasting cards (a second Toon World, Exodia pieces on the field).'), COL.text],

@@ -567,4 +567,6 @@ export const AR: Dictionary = {
   "Nothing said yet.": "لم يُقل شيء بعد.",
   "Say hello, or send an emote from the rail.": "ألقِ التحية أو أرسل رمزًا تعبيريًا من الشريط.",
   "Attack replay": "إعادة الهجوم",
+  "The game speaks your language: Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian. Pick one with the flag button on the title screen.": "اللعبة تتحدث لغتك: البرتغالية البرازيلية والفرنسية والإسبانية والألمانية والإيطالية والروسية والعربية والإندونيسية. اختر لغتك من زر العلم في الشاشة الرئيسية.",
+  "Card names and text are translated too: Konami's official text in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic.": "أسماء البطاقات ونصوصها مترجمة أيضاً: نص Konami الرسمي بالفرنسية والألمانية والإيطالية والبرتغالية والإسبانية، وترجمة مجتمع المبارزين العرب بالعربية.",
 };

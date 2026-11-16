@@ -14,6 +14,10 @@ Build your deck, pick a duelist, and play against the CPU with a rules engine mo
 
 </div>
 
+## Version 1.4.0 — Nine languages
+
+The game is translated into Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian; pick one with the flag button on the title screen. Card names and text use Konami's official translations in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic, which reads right to left with its own font. See the [changelog](CHANGELOG.md).
+
 ## Version 1.3.0 — Phones, speed and smarter CPUs
 
 Every screen has a portrait layout for phones held upright, with the duel board at full width, a larger hand and larger prompts. The engine's card data is about 7x smaller and loads in the background, and the canvas is sized to the screen. CPU opponents now use their traps and pick sensible targets, and Ring of Destruction plays by its 2004 text. See the [changelog](CHANGELOG.md).
