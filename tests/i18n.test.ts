@@ -47,3 +47,18 @@ test('Official card text feeds names, card text, effect labels and engine prompt
     setCardTexts(undefined);
   }
 });
+
+test('Arabic card text (Arab Duelists) feeds names and text, and leaves effect labels in English', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { setCardTexts, cardName, cardText, translatedDescription } = await import('../src/i18n/cards');
+  const { CARDS } = await import('../src/ocgcore/catalog');
+  setCardTexts(JSON.parse(readFileSync('assets/i18n/cards/ar.json', 'utf8')));
+  try {
+    const darkMagician = CARDS.find((card) => card.name === 'Dark Magician')!;
+    assert.equal(cardName(darkMagician), 'ساحر الظلام');
+    assert.match(cardText(darkMagician), /[؀-ۿ]/);
+    assert.equal(translatedDescription((62121n << 20n) | 0n), undefined);
+  } finally {
+    setCardTexts(undefined);
+  }
+});
