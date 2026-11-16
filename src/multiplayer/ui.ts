@@ -3,6 +3,7 @@ import './multiplayer.css';
 import { t } from '../i18n';
 import { avatarFor, avatarURL, flagURL } from './profile';
 import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';
+import { timeoutSignal } from '../timeoutSignal';
 
 /** Cut-corner button matching theme.ts button(). */
 export function btn(text: string, kind: '' | 'primary' | 'small' = '') {
@@ -34,7 +35,7 @@ async function klipy(query: string): Promise<string[]> {
   const params = new URLSearchParams({ page: '1', per_page: '50', format_filter: 'gif' });
   if (query) params.set('q', query);
   const base = `https://api.klipy.com/api/v1/${encodeURIComponent(KLIPY_KEY!)}/gifs`;
-  const response = await fetch(`${base}/${query ? 'search' : 'trending'}?${params}`, { signal: AbortSignal.timeout(8000) });
+  const response = await fetch(`${base}/${query ? 'search' : 'trending'}?${params}`, { signal: timeoutSignal(8000) });
   if (!response.ok) throw new Error('GIF search failed.');
   const body = await response.json() as { data?: { data?: { type?: string; file?: { sm?: { gif?: { url?: string } } } }[] } };
   return (body.data?.data ?? []).filter(g => g.type === 'gif')

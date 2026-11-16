@@ -8,6 +8,10 @@
 
 ### Fixes
 
+- Decks with Red-Eyes Darkness Metal Dragon can duel again: its card script was missing, and the duel stopped before the first turn.
+- Duels, Online Duel and card text load on iPhones and iPads running iOS 15 and older Safari.
+- The game no longer crashes when the browser restores a lost graphics context and loses it again straight away (Firefox).
+- The language flags are plain images, so Firefox can no longer stall the loading screen while preparing them.
 - Declaring a number (Card Trooper and other cards that ask for one) no longer ends the duel with "OCGCore rejected the selection", and the declared number is the one the effect uses. Numbers are listed from lowest to highest.
 - The CPU no longer activates a second copy of a Continuous card it already has face-up (two Toon Defense in a row).
 - "Chain prompts: Smart" asks far less often. It stops you when a card answers something specific, when the opponent's card is on the chain, and once each for the opponent's summon, attack, Battle Phase and End Phase. It no longer stops at every phase start, on your own chain links, or in every Damage Step window. "Chain prompts: Always" still shows every window.

@@ -11,7 +11,7 @@ import { PT_BR } from './locales/pt-BR';
 import { RU } from './locales/ru';
 
 export type Locale = 'en' | 'pt-BR' | 'fr' | 'es' | 'de' | 'it' | 'ru' | 'ar' | 'id';
-/** Every language, named in itself, with the flag shown beside it (assets/flags/<flag>.svg), in menu order. */
+/** Every language, named in itself, with the flag shown beside it (assets/flags/<flag>.png, rendered from the .svg), in menu order. */
 export const LOCALES: { code: Locale; name: string; flag: string }[] = [
   { code: 'en', name: 'English', flag: 'gb' },
   { code: 'pt-BR', name: 'Português (Brasil)', flag: 'br' },

@@ -2,6 +2,7 @@ import createCore from 'ocgcore-wasm';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
 import type { Bundle } from './data';
 import { isStaleBuild, reloadForUpdate } from '../staleBuild';
+import { timeoutSignal } from '../timeoutSignal';
 
 const loadCore = () => createCore({ sync: true, locateFile: () => wasmUrl });
 let runtime: Promise<[Awaited<ReturnType<typeof loadCore>>, Bundle]> | undefined;
@@ -45,7 +46,7 @@ async function download(response: Response) {
  * Safe to call early and often: the title screen starts it in the background so duels open without waiting.
  */
 export function loadRuntime() {
-  runtime ??= Promise.all([loadCore(), fetch(`${import.meta.env.BASE_URL}ocgcore/duel.json.gz`, { signal: AbortSignal.timeout(90000) }).then(response => {
+  runtime ??= Promise.all([loadCore(), fetch(`${import.meta.env.BASE_URL}ocgcore/duel.json.gz`, { signal: timeoutSignal(90000) }).then(response => {
     if (!response.ok) throw new Error(`Could not load OCGCore card data (HTTP ${response.status}).`);
     return download(response);
   }).then(parseBundle)]).then((result) => { ready = true; report(1); return result; })
