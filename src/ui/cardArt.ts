@@ -1,11 +1,13 @@
 import type { Attr } from '../engine/types';
+import { animeCards } from './animeCard';
 
 /** Every card texture (art, back, local fallbacks) is resampled to this size at boot. */
 export const CW = 300;
 export const CH = 438;
 /** Layout scales were tuned for 200px-wide art; multiply by this to keep the same on-screen size. */
 export const CARD_K = 200 / CW;
-export const cardKey = (id: string) => `card_${id}`;
+/** Each card style has its own textures, so switching style mid-session loads the other look. */
+export const cardKey = (id: string) => `card_${animeCards() ? 'anime_' : ''}${id}`;
 export const BACK = 'card_back';
 /** The card's art if it has finished loading, else the card back (images stream in after boot). */
 export const faceKey = (textures: { exists(key: string): boolean }, id: string) => (textures.exists(cardKey(id)) ? cardKey(id) : BACK);

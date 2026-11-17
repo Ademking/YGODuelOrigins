@@ -18,6 +18,12 @@ try {
 } catch {}
 try { muted = localStorage.getItem('arcana-duel.muted') === '1'; } catch {}
 
+/** Sounds that are music of their own: background music dips while one plays. */
+const JINGLES = new Set<Sound>(['win', 'lose', 'godSummon', 'exodiaCharge', 'exodiaBlast', 'fusion', 'fusionComplete', 'start']);
+const jingleListeners: ((audio: HTMLAudioElement) => void)[] = [];
+/** Call `listener` with each jingle's audio element as it starts. */
+export const onJingle = (listener: (audio: HTMLAudioElement) => void) => { jingleListeners.push(listener); };
+
 function play(sound: Sound) {
   if (muted || volume === 0) return;
   let pool = voices.get(sound);
@@ -30,7 +36,8 @@ function play(sound: Sound) {
   audio ??= pool[0];
   audio.currentTime = 0;
   audio.volume = soundVolume(sound);
-  void audio.play().catch(() => undefined);
+  const started = audio;
+  void audio.play().then(() => { if (JINGLES.has(sound)) for (const listener of jingleListeners) listener(started); }, () => undefined);
 }
 
 function stop(sound: Sound) {

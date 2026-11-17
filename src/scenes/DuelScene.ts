@@ -2,6 +2,9 @@ import type { Match, Lobby } from '../multiplayer/client';
 import { reportDuelError, reportRejectedAnswer } from '../monitoring';
 import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
+import { go } from '../app/dom';
+import { showCardSheet } from '../app/cardInfo';
+import { MENU_ICONS } from '../app/icons';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
 import type { Side, Zone } from '../engine/types';
@@ -78,7 +81,7 @@ let HAND_SCALE = 0.46 * CARD_K;
 let OPP_HAND_SCALE = 0.28 * CARD_K;
 let HAND_SPACING = 92, HAND_ROW = 600;
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
-const LEFT_W = 242; // width of the HUD column on the left
+const LEFT_W = 214; // width of the HUD column on the left: as wide as the card preview
 type Pos = { x: number; y: number; s: number; k: number; w: number };
 const QUAD_IDX = [0, 1, 2, 0, 2, 3]; // TL,TR,BR + TL,BR,BL
 const HOVER_GLOW = 0x7fdcea;
@@ -88,26 +91,30 @@ const SET_ONLY_GLOW = 0x8f9fd0;
 const PLATE = { x: 20, w: LEFT_W - 16, h: 72, yFoe: 8, yMe: 640, lpX: 88 };
 
 // ---- portrait (phones held upright): no sidebar. The camera frames a column PORTRAIT.w wide around the
-// board; the opponent's plate sits above the board, your hand, plate and buttons below it, then the card details.
+// board (the board fills the width, so it cannot grow); the menu button and the opponent's plate sit above it,
+// your hand and plate below. Card details open in a sheet (tap a card without actions, or long-press any card).
 const PORTRAIT = {
   w: 820, // world width kept in view: the board's near edge is ~782
-  top: -186,
-  plateScale: 1.6, // LP plates are the sidebar plates drawn larger
-  oppPlateY: -176,
-  myPlateY: 832,
-  panelTop: 960,
-  panelScale: 1.5, // card details likewise
-  minPanelH: 240, maxPanelH: 440,
+  top: -252,
+  plateScale: 1.9, // LP plates are the sidebar plates drawn larger
+  oppPlateY: -240,
+  myPlateY: 899,
   ui: 1.9, // dialogs and menus are drawn this much larger, as far as the screen allows
 };
-function applyLayout(portrait: boolean) {
+const PORTRAIT_H = 1304; // world height of the portrait column on a screen with no height to spare
+/** `spare`: world height a tall phone has beyond PORTRAIT_H; it spreads the plates apart and grows the hand. */
+function applyLayout(portrait: boolean, spare = 0) {
+  const e = Math.min(spare, 420);
+  PORTRAIT.top = -252 - e * 0.4;
+  PORTRAIT.oppPlateY = -240 - e * 0.4;
+  PORTRAIT.myPlateY = 899 + e * 0.6;
   CX = portrait ? W / 2 : 798;
   Y.oppHand = portrait ? -10 : 6;
-  Y.myHand = portrait ? 728 : 658;
-  HAND_SCALE = (portrait ? 0.64 : 0.46) * CARD_K;
+  Y.myHand = portrait ? 758 + e * 0.3 : 658;
+  HAND_SCALE = (portrait ? 0.84 + e / 1400 : 0.46) * CARD_K;
   OPP_HAND_SCALE = (portrait ? 0.3 : 0.28) * CARD_K;
-  HAND_SPACING = portrait ? 132 : 92;
-  HAND_ROW = portrait ? 680 : 600;
+  HAND_SPACING = portrait ? 150 : 92;
+  HAND_ROW = portrait ? 760 : 600;
 }
 
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
@@ -147,7 +154,6 @@ export class DuelScene extends Phaser.Scene {
   private sidePanelX = 0;
   /** Portrait layout: chosen when the duel starts (turning the phone mid-duel just refits the camera). */
   private portrait = false;
-  private panelH = 0;
   /** Portrait LP plates: each player's plate is a scaled container. */
   private plateBox: (Phaser.GameObjects.Container | null)[] = [null, null];
   private revealingGod: number | null = null;
@@ -188,6 +194,8 @@ export class DuelScene extends Phaser.Scene {
   private logLayer: Phaser.GameObjects.Container | null = null;
   private dragging: Phaser.GameObjects.Image | null = null;
   private dragMoved = false;
+  private pressTimer = 0;
+  private longPressed = false;
   private spd = 1;
   private reducedEffects = false;
   private get reducedMotion() {
@@ -244,12 +252,7 @@ export class DuelScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale.baseSize;
     this.portrait = portraitScreen(this);
-    applyLayout(this.portrait);
-    if (this.portrait) {
-      // the card details take whatever height the phone has left over
-      const fixed = PORTRAIT.panelTop - PORTRAIT.top + 12;
-      this.panelH = Phaser.Math.Clamp(PORTRAIT.w * (height / width) - fixed, PORTRAIT.minPanelH, PORTRAIT.maxPanelH);
-    }
+    applyLayout(this.portrait, PORTRAIT.w * (height / width) - PORTRAIT_H);
     fitCamera(this, () => this.frame());
     if (debugModeEnabled()) this.createFpsCounter();
     if (this.game.renderer.type === Phaser.WEBGL) {
@@ -344,7 +347,7 @@ export class DuelScene extends Phaser.Scene {
   /** The world region the camera fits: the whole 1280x720 world, or the portrait column. */
   private frame(): Frame {
     if (!this.portrait) return { cx: W / 2, cy: H / 2, w: W, h: H };
-    const bottom = PORTRAIT.panelTop + this.panelH + 12;
+    const bottom = PORTRAIT.myPlateY + PLATE.h * PORTRAIT.plateScale + 16;
     return { cx: W / 2, cy: (PORTRAIT.top + bottom) / 2, w: PORTRAIT.w, h: bottom - PORTRAIT.top };
   }
   /** Left edge of the play area: right of the sidebar in landscape, the screen edge in portrait. */
@@ -373,14 +376,16 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(960);
     layer.add(this.playfieldBlocker(0x06050d, 0.85));
     this.enlarge(layer, 360);
-    layer.add(panel(this, CX - 180, CY - 70, 360, 140, 0.98));
-    layer.add(htxt(this, CX, CY - 32, t('Loading duel engine'), 18).setOrigin(0.5));
+    const gif = this.add.dom(CX, CY - 50).createElement('img', 'width: 170px; height: 170px; pointer-events: none;').setDepth(961);
+    (gif.node as HTMLImageElement).src = '/ui/loading.gif';
+    layer.once('destroy', () => gif.destroy());
+    layer.add(htxt(this, CX, CY + 54, t('Loading duel engine'), 18).setOrigin(0.5));
     const bar = this.add.graphics();
-    const label = txt(this, CX, CY + 40, '0%', 13, COL.dim).setOrigin(0.5);
+    const label = txt(this, CX, CY + 106, '0%', 13, COL.dim).setOrigin(0.5);
     layer.add([bar, label]);
     const stop = onRuntimeProgress((fraction) => {
       if (!layer.active) return;
-      bar.clear().fillStyle(0x231f38, 1).fillRect(CX - 140, CY + 4, 280, 8).fillStyle(COL.gold, 1).fillRect(CX - 140, CY + 4, 280 * fraction, 8);
+      bar.clear().fillStyle(0x231f38, 1).fillRect(CX - 140, CY + 80, 280, 8).fillStyle(COL.gold, 1).fillRect(CX - 140, CY + 80, 280 * fraction, 8);
       label.setText(`${Math.round(fraction * 100)}%`);
     });
     try {
@@ -474,7 +479,7 @@ export class DuelScene extends Phaser.Scene {
           const halo = this.add.graphics().lineStyle(2, COL.gold, 1).strokeCircle(0, 0, SIZE / 2 + 9).setAlpha(0);
           const image = this.add.image(0, 0, icon(choice)).setDisplaySize(SIZE, SIZE);
           const base = image.scale;
-          const name = this.add.text(0, SIZE / 2 + 30, choice.toUpperCase(), { fontFamily: FONT_H, fontSize: '12px', color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
+          const name = this.add.text(0, SIZE / 2 + 30, t(choice).toUpperCase(), { fontFamily: FONT_H, fontSize: '12px', color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
           item.add([halo, image, name]).setSize(SIZE + 40, SIZE + 90).setInteractive({ useHandCursor: true });
           layer.add(item);
           moving.push(item, image, halo);
@@ -514,8 +519,8 @@ export class DuelScene extends Phaser.Scene {
         if (!layer.active || this.dead) return;
         mine.image.setTexture(icon(player)).setDisplaySize(SIZE, SIZE);
         theirs.image.setTexture(icon(opponent)).setDisplaySize(SIZE, SIZE);
-        mine.name.setText(player.toUpperCase());
-        theirs.name.setText(opponent.toUpperCase());
+        mine.name.setText(t(player).toUpperCase());
+        theirs.name.setText(t(opponent).toUpperCase());
         headline.setText(t(result === 'win' ? 'YOU WIN' : result === 'lose' ? 'YOU LOSE' : 'DRAW'));
         detail.setText(t(result === 'win' ? 'Choose who takes the first turn' : result === 'lose' ? 'Your opponent takes the first turn' : 'Choose again to break the tie'));
         const winner = result === 'win' ? mine : result === 'lose' ? theirs : null;
@@ -714,8 +719,8 @@ export class DuelScene extends Phaser.Scene {
     // phase track on the midline
     PHASES.forEach((ph, i) => {
       const b = this.portrait
-        ? button(this, CX + (i - 2.5) * 90, Y.phase, 84, 42, ph, () => this.clickPhase(ph), { size: 19, tab: true })
-        : button(this, CX + (i - 2.5) * 66, Y.phase, 60, 26, ph, () => this.clickPhase(ph), { size: 13, tab: true });
+        ? button(this, CX + (i - 2.5) * 90, Y.phase, 86, 58, ph, () => this.clickPhase(ph), { size: 25, tab: true })
+        : button(this, CX + (i - 2.5) * 80, Y.phase, 74, 32, ph, () => this.clickPhase(ph), { size: 15, tab: true });
       b.setDepth(350);
       this.phaseBtns[ph] = b;
     });
@@ -932,7 +937,9 @@ export class DuelScene extends Phaser.Scene {
         }
         const corners = this.cardQuad({ x: sprite.x, y: sprite.y, angle: sprite.angle, sx: sprite.scaleX, sy: sprite.scaleY }, sprite.width, sprite.height, 0, true);
         const x = Math.min(...corners.map((point) => point.x)) + 10;
-        const y = Math.min(...corners.map((point) => point.y)) + 10;
+        // the corner away from the ATK / DEF plate: the opponent's plate is drawn along the top of the card
+        const statsAtBottom = card.ctrl === this.me || (this.hologramsEnabled && card.faceUp);
+        const y = statsAtBottom ? Math.min(...corners.map((point) => point.y)) + 10 : Math.max(...corners.map((point) => point.y)) - 10;
         badge.container.setPosition(x, y).setAlpha(sprite.alpha);
         const remaining = [card.data.turnCounter !== undefined ? String(card.data.turnCounter) : card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
         if (badge.label.text !== remaining) badge.label.setText(remaining);
@@ -1020,28 +1027,29 @@ export class DuelScene extends Phaser.Scene {
     const first = this.children.length;
     const sidebarBackground = this.add.graphics();
     for (const s of [opp(this.me), this.me]) this.buildPlate(s);
-    this.cardPanel = new CardPanel(this, x + 8, 88, 268, 362, 238, w - 16, true);
-    const buttonWidth = (w - 22) / 2;
-    button(this, x + 8 + buttonWidth / 2, 620, buttonWidth, 28, t('Menu'), () => this.showMenu(), { size: 12 });
-    button(this, x + w - 8 - buttonWidth / 2, 620, buttonWidth, 28, t('Log'), () => this.toggleLogs(), { size: 12 });
+    // the card text runs down to your plate; Menu and Log live behind the hamburger in the bottom-left corner of the board
+    this.cardPanel = new CardPanel(this, x + 8, 86, 300, 394, 238, w - 16, true);
     const sidebar = this.add.container(0, 0, this.children.list.slice(first));
     const resize = () => {
       this.sidePanelX = 640 - this.scale.baseSize.width / (2 * this.cameras.main.zoom) - x;
       sidebar.x = this.sidePanelX;
       const height = this.scale.baseSize.height / this.cameras.main.zoom;
       const top = (H - height) / 2;
-      sidebarBackground.clear().fillStyle(0x090814, 0.95).fillRect(x, top, w, height)
-        .lineStyle(1, COL.line, 1).lineBetween(x + w, top, x + w, top + height);
+      // a dark violet column, lit from the top
+      sidebarBackground.clear().fillGradientStyle(0x171230, 0x171230, 0x07060f, 0x07060f, 0.97).fillRect(x, top, w, height);
       this.cardPanel.setOffsetX(this.sidePanelX);
+      const view = viewOf(this);
+      menuButton.setPosition(this.playLeft() + 34, view.cy + view.height / 2 - 30);
     };
+    const menuButton = this.hamburger(0, 0, 44, 40).setDepth(400);
     resize();
     this.scale.on('resize', resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', resize));
   }
 
   /**
-   * Portrait HUD: the opponent's plate above the board (right), yours below your hand (left) with Menu and
-   * Log beside it, and the card details across the bottom. Plates and details are the sidebar's, scaled up.
+   * Portrait HUD: the menu button (left) and the opponent's plate (right) above the board, yours below your hand.
+   * Plates are the sidebar's, scaled up.
    */
   private buildPortraitHud() {
     const left = CX - PORTRAIT.w / 2 + 10, right = CX + PORTRAIT.w / 2 - 10;
@@ -1053,18 +1061,28 @@ export class DuelScene extends Phaser.Scene {
       const y = s === this.me ? PORTRAIT.myPlateY : PORTRAIT.oppPlateY;
       this.plateBox[s] = this.add.container(x, y, this.children.list.slice(first)).setScale(ps).setDepth(400);
     }
-    // Menu and Log beside your plate
-    const bx = left + plateW + 14, bw = right - bx, bh = (plateH - 10) / 2, my = PORTRAIT.myPlateY;
-    button(this, bx + bw / 2, my + bh / 2, bw, bh, t('Menu'), () => this.showMenu(), { size: 22 }).setDepth(400);
-    button(this, bx + bw / 2, my + plateH - bh / 2, bw, bh, t('Log'), () => this.toggleLogs(), { size: 22 }).setDepth(400);
-    // card details: the preview beside the description, drawn in a scaled container
-    const k = PORTRAIT.panelScale, w = (right - left) / k, h = this.panelH / k;
-    const previewW = Math.round(Math.min((h - 26) * CW / CH + 26, w * 0.3));
+    // a small hamburger (menu and log) in the top-left corner, level with the opponent's plate
+    const size = Math.min(plateH, 104);
+    this.hamburger(left + size / 2, PORTRAIT.oppPlateY + plateH / 2, size, size).setDepth(400);
+    // the details panel still tracks the last card for prompts, but stays hidden: phones use cardSheet instead
     const first = this.children.length;
-    this.cardPanel = new CardPanel(this, previewW + 8, 0, h, 0, h, w - previewW - 8, false, { x: 0, w: previewW });
-    if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint(t('Tap a card to see its details.'));
-    this.add.container(left, PORTRAIT.panelTop, this.children.list.slice(first)).setScale(k).setDepth(400);
-    this.cardPanel.setTransform(left, PORTRAIT.panelTop, k);
+    this.cardPanel = new CardPanel(this, 0, 0, 200, 0, 200, 300, true);
+    this.add.container(0, 0, this.children.list.slice(first)).setVisible(false);
+  }
+
+  /** Phones: a card's details in a sheet over the duel. */
+  private cardSheet(c: Card) {
+    if (this.canSee(c)) showCardSheet(c.def, this.infoOf(c));
+  }
+
+  /** The ☰ button: opens the menu, which also holds the duel log. */
+  private hamburger(x: number, y: number, w: number, h: number) {
+    const b = button(this, x, y, w, h, '', () => this.showMenu());
+    const bar = Math.min(w, h) * 0.46, thick = Math.max(2, Math.round(Math.min(w, h) * 0.07));
+    const lines = this.add.graphics().fillStyle(COL.gold, 1);
+    for (const row of [-1, 0, 1]) lines.fillRect(-bar / 2, row * bar * 0.34 - thick / 2, bar, thick);
+    b.add(lines);
+    return b;
   }
 
   /** One player's LP plate at the sidebar's coordinates (portrait wraps it in a scaled container). */
@@ -1078,7 +1096,7 @@ export class DuelScene extends Phaser.Scene {
     // portrait well
     const px = PLATE.x + 34, py = y + PLATE.h / 2;
     if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
-    else g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     const watched = s === this.me ? this.init0.watch : undefined;
     const online = this.init0.multiplayer;
     if (online) {
@@ -1090,16 +1108,22 @@ export class DuelScene extends Phaser.Scene {
       const deck = this.init0.deck;
       const ace = [...deck.main, ...deck.extra].map(getCard).filter((card) => card.kind === 'monster').sort((a, b) => (b.atk ?? 0) - (a.atk ?? 0))[0];
       if (ace) {
-        const k = 46 / 192;
-        setCardTexture(this.add.image(px, py + 25 * k, BACK), ace.id).setCrop(54, 79, 192, 230).setScale(k);
+        // the square middle of the card's art, filling the portrait slot
+        const k = 50 / 192;
+        setCardTexture(this.add.image(px, py + 44 * k, BACK), ace.id).setCrop(54, 79, 192, 192).setScale(k);
       } else htxt(this, px, py, t('YOU'), 11).setOrigin(0.5);
     } else {
       const duelist = watched ?? this.init0.opp;
       const portrait = portraitKey(duelist.id);
-      if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
+      if (portrait && this.textures.exists(portrait)) {
+        const image = this.add.image(px, py, portrait);
+        // the hi-res close-ups are square already; the small framed portraits are cropped inside their frame
+        if (image.width === image.height) image.setDisplaySize(52, 52);
+        else image.setCrop(9, 20, 100, 100).setScale(0.52);
+      }
       else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
     }
-    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
     const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? t('You') : this.init0.opp.name),
       { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
     if (this.init0.multiplayer) {
@@ -1150,9 +1174,16 @@ export class DuelScene extends Phaser.Scene {
         if (this.hoverAny === c || (c.zone === 'gy' && this.hoverAny?.zone === 'gy' && this.hoverAny.owner === c.owner)) this.hoverAny = null;
       });
       s.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-        if (ptr.wasTouch) this.hover(c.zone === 'gy' ? this.duel.players[c.owner].gy.slice(-1)[0] ?? c : c);
+        const shown = c.zone === 'gy' ? this.duel.players[c.owner].gy.slice(-1)[0] ?? c : c;
+        if (ptr.wasTouch) this.hover(shown);
+        // phones: a long press shows the card's details
+        clearTimeout(this.pressTimer);
+        if (this.portrait) this.pressTimer = window.setTimeout(() => { if (!this.dragMoved) { this.longPressed = true; this.cardSheet(shown); } }, 450);
       });
+      s.on('pointerout', () => clearTimeout(this.pressTimer));
       s.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+        clearTimeout(this.pressTimer);
+        if (this.longPressed) { this.longPressed = false; return; }
         if (this.dragMoved) return;
         if (ptr.rightButtonReleased()) {
           if (this.targeting) this.cancelTargeting();
@@ -1382,7 +1413,8 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
-  private hover(c: Card) {
+  /** What the details panel says about a card: hidden or not, current ATK / DEF, and notes (equips, counters). */
+  private infoOf(c: Card) {
     const vis = this.canSee(c);
     const notes: string[] = [];
     if (this.duel.onField(c) && vis) {
@@ -1398,7 +1430,11 @@ export class DuelScene extends Phaser.Scene {
     if (vis && c.zone === 'mzone' && c.data.nameAs?.turn === this.duel.turn) {
       notes.push(t('Treated as: {card}', { card: this.duel.nameOf(c) }));
     }
-    this.cardPanel.show(c.def, { hidden: !vis, atk: onM ? this.duel.atk(c) : undefined, def: onM ? this.duel.defv(c) : undefined, notes });
+    return { hidden: !vis, atk: onM ? this.duel.atk(c) : undefined, def: onM ? this.duel.defv(c) : undefined, notes };
+  }
+
+  private hover(c: Card) {
+    this.cardPanel.show(c.def, this.infoOf(c));
     if (c.zone === 'hand' && c.owner === this.me && this.hoverCard !== c) {
       this.hoverCard = c;
       this.layout();
@@ -1492,7 +1528,7 @@ export class DuelScene extends Phaser.Scene {
   private clickCard(c: Card) {
     if (this.minimizedDialog) {
       if (c.zone === 'extra' || c.zone === 'gy' || c.zone === 'banished') this.openPile(c.owner, c.zone);
-      else if (this.canSee(c)) this.hover(c);
+      else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.cardSheet(c); }
       return;
     }
     if (this.fieldSelection) {
@@ -1517,7 +1553,7 @@ export class DuelScene extends Phaser.Scene {
     const acts = this.actionsByCard.get(c.uid);
     if (acts?.length && this.pending?.p.t === 'main' && !this.dialog) return this.actionMenu(c, acts);
     if (['gy', 'banished'].includes(c.zone)) this.openPile(c.owner, c.zone);
-    else if (this.canSee(c)) this.hover(c);
+    else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.cardSheet(c); }
   }
 
   private label(a: Action): string {
@@ -1546,6 +1582,7 @@ export class DuelScene extends Phaser.Scene {
       .map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
     if (attacks.length === 1) items.unshift({ label: this.label(attacks[0]), run: () => this.choose(attacks[0]) });
     else if (attacks.length > 1) items.unshift({ label: t('Attack…'), run: () => this.startTargeting(c, attacks) });
+    if (this.portrait) items.push({ label: t('Details'), run: () => this.cardSheet(c) });
     const s = this.sprites.get(c.uid)!;
     // Labels keep their full size: the menu widens to fit, and a long effect label wraps onto a second line
     // (broken at the space nearest its middle) instead of being shrunk.
@@ -1795,7 +1832,7 @@ export class DuelScene extends Phaser.Scene {
     if (minimize) {
       this.dialog.setVisible(false);
       this.minimizedDialog = this.add.container(0, 0).setDepth(950);
-      this.minimizedDialog.add(button(this, CX, 70, 230, 36, t('Return to prompt'), () => this.minimizePrompt(false), { size: 13 }));
+      this.minimizedDialog.add(button(this, CX, 74, 300, 46, t('Return to prompt'), () => this.minimizePrompt(false), { size: 17 }));
     } else {
       this.closeMenu();
       this.minimizedDialog?.destroy();
@@ -1809,10 +1846,10 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(850);
     const selected = new Set<number>();
     const top = this.portrait ? PORTRAIT.top + 8 : viewOf(this).top + 12;
-    const label = htxt(this, CX - 76, top + 22, '', 14, COL.goldTxt).setOrigin(0.5);
-    layer.add(panel(this, CX - 228, top, 456, 44, 0.98));
+    const label = htxt(this, CX - 86, top + 30, '', 18, COL.goldTxt).setOrigin(0.5);
+    layer.add(panel(this, CX - 260, top, 520, 60, 0.98));
     layer.add(label);
-    const confirm = button(this, CX + 142, top + 22, 132, 32, t('Confirm'), () => this.choose([...selected]), { size: 13, primary: true });
+    const confirm = button(this, CX + 160, top + 30, 172, 44, t('Confirm'), () => this.choose([...selected]), { size: 16, primary: true });
     const update = () => {
       label.setText(`${t('Disable zones')} · ${selected.size}/${prompt.count}`);
       confirm.setEnabled(selected.size === prompt.count);
@@ -1843,22 +1880,22 @@ export class DuelScene extends Phaser.Scene {
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {
     const layer = this.add.container(0, 0).setDepth(850);
     // portrait: larger, over the opponent's plate so it leaves the whole board clear
-    if (this.enlarge(layer, 600, CX, 40, 0, PORTRAIT.top + 4) > 1) {
+    if (this.enlarge(layer, 640, CX, 40, 0, PORTRAIT.top + 4) > 1) {
       // a solid backing hides the opponent's plate underneath
-      layer.add(this.add.graphics().fillStyle(0x0e0c1b, 1).fillRect(CX - 300, 36, 600, 96).lineStyle(1, COL.line, 1).strokeRect(CX - 300, 36, 600, 96));
+      layer.add(this.add.graphics().fillStyle(0x0e0c1b, 1).fillRect(CX - 320, 34, 640, 126).lineStyle(1, COL.line, 1).strokeRect(CX - 320, 34, 640, 126));
     }
-    const title = htxt(this, CX, 62, prompt.text, 14).setOrigin(0.5);
-    if (title.width > 560) title.setScale(560 / title.width);
-    layer.add(panel(this, CX - 300, 40, 600, 45, 0.95, 6));
+    const title = htxt(this, CX, 68, prompt.text, 19).setOrigin(0.5);
+    if (title.width > 600) title.setScale(600 / title.width);
+    layer.add(panel(this, CX - 320, 40, 640, 56, 0.95, 6));
     layer.add(title);
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
     const hasSecondary = prompt.finish || prompt.cancel;
-    const confirm = single ? null : button(this, hasSecondary ? CX - 66 : CX, 110, 160, 32, t('Confirm'), () => this.choose([...chosen]), { size: 12, primary: true });
+    const confirm = single ? null : button(this, hasSecondary ? CX - 90 : CX, 128, 200, 44, t('Confirm'), () => this.choose([...chosen]), { size: 16, primary: true });
     if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
     if (prompt.finish || prompt.cancel) {
-      layer.add(button(this, single ? CX : CX + 86, 110, 120, 32, prompt.finish ? t('Confirm') : t('Cancel'),
-        () => this.choose(null), { size: 12 }));
+      layer.add(button(this, single ? CX : CX + 116, 128, 160, 44, prompt.finish ? t('Confirm') : t('Cancel'),
+        () => this.choose(null), { size: 16 }));
     }
     this.fieldSelection = { prompt, chosen, layer, confirm };
     this.refreshHighlights();
@@ -2021,40 +2058,50 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(980);
     const blocker = this.playfieldBlocker(0x000000, 0.55);
     layer.add(blocker);
-    this.enlarge(layer, 340, CX, 145, 0, PORTRAIT.top + 60);
-    const all: [string, () => void][] = [
-      [t('Resume'), () => this.closeMenu()],
+    this.enlarge(layer, 380, CX, 145, 0, PORTRAIT.top + 60);
+    const all: [string, () => void, (typeof MENU_ICONS)[number]][] = [
+      [t('Resume'), () => this.closeMenu(), 'play'],
+      [t('Log'), () => { this.closeMenu(); this.toggleLogs(); }, 'log'],
       [t(this.chainMode === 'auto' ? 'Chain prompts: Smart' : 'Chain prompts: Always'), () => {
         this.chainMode = this.chainMode === 'auto' ? 'always' : 'auto';
         try { localStorage.setItem('arcana-duel.chain', this.chainMode); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
+      }, 'chain'],
       [t(this.spd < 0.7 ? 'Speed: Fast' : 'Speed: Normal'), () => {
         this.spd = this.spd < 0.7 ? 1 : 0.4;
         this.duel.delay = this.duel.nearDelay = 200 * this.spd;
         try { localStorage.setItem('arcana-duel.fast', this.spd < 0.7 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
-      [t('Volume'), () => this.showVolume()],
+      }, 'speed'],
+      [t('Volume'), () => this.showVolume(), 'volume'],
       [t(this.hologramsEnabled ? 'Holograms: On' : 'Holograms: Off'), () => {
         this.hologramsEnabled = !this.hologramsEnabled;
         this.refreshStats();
         try { localStorage.setItem('arcana-duel.holograms', this.hologramsEnabled ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
+      }, 'news'],
       [t(this.reducedEffects ? 'Effects: Reduced' : 'Effects: Full'), () => {
         this.reducedEffects = !this.reducedEffects;
         try { localStorage.setItem('arcana-duel.reduced-effects', this.reducedEffects ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
-      [t('Surrender'), () => { this.closeMenu(); this.surrender(); }],
-      [t('Quit to Home'), () => { this.closeMenu(); this.surrender(true); this.scene.start('Title'); }],
+      }, 'settings'],
+      [t('Surrender'), () => { this.closeMenu(); this.surrender(); }, 'flag'],
+      [t('Quit to Home'), () => { this.closeMenu(); this.surrender(true); void go('Title'); }, 'home'],
     ];
     // a spectator has no chains to answer and nothing to surrender
-    const items = this.init0.watch ? all.filter((_, index) => index !== 1 && index !== 6) : all;
-    layer.add(panel(this, CX - 170, 145, 340, 94 + items.length * 48));
-    layer.add(htxt(this, CX, 175, t('Menu'), 24).setOrigin(0.5));
-    items.forEach(([l, f], i) => layer.add(button(this, CX, 225 + i * 48, 270, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') })));
+    const items = this.init0.watch ? all.filter((_, index) => index !== 2 && index !== 7) : all;
+    // centred on the visible screen, whatever its height
+    const height = 94 + items.length * 48, top = viewOf(this).cy - height / 2;
+    layer.add(panel(this, CX - 190, top, 380, height));
+    layer.add(htxt(this, CX, top + 30, t('Menu'), 24).setOrigin(0.5));
+    items.forEach(([l, f, name], i) => {
+      const b = button(this, CX, top + 80 + i * 48, 320, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') });
+      // the icon on the left; a label too long to clear it shrinks and moves right
+      if (this.textures.exists(`icon_${name}`)) b.add(this.add.image(-136, 0, `icon_${name}`).setDisplaySize(20, 20));
+      const label = b.list.find((child): child is Phaser.GameObjects.Text => child instanceof Phaser.GameObjects.Text);
+      if (label && label.width > 240) label.setScale(240 / label.width).setX(14);
+      layer.add(b);
+    });
     this.overlay = layer;
   }
 
@@ -2951,11 +2998,11 @@ export class DuelScene extends Phaser.Scene {
       };
       this.updateRematch();
       layer.add([rematch, state,
-        button(this, CX, 470, 230, 50, 'Back to lobby', () => this.scene.start('Multiplayer', { rejoin: true }), { size: 16 }),
-        button(this, CX + 250, 470, 230, 50, 'Home', () => this.scene.start('Title'), { size: 16 })]);
+        button(this, CX, 470, 230, 50, 'Back to lobby', () => void go('Multiplayer', { rejoin: true }), { size: 16 }),
+        button(this, CX + 250, 470, 230, 50, 'Home', () => void go('Title'), { size: 16 })]);
     } else {
       layer.add(button(this, CX - 128, 470, 240, 50, t('Rematch'), () => this.scene.restart(this.init0), { size: 16, primary: true }));
-      layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => this.scene.start('Title'), { size: 16 }));
+      layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => void go('Title'), { size: 16 }));
     }
     layer.add(button(this, CX, 528, 132, 30, t('View Log'), () => this.toggleLogs(), { size: 11 }));
   }

@@ -1,13 +1,14 @@
+import { iconUrl, MENU_ICONS } from '../app/icons';
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
+import { cardBackUrl } from '../ui/animeCard';
 import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
-import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
+import { PORTRAIT_IDS, portraitKey, portraitPath } from '../ui/portraits';
 import { loadCardTexts } from '../i18n/cards';
 import { LOCALES } from '../i18n';
 
 // Boot loads only the card back and zone icons. Card faces are fetched on demand by ui/cardLoader.
-const CARD_BACK_URL = '/ui/card-back.png';
 // The UI fonts are requested right away so they are usually ready before the loading screen's text is drawn.
 const fontReady = loadFonts();
 // Card names and text in the player's language load alongside (English needs nothing).
@@ -25,8 +26,9 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', (progress: number) => this.screen.progress(progress * 0.8));
     this.load.on('filecomplete', (key: string) => { if (key === BACK) this.normalizeCard(BACK); });
     this.load.setCORS('anonymous');
-    this.load.image(BACK, CARD_BACK_URL);
+    this.load.image(BACK, cardBackUrl());
     this.load.image('game_logo', '/ui/duel-origins-logo.webp');
+    for (const name of MENU_ICONS) this.load.svg(`icon_${name}`, iconUrl(name), { width: 48, height: 48 });
     this.load.image('zone_field', '/zone-icons/field.png');
     this.load.image('zone_extra', '/zone-icons/extra.png');
     this.load.image('equip_badge', '/zone-icons/equip.png');
@@ -38,7 +40,7 @@ export class BootScene extends Phaser.Scene {
     for (const attribute of ['dark', 'light', 'earth', 'water', 'fire', 'wind', 'divine', 'spell', 'trap']) {
       this.load.image(`attribute_${attribute}`, `/ui/attributes/${attribute}.png`);
     }
-    for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, `/portraits/${id}.png`);
+    for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, portraitPath(id));
     for (const choice of ['rock', 'paper', 'scissors']) this.load.image(`rps_${choice}`, `/ui/rps-${choice}.png`);
     // Language flags (flag-icons, MIT), rendered from assets/flags/<flag>.svg to 96x72 PNGs, twice the largest size
     // they are drawn. Phaser resizes an SVG with DOMParser, which can throw in Firefox and stall the whole loader.
@@ -61,7 +63,7 @@ export class BootScene extends Phaser.Scene {
       this.screen.progress(1);
       await new Promise((resolve) => setTimeout(resolve, 350));
       await this.screen.close();
-      this.scene.start(location.hash.startsWith('#duel=') ? 'Multiplayer' : 'Title');
+      this.scene.start('Duel', this.registry.get('duelInit'));
     }).catch((error: unknown) => {
       console.error(error);
       document.dispatchEvent(new Event('duel-origins:boot-error'));
