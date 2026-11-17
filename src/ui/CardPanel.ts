@@ -41,15 +41,10 @@ export class CardPanel {
   constructor(private scene: Phaser.Scene, private x: number, previewY: number, previewH: number, infoY: number, infoH: number, private w = 246, compact = false,
     preview: { x: number; w: number } = { x, w }) {
     const px = preview.x, pw = preview.w;
-    // compact (the duel): no box round the preview; the card fills the column inside a thin gold frame
+    // compact (the duel): no box or frame round the preview; the card fills the column
     if (!compact) panel(scene, px, previewY, pw, previewH, 0.95, 8);
     const pad = compact ? 8 : 26;
     const scale = Math.min((previewH - pad) / CH, (pw - pad) / CW);
-    if (compact) {
-      const fw = CW * scale + 8, fh = CH * scale + 8, fx = px + (pw - fw) / 2, fy = previewY + (previewH - fh) / 2;
-      scene.add.graphics().fillStyle(COL.gold, 0.06).fillRect(fx - 3, fy - 3, fw + 6, fh + 6)
-        .lineStyle(1, COL.gold, 0.45).strokeRect(fx, fy, fw, fh);
-    }
     scene.add.rectangle(px + pw / 2 + 3, previewY + previewH / 2 + 5, CW * scale, CH * scale, 0x000000, 0.45);
     this.img = scene.add.image(px + pw / 2, previewY + previewH / 2, BACK).setScale(scale);
     panel(scene, x, infoY, w, infoH, 0.95, 8);

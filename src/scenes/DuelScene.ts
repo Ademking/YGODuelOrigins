@@ -1035,10 +1035,8 @@ export class DuelScene extends Phaser.Scene {
       sidebar.x = this.sidePanelX;
       const height = this.scale.baseSize.height / this.cameras.main.zoom;
       const top = (H - height) / 2;
-      // a dark violet column, lit from the top, with a gold edge facing the board
-      sidebarBackground.clear().fillGradientStyle(0x171230, 0x171230, 0x07060f, 0x07060f, 0.97).fillRect(x, top, w, height)
-        .fillStyle(COL.gold, 0.08).fillRect(x + w - 3, top, 3, height)
-        .lineStyle(1, COL.gold, 0.5).lineBetween(x + w, top, x + w, top + height);
+      // a dark violet column, lit from the top
+      sidebarBackground.clear().fillGradientStyle(0x171230, 0x171230, 0x07060f, 0x07060f, 0.97).fillRect(x, top, w, height);
       this.cardPanel.setOffsetX(this.sidePanelX);
       const view = viewOf(this);
       menuButton.setPosition(this.playLeft() + 34, view.cy + view.height / 2 - 30);

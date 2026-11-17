@@ -4,7 +4,7 @@ import { OPPONENTS, type Opponent } from '../data/decks';
 import { CARDS } from '../ocgcore/catalog';
 import { portraitURL } from '../ui/portraits';
 import { t } from '../i18n';
-import { artSrc, esc, html } from './dom';
+import { artSrc, esc, html, reducedMotionPreferred } from './dom';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
@@ -50,7 +50,7 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
   const tiles = [RANDOM, ...roster.map((_, index) => index)].map((index) => {
     const duelist = roster[index];
     const tile = html<HTMLButtonElement>(`<button role="option" class="relative grid aspect-square w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-75 transition hover:opacity-100 lg:size-16 xl:size-[76px] [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
-      index === RANDOM ? DIE : duelist.id === extra?.id ? '<span class="font-display text-xl text-brass-txt">+</span>' : face(duelist)}</button>`);
+      index === RANDOM ? DIE : face(duelist)}</button>`);
     tile.dataset.click = '';
     tile.onclick = () => choose(index);
     strip.append(tile);
@@ -58,12 +58,18 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
   });
   const anyone = () => OPPONENTS[Math.floor(Math.random() * OPPONENTS.length)];
   const big = root.querySelector<HTMLElement>('[data-big]')!;
+  let shuffle: ReturnType<typeof setInterval> | undefined;
   const refresh = () => {
     const duelist = roster[selected];
-    const custom = !!extra && duelist?.id === extra.id;
     root.querySelector('[data-pos]')!.textContent = duelist ? `${selected + 1} / ${roster.length}` : '';
-    big.innerHTML = custom ? '<span class="font-display text-4xl text-brass-txt lg:text-6xl">+</span>'
-      : duelist ? face(duelist) : `<div class="absolute inset-0 opacity-25">${face(anyone())}</div><span class="relative font-display text-4xl text-brass-txt lg:text-6xl">?</span>`;
+    clearInterval(shuffle);
+    if (duelist) big.innerHTML = face(duelist);
+    else {
+      // Random flicks through the roster's faces
+      const show = () => { big.innerHTML = `${face(anyone())}<span class="absolute font-display text-4xl text-brass-txt drop-shadow-[0_2px_6px_#000] lg:text-6xl">?</span>`; };
+      show();
+      if (!reducedMotionPreferred()) shuffle = setInterval(() => { if (big.isConnected) show(); else clearInterval(shuffle); }, 260);
+    }
     root.querySelector('[data-name]')!.textContent = duelist?.name ?? t('Random');
     root.querySelector('[data-title]')!.textContent = duelist?.title ? t(duelist.title) : t('A surprise duelist, picked when the duel starts');
     root.querySelector('[data-style]')!.textContent = duelist?.style ? t(duelist.style) : '';
