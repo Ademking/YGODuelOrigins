@@ -27,12 +27,18 @@ const PATHS = {
   volume: '<path d="M4 9h4l5-4v14l-5-4H4V9Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   flag: '<path d="M5 21V4h11l-1.5 4L16 12H5"/>',
   home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4v-9Z"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  musicOff: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 3l18 18"/>',
+  pause: '<path d="M8 5v14M16 5v14"/>',
+  skipBack: '<path d="M19 20 9 12l10-8v16ZM5 19V5"/>',
+  skipNext: '<path d="m5 4 10 8-10 8V4ZM19 5v14"/>',
+  mute: '<path d="M4 9h4l5-4v14l-5-4H4V9Z"/><path d="m17 9 5 6M22 9l-5 6"/>',
   more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
 } as const;
 export type IconName = keyof typeof PATHS;
 
 /** Arrows that point along the reading direction mirror in right-to-left languages. */
-const DIRECTIONAL = new Set<IconName>(['arrowLeft', 'back', 'prev', 'next']);
+const DIRECTIONAL = new Set<IconName>(['arrowLeft', 'back', 'prev', 'next', 'skipBack', 'skipNext']);
 export const icon = (name: IconName, cls = 'size-5') =>
   `<svg viewBox="0 0 24 24" class="${cls} flex-none${DIRECTIONAL.has(name) ? ' rtl:-scale-x-100' : ''}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
 

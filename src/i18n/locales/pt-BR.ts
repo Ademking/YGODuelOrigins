@@ -568,4 +568,7 @@ export const PT_BR: Dictionary = {
   "Build and edit your decks": "Monte e edite seus decks",
   "Cards: Official": "Cartas: oficiais",
   "Cards: Anime": "Cartas: anime",
+  "Music": "Música",
+  "Play music": "Tocar música",
+  "Pause music": "Pausar música",
 };

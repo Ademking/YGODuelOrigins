@@ -568,4 +568,7 @@ export const RU: Dictionary = {
   "Build and edit your decks": "Собирайте и редактируйте колоды",
   "Cards: Official": "Карты: официальные",
   "Cards: Anime": "Карты: аниме",
+  "Music": "Музыка",
+  "Play music": "Включить музыку",
+  "Pause music": "Приостановить музыку",
 };

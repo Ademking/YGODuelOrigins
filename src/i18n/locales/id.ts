@@ -568,4 +568,7 @@ export const ID: Dictionary = {
   "Build and edit your decks": "Buat dan ubah deck-mu",
   "Cards: Official": "Kartu: Resmi",
   "Cards: Anime": "Kartu: Anime",
+  "Music": "Musik",
+  "Play music": "Putar musik",
+  "Pause music": "Jeda musik",
 };

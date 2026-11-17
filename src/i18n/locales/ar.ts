@@ -568,4 +568,7 @@ export const AR: Dictionary = {
   "Build and edit your decks": "أنشئ مجموعاتك وعدّلها",
   "Cards: Official": "البطاقات: الرسمية",
   "Cards: Anime": "البطاقات: أسلوب الأنمي",
+  "Music": "الموسيقى",
+  "Play music": "تشغيل الموسيقى",
+  "Pause music": "إيقاف الموسيقى مؤقتًا",
 };
