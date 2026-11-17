@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Italiano. Termini ufficiali del TCG di Yu-Gi-Oh! (Evocazione tramite Tributo, Cimitero, Deck Fusione…).
 export const IT: Dictionary = {
+  "Details": "Dettagli",
   "(+{n} more)": "(+{n} altri)",
   "(Set face-down)": "(Posizionata coperta)",
   "+ New Deck": "+ Nuovo Deck",
@@ -561,7 +562,6 @@ export const IT: Dictionary = {
   "Level {n}": "Livello {n}",
   "Log": "Registro",
   "Next ›": "Avanti ›",
-  "Tap a card to see its details.": "Tocca una carta per vederne i dettagli.",
   "Volume": "Volume",
   "‹ Previous": "‹ Precedente",
 };

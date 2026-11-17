@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Bahasa Indonesia. Tidak ada teks kartu resmi berbahasa Indonesia: istilah mengikuti yang umum di komunitas Yu-Gi-Oh!.
 export const ID: Dictionary = {
+  "Details": "Detail",
   "(+{n} more)": "(+{n} lainnya)",
   "(Set face-down)": "(Dipasang tertutup)",
   "+ New Deck": "+ Deck Baru",
@@ -561,7 +562,6 @@ export const ID: Dictionary = {
   "Level {n}": "Level {n}",
   "Log": "Log",
   "Next ›": "Berikutnya ›",
-  "Tap a card to see its details.": "Ketuk kartu untuk melihat detailnya.",
   "Volume": "Volume",
   "‹ Previous": "‹ Sebelumnya",
 };

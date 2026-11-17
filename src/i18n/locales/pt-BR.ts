@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Português (Brasil). Termos oficiais do TCG de Yu-Gi-Oh! (Invocação-Tributo, Cemitério, Deck de Fusão…).
 export const PT_BR: Dictionary = {
+  "Details": "Detalhes",
   "(+{n} more)": "(+{n} outros)",
   "(Set face-down)": "(Baixada com a face para baixo)",
   "+ New Deck": "+ Novo Deck",
@@ -561,7 +562,6 @@ export const PT_BR: Dictionary = {
   "Level {n}": "Nível {n}",
   "Log": "Registro",
   "Next ›": "Próximo ›",
-  "Tap a card to see its details.": "Toque em uma carta para ver os detalhes.",
   "Volume": "Volume",
   "‹ Previous": "‹ Anterior",
 };

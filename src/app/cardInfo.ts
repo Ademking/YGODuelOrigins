@@ -5,7 +5,7 @@ import { ATTR_COLOR } from '../ui/cardArt';
 import { cardStat } from '../ui/cardStat';
 import { t } from '../i18n';
 import { cardName, cardText } from '../i18n/cards';
-import { $, cardHtml, esc, html } from './dom';
+import { $, cardHtml, esc, html, sheet } from './dom';
 
 export interface PanelInfo { atk?: number; def?: number; notes?: string[]; hidden?: boolean }
 
@@ -61,4 +61,11 @@ export function cardInfo(hint = t('Hover over a card to see its details.'), layo
   };
   show(null);
   return { el: root, show };
+}
+
+/** A card's details in a sheet: the duel opens it on phones, where there is no room for a details panel. */
+export function showCardSheet(def: CardDef, info: PanelInfo = {}) {
+  const panel = cardInfo('', 'stack');
+  panel.show(def, info);
+  sheet('', '', 'w-[min(420px,calc(100vw-24px))]').querySelector('.mt-4')!.append(panel.el);
 }

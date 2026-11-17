@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Русский. Официального русского текста карт нет: термины — общепринятые в русскоязычном сообществе Yu-Gi-Oh!.
 export const RU: Dictionary = {
+  "Details": "Подробнее",
   "(+{n} more)": "(ещё {n})",
   "(Set face-down)": "(Выставлена рубашкой вверх)",
   "+ New Deck": "+ Новая колода",
@@ -561,7 +562,6 @@ export const RU: Dictionary = {
   "Level {n}": "Уровень {n}",
   "Log": "Журнал",
   "Next ›": "Далее ›",
-  "Tap a card to see its details.": "Коснитесь карты, чтобы увидеть описание.",
   "Volume": "Громкость",
   "‹ Previous": "‹ Назад",
 };

@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Français. Termes officiels du JCC Yu-Gi-Oh! (Invocation Sacrifice, Cimetière, Deck Fusion…).
 export const FR: Dictionary = {
+  "Details": "Détails",
   "(+{n} more)": "(+{n} autres)",
   "(Set face-down)": "(Posée face verso)",
   "+ New Deck": "+ Nouveau Deck",
@@ -561,7 +562,6 @@ export const FR: Dictionary = {
   "Level {n}": "Niveau {n}",
   "Log": "Journal",
   "Next ›": "Suivant ›",
-  "Tap a card to see its details.": "Touchez une carte pour voir ses détails.",
   "Volume": "Volume",
   "‹ Previous": "‹ Précédent",
 };

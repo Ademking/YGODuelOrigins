@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Español. Términos oficiales del TCG de Yu-Gi-Oh! (Invocación por Sacrificio, Cementerio, Deck de Fusión…).
 export const ES: Dictionary = {
+  "Details": "Detalles",
   "(+{n} more)": "(+{n} más)",
   "(Set face-down)": "(Colocada boca abajo)",
   "+ New Deck": "+ Nuevo Deck",
@@ -561,7 +562,6 @@ export const ES: Dictionary = {
   "Level {n}": "Nivel {n}",
   "Log": "Registro",
   "Next ›": "Siguiente ›",
-  "Tap a card to see its details.": "Toca una carta para ver sus detalles.",
   "Volume": "Volumen",
   "‹ Previous": "‹ Anterior",
 };

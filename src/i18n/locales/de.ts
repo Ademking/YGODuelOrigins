@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // Deutsch. Offizielle Begriffe des Yu-Gi-Oh!-TCG (Tributbeschwörung, Friedhof, Fusionsdeck…).
 export const DE: Dictionary = {
+  "Details": "Details",
   "(+{n} more)": "(+{n} weitere)",
   "(Set face-down)": "(Verdeckt gesetzt)",
   "+ New Deck": "+ Neues Deck",
@@ -561,7 +562,6 @@ export const DE: Dictionary = {
   "Level {n}": "Stufe {n}",
   "Log": "Protokoll",
   "Next ›": "Weiter ›",
-  "Tap a card to see its details.": "Tippe auf eine Karte, um ihre Details zu sehen.",
   "Volume": "Lautstärke",
   "‹ Previous": "‹ Zurück",
 };

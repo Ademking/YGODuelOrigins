@@ -2,6 +2,7 @@ import type { Dictionary } from '..';
 
 // العربية. لا يوجد نص رسمي للبطاقات بالعربية: المصطلحات هي الشائعة بين لاعبي Yu-Gi-Oh! العرب.
 export const AR: Dictionary = {
+  "Details": "التفاصيل",
   "(+{n} more)": "(+{n} أخرى)",
   "(Set face-down)": "(موضوعة مقلوبة)",
   "+ New Deck": "+ مجموعة جديدة",
@@ -561,7 +562,6 @@ export const AR: Dictionary = {
   "Level {n}": "المستوى {n}",
   "Log": "السجل",
   "Next ›": "‹ التالي",
-  "Tap a card to see its details.": "المس بطاقة لرؤية تفاصيلها.",
   "Volume": "الصوت",
   "‹ Previous": "السابق ›",
 };
