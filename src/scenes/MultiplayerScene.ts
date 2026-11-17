@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../data/decks';
 import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protocol';
 import { Lobby, PrivateRoom } from '../multiplayer/client';
-import { btn, chatComposer, element as el, frame, picker, renderChat } from '../multiplayer/ui';
+import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../multiplayer/ui';
 import { fitCamera, sceneBackground } from '../ui/theme';
 import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
 import { sfx } from '../ui/sfx';
@@ -11,6 +11,17 @@ import { t } from '../i18n';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+
+const RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow';
+const ROW = 'mt-5 flex gap-3 *:flex-1';
+const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
+const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
+const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
+/** The Duelist license: your avatar beside your name and deck. The one loud card on the screen. */
+const LICENSE = (artId: string, body: string) => `<div class="relative grid grid-cols-[88px_minmax(0,1fr)] items-center gap-4 rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
+    <div class="relative aspect-square" id="mp-${artId}"></div>
+    <div class="flex min-w-0 flex-col gap-2.5">${body}</div>
+  </div>`;
 
 const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
@@ -21,61 +32,59 @@ export class MultiplayerScene extends Phaser.Scene {
   create(data: { rejoin?: boolean } = {}) {
     // invite links come straight here: warm the duel engine while the lobby is open
     loadRuntime().catch(() => undefined);
+    // invite links skip the title screen, which otherwise tells index.html the game started (or it shows a failure after 18s)
+    document.dispatchEvent(new Event('duel-origins:ready'));
     fitCamera(this);
     sceneBackground(this);
-    const root = el('main', '', 'mp-root');
-    root.innerHTML = `<header class="mp-top">
-        <button class="mp-btn" id="mp-back"><span>‹&nbsp; ${h('Back')}</span></button>
-        <h1>${h('Online Duel')}</h1>
-        <p class="mp-status" id="mp-status" role="status">${h(t('Connecting…'))}</p>
+    const root = el('main', '', 'mp-root mp-scope fixed inset-0 z-[100] overflow-y-auto overscroll-contain lg:overflow-hidden');
+    // Mobile first: one scrolling column; two columns from lg, three from xl, each panel scrolling on its own.
+    root.innerHTML = `<div class="mx-auto flex min-h-full w-full max-w-[1480px] flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:gap-5 sm:px-6 lg:h-full lg:min-h-0 lg:py-6">
+      <header class="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 bg-[#06050d]/95 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sm:static sm:mx-0 sm:flex-nowrap sm:bg-transparent sm:p-0 sm:pt-6 lg:pt-0">
+        <button class="mp-btn small sm:h-11 sm:rounded-xl sm:px-5 sm:text-sm" id="mp-back" aria-label="${h('Back')}"><span aria-hidden="true">‹</span><span class="hidden sm:inline">${h('Back')}</span></button>
+        <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${h('Online Duel')}</h1>
         <button class="mp-btn small" id="mp-reconnect" hidden><span>${h('Reconnect')}</span></button>
+        <p class="order-last flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-dim [overflow-wrap:anywhere] before:size-2 before:flex-none before:rounded-full before:bg-ok before:shadow-[0_0_8px_var(--color-ok)] sm:order-none sm:w-auto sm:max-w-[45%]" id="mp-status" role="status">${h(t('Connecting…'))}</p>
       </header>
-      <div class="mp-grid">
-        <aside class="mp-side">
-          <div class="mp-license">
-            <div class="mp-lic-art" id="mp-lic-art"></div>
-            <div class="mp-lic-body"><b class="mp-lic-name" id="mp-lic-name">…</b><div id="mp-lic-deck"></div></div>
-          </div>
-          <section class="mp-frame mp-panel mp-friend">
+      <div class="grid gap-4 sm:gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
+        <aside class="flex flex-col gap-4 lg:row-span-2 lg:min-h-0 lg:overflow-y-auto xl:row-span-1">
+          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`)}
+          <section class="mp-panel flex-none">
             <h2>${h('Play a friend')}</h2>
-            <p>${h('Make a room and send the link, or join with their code.')}</p>
-            <button class="mp-btn primary" id="mp-create"><span>${h('Create room')}</span></button>
-            <div class="mp-join"><input id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}"><button class="mp-btn" id="mp-join"><span>${h('Join')}</span></button></div>
+            <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
+            <div class="flex flex-col gap-2 px-5 pb-5">
+              <button class="mp-btn primary w-full" id="mp-create"><span>${h('Create room')}</span></button>
+              <div class="flex gap-2"><input class="mp-field min-w-0 flex-1 [&:not(:placeholder-shown)]:tracking-wider [&:not(:placeholder-shown)]:uppercase" id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}" autocomplete="off" autocapitalize="characters"><button class="mp-btn" id="mp-join"><span>${h('Join')}</span></button></div>
+            </div>
           </section>
-          <a class="mp-discord" href="https://discord.gg/VYfWyXyRuf" target="_blank" rel="noopener noreferrer">
-            <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-            <span><b>${h('Find duelists on Discord')}</b><small>${h('The lobby is quiet? Post your room link on our Discord and someone will join.')}</small></span>
+          <a class="flex flex-none items-center gap-3.5 rounded-2xl border border-discord/60 bg-[linear-gradient(135deg,#2a2b6b,#191a45)] p-4 text-ink no-underline transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow" href="https://discord.gg/VYfWyXyRuf" target="_blank" rel="noopener noreferrer">
+            <svg class="flex-none text-[#b9bfff]" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+            <span><b class="block font-semibold text-white">${h('Find duelists on Discord')}</b><small class="mt-0.5 block text-xs text-[#b9bfff]">${h('The lobby is quiet? Post your room link on our Discord and someone will join.')}</small></span>
           </a>
         </aside>
-        <section class="mp-frame mp-panel mp-players">
-          <h2>${h('Duelists online')} <span class="mp-count" id="mp-count">0</span></h2>
+        <section class="mp-panel max-h-[560px] lg:max-h-none">
+          <h2>${h('Duelists online')} <span class="min-w-6 rounded-full border border-white/10 bg-raised px-2 text-center font-sans text-xs leading-5 text-ink" id="mp-count">0</span></h2>
           <div id="mp-invite"></div>
-          <div class="mp-scroll"><div class="mp-duelists" id="mp-roster"></div></div>
+          <div class="mp-scroll px-4 pb-4 sm:px-5"><div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-2" id="mp-roster"></div></div>
         </section>
-        <section class="mp-frame mp-panel mp-chatpanel">
+        <section class="mp-panel h-[70svh] max-h-[600px] lg:h-auto lg:max-h-none">
           <h2>${h('Lobby chat')}</h2>
-          <div class="mp-scroll mp-messages" id="mp-messages" role="log" aria-live="polite" data-empty="${h('Nothing said yet.')}"></div>
+          <div class="${MESSAGES} px-4 sm:px-5" id="mp-messages" role="log" aria-live="polite" data-empty="${h('Nothing said yet.')}"></div>
           <div id="mp-compose"></div>
         </section>
+      </div>
       </div>
       <dialog class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
         <h2>${h('Enter the lobby')}</h2>
         <p>${h('This is how other duelists will see you.')}</p>
-        <div class="mp-license">
-          <div class="mp-lic-art" id="mp-name-art"></div>
-          <div class="mp-lic-body">
-            <input class="mp-lic-name" id="mp-name" maxlength="16" placeholder="${h('Your name')}" autocomplete="nickname" aria-label="${h('Your name')}">
-            <div id="mp-deck"></div>
-          </div>
-        </div>
-        <div class="mp-err" id="mp-name-err" role="alert"></div>
-        <div class="mp-row"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary"><span>${h('Enter lobby')}</span></button></div>
+        ${LICENSE('name-art', `<input class="w-full rounded-none border-0 border-b border-brass/50 bg-transparent px-0 pt-1 pb-2 font-display text-base text-brass-txt outline-none placeholder:text-[#6b5f45] focus:border-glow sm:text-lg" id="mp-name" maxlength="16" placeholder="${h('Your name')}" autocomplete="nickname" aria-label="${h('Your name')}"><div id="mp-deck"></div>`)}
+        <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
+        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary"><span>${h('Enter lobby')}</span></button></div>
       </form></dialog>
       <dialog class="mp-modal" id="mp-room-modal"></dialog>
-      <dialog class="mp-modal mp-avatar-modal" id="mp-avatar-modal"><div class="mp-sheet">
+      <dialog class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
         <h2>${h('Choose your avatar')}</h2>
-        <div class="mp-avatar-grid" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
-        <div class="mp-row"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
+        <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
+        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
       </div></dialog>`;
     document.body.append(root);
     // ponytail: Phaser's keyboard listener lives on window; stop keys leaking into the scene while typing.
@@ -90,21 +99,21 @@ export class MultiplayerScene extends Phaser.Scene {
     q('deck').replaceWith(select.el);
     let seed = savedSeed(), country: string | undefined;
     /** Avatar with an optional flag badge. */
-    const portrait = (avatar: string, flag?: string, label = '') => {
-      const art = el('div', '', 'mp-art');
-      const img = el('img'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+    const portrait = (avatar: string, flag?: string, label = '', small = false) => {
+      const art = el('div', '', small ? 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]' : 'relative size-full');
+      const img = el('img', '', small ? 'size-full rounded-xl object-cover' : 'size-full object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
       art.append(img);
-      if (flag) { const f = el('img', '', 'mp-flag'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+      if (flag) { const f = el('img', '', small ? 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow' : 'absolute top-1.5 left-1.5 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
       return art;
     };
     /** Your portrait on both licenses (popup and lobby), with a button that rolls a new avatar. */
     const renderLooks = () => {
       for (const id of ['name-art', 'lic-art']) {
-        const shuffle = el('button', '', 'mp-shuffle'); shuffle.type = 'button';
+        const shuffle = el('button', '', 'absolute -right-2 -bottom-2 grid size-8 cursor-pointer place-items-center rounded-full border border-[#fff1c9] bg-brass p-0 text-[#1d1505] shadow-lg shadow-black/60 transition hover:scale-110 hover:-rotate-12 hover:bg-brass-lit ' + RING); shuffle.type = 'button';
         shuffle.title = t('New avatar'); shuffle.setAttribute('aria-label', t('New avatar'));
         shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
         shuffle.onclick = () => setAvatar(randomSeed());
-        const choose = el('button', '', 'mp-art-btn'); choose.type = 'button';
+        const choose = el('button', '', 'block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-raised p-0 transition hover:brightness-110 ' + RING); choose.type = 'button';
         choose.title = t('Choose avatar'); choose.setAttribute('aria-label', t('Choose avatar'));
         choose.append(portrait(seed, country, t('Your avatar')));
         choose.onclick = openAvatars;
@@ -117,9 +126,9 @@ export class MultiplayerScene extends Phaser.Scene {
     function openAvatars() {
       if (!avatarGrid.childElementCount) {
         for (let n = 1; n <= AVATAR_COUNT; n++) {
-          const b = el('button', '', 'mp-avatar-pick'); b.type = 'button'; b.dataset.id = String(n);
+          const b = el('button', '', 'aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-transparent bg-raised p-0 hover:border-brass/50 [&.on]:border-brass [&.on]:ring-2 [&.on]:ring-brass/30 ' + RING); b.type = 'button'; b.dataset.id = String(n);
           b.setAttribute('role', 'option'); b.setAttribute('aria-label', t('Avatar {n}', { n }));
-          const img = el('img'); img.src = avatarURL(String(n)); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+          const img = el('img', '', 'size-full object-cover'); img.src = avatarURL(String(n)); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
           b.append(img);
           b.onclick = () => { setAvatar(String(n)); mark(); };
           avatarGrid.append(b);
@@ -169,12 +178,12 @@ export class MultiplayerScene extends Phaser.Scene {
     };
     const versus = (s: PrivateRoom) => {
       const side = (who: string, state: string, ok: boolean) => {
-        const d = el('div', who); d.append(el('small', state, ok ? 'ok' : '')); return frame('', d);
+        const d = el('div', who, 'truncate px-2.5 py-3.5'); d.append(el('small', state, ok ? 'block text-xs text-ok' : 'block text-xs text-dim')); return frame('min-w-0 text-center', d);
       };
-      const row = el('div', '', 'mp-versus');
+      const row = el('div', '', 'mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5');
       row.append(
         side(lobby?.name ?? 'You', s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
-        el('b', 'VS'),
+        el('b', 'VS', 'font-display text-lg text-brass-txt'),
         s.opponent ? side(s.opponent.name, s.opponent.ready ? t('Ready ✓') : t('Choosing…'), s.opponent.ready)
           : side(challengeWith ?? t('Waiting…'), challengeWith ? t('Connecting…') : t('No one yet'), false),
       );
@@ -184,8 +193,8 @@ export class MultiplayerScene extends Phaser.Scene {
       if (!session) { if (roomModal.open) roomModal.close(); roomModal.replaceChildren(); return; }
       const s = session;
       const box = el('div', '', 'mp-sheet');
-      const err = el('div', s.error, 'mp-err');
-      const actions = el('div', '', 'mp-row');
+      const err = el('div', s.error, 'mt-2.5 min-h-[18px] text-xs text-bad');
+      const actions = el('div', '', ROW);
       const cancel = btn(challengeWith ? t('Cancel') : t('Leave')); cancel.onclick = leaveRoom;
       // A failed WebRTC handshake often succeeds on a second attempt: rejoin the same room.
       const retry = s.error && !s.opponent ? btn(t('Try again'), 'primary') : undefined;
@@ -199,7 +208,7 @@ export class MultiplayerScene extends Phaser.Scene {
         box.append(el('h2', t('Challenge')), el('p', hint), versus(s), err, actions);
         if (!s.opponent && !s.error && s.isHost) box.append(challengeBar ??= expiry());
       } else {
-        const copies = el('div', '', 'mp-row');
+        const copies = el('div', '', 'mt-3 flex gap-2 *:flex-1');
         const copyCode = btn(t('Copy code'), 'small'), copyLink = btn(t('Copy invite link'), 'small');
         copyCode.onclick = () => void copy(s.code, copyCode, t('Copy code'));
         copyLink.onclick = () => void copy(inviteURL(s.code), copyLink, t('Copy invite link'));
@@ -210,7 +219,7 @@ export class MultiplayerScene extends Phaser.Scene {
         actions.append(cancel, retry ?? ready);
         box.append(el('h2', t('Private room')),
           el('p', s.opponent ? t('The duel starts when you are both ready.') : t('Send your friend the invite link. You can start once they join.')),
-          el('div', s.code, 'mp-code'), copies, versus(s), err, actions);
+          el('div', s.code, 'rounded-2xl border border-dashed border-brass/50 bg-field p-4 text-center font-display text-xl tracking-[.2em] text-brass-txt [overflow-wrap:anywhere] sm:text-2xl'), copies, versus(s), err, actions);
       }
       roomModal.replaceChildren(box);
       if (!roomModal.open) roomModal.showModal();
@@ -242,27 +251,30 @@ export class MultiplayerScene extends Phaser.Scene {
     };
     /** Dismissable card above the player list, mirrored in the status line. */
     const notice = (text: string) => {
-      const inner = el('div'), ok = btn('OK', 'small');
+      const inner = el('div', '', INVITE_INNER), ok = btn('OK', 'small');
       ok.onclick = () => q('invite').replaceChildren();
-      inner.append(el('p', text), ok);
-      q('invite').replaceChildren(frame('mp-invite', inner));
+      inner.append(el('p', text, INVITE_TEXT), ok);
+      q('invite').replaceChildren(frame(INVITE, inner));
       status(text);
     };
     /** Bar that drains over the challenge lifetime. */
-    const expiry = () => { const bar = el('div', '', 'mp-expire'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
+    const expiry = () => { const bar = el('div', '', 'mt-2.5 h-[3px] basis-full origin-left animate-drain rounded-full bg-brass'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
     const renderRoster = () => {
       const grid = q('roster'); grid.replaceChildren();
       q('count').textContent = String(lobby?.peers.size ?? 0);
       if (!lobby?.peers.size) {
-        const empty = el('div', '', 'mp-empty');
-        if (lobby) empty.append(el('b', t('Nobody else is here yet')), el('p', t('Duelists appear here when they open Multiplayer. Create a room to invite a friend directly.')));
+        const empty = el('div', '', 'col-span-full px-1.5 py-12 text-center text-xs text-dim');
+        if (lobby) empty.append(el('b', t('Nobody else is here yet'), 'mb-1.5 block text-sm text-ink'),
+          el('p', t('Duelists appear here when they open Multiplayer. Create a room to invite a friend directly.'), 'mx-auto max-w-[40ch]'));
         grid.append(empty);
         return;
       }
       for (const [id, profile] of lobby.peers) {
-        const card = el('article', '', profile.busy ? 'mp-duelist busy' : 'mp-duelist');
-        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`), el('b', profile.name),
-          el('small', profile.busy ? t('In a duel') : t('Available')));
+        const card = el('article', '', 'group/d grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border border-white/[.08] bg-raised/60 p-2 pr-2.5 transition hover:border-brass/40' + (profile.busy ? ' busy' : ''));
+        const who = el('div', '', 'min-w-0');
+        who.append(el('b', profile.name, 'block truncate font-semibold'),
+          el('small', profile.busy ? t('In a duel') : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
+        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true), who);
         if (!profile.busy) {
           const challenge = btn(t('Challenge'), 'small');
           challenge.disabled = !!session || outgoingInvite;
@@ -302,12 +314,12 @@ export class MultiplayerScene extends Phaser.Scene {
         if (session) return;
         const from = lobby!.peers.get(peer)?.name ?? 'A duelist';
         const box = q('invite'); box.replaceChildren();
-        const inner = el('div');
+        const inner = el('div', '', INVITE_INNER);
         const accept = btn(t('Accept'), 'primary'), decline = btn(t('Decline'));
         accept.onclick = () => { box.replaceChildren(); void startRoom(code, false, from); };
         decline.onclick = () => { box.replaceChildren(); void lobby?.decline(peer, code).catch(error); };
-        inner.append(el('p', `${from} wants to duel you.`), accept, decline, expiry());
-        const card = frame('mp-invite', inner);
+        inner.append(el('p', `${from} wants to duel you.`, INVITE_TEXT), accept, decline, expiry());
+        const card = frame(INVITE, inner);
         box.append(card);
         setTimeout(() => { if (card.isConnected) box.replaceChildren(); }, CHALLENGE_MS);
         sfx.click();
