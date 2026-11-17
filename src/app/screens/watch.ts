@@ -11,10 +11,11 @@ const picks = [RANDOM, RANDOM];
 /** Replay: choose two CPU duelists (either can be left on Random) and watch them play each other. */
 const watch: Screen = (root) => {
   root.className = 'app-bg fixed inset-0 overflow-y-auto';
-  const page = html(`<div class="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-3 px-4 lg:gap-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
+  const page = html(`<div class="mx-auto flex h-full w-full max-w-6xl flex-col gap-3 px-4 lg:gap-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
   root.append(page);
   page.append(header(t('Replay'), () => void go('Title')), html(`<p class="-mt-2 text-sm text-dim">${esc(t('Watch two CPU duelists play each other'))}</p>`));
-  const grid = html('<div class="grid items-start gap-3 lg:grid-cols-[1fr_auto_1fr] lg:gap-4"></div>');
+  // the page never scrolls: on desktop each roster scrolls inside its own panel
+  const grid = html('<div class="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4"></div>');
   grid.append(
     duelistPicker(t('Duelist 1  ·  near side'), picks[0], (index) => { picks[0] = index; }).el,
     html(`<div class="self-center text-center font-display text-lg text-brass-txt/80 max-lg:-my-2 lg:text-3xl">${esc(t('VS'))}</div>`),
@@ -29,7 +30,7 @@ const watch: Screen = (root) => {
     const near = OPPONENTS[chosen[0]], far = OPPONENTS[chosen[1]];
     void go('Duel', { deck: near.deck, deckName: near.name, opp: far, level: far.suggested, watch: near } satisfies DuelInit);
   };
-  const footer = html('<div class="mt-auto flex justify-center pt-1"></div>');
+  const footer = html('<div class="flex flex-none justify-center pt-1"></div>');
   footer.append(start);
   page.append(grid, footer);
 };

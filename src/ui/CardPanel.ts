@@ -53,8 +53,10 @@ export class CardPanel {
     scene.add.rectangle(px + pw / 2 + 3, previewY + previewH / 2 + 5, CW * scale, CH * scale, 0x000000, 0.45);
     this.img = scene.add.image(px + pw / 2, previewY + previewH / 2, BACK).setScale(scale);
     panel(scene, x, infoY, w, infoH, 0.95, 8);
-    this.name = scene.add.text(x + 14, infoY + 12, '', { fontFamily: FONT_H, fontSize: compact ? '14px' : '16px', color: COL.goldTxt, fontStyle: 'bold', wordWrap: { width: w - 28 } });
-    this.type = scene.add.text(x + 14, infoY + 36, '', { fontFamily: FONT_B, fontSize: compact ? '10px' : '13px', color: COL.dim, wordWrap: { width: w - 28 } });
+    // right-to-left text grows leftwards from its origin unless it is given a fixed box to align in
+    const box = (width: number) => (isRTL() ? { align: 'right', fixedWidth: width } : {});
+    this.name = scene.add.text(x + 14, infoY + 12, '', { fontFamily: FONT_H, fontSize: compact ? '14px' : '16px', color: COL.goldTxt, fontStyle: 'bold', wordWrap: { width: w - 28 }, ...box(w - 28) });
+    this.type = scene.add.text(x + 14, infoY + 36, '', { fontFamily: FONT_B, fontSize: compact ? '10px' : '13px', color: COL.dim, wordWrap: { width: w - 28 }, ...box(w - 28) });
     this.attributeSize = compact ? 18 : 22;
     this.attributeIcon = scene.add.image(0, 0, BACK).setVisible(false);
     this.levelIcon = scene.add.image(0, 0, BACK).setVisible(false);
@@ -63,7 +65,7 @@ export class CardPanel {
     this.descTop = infoY + 58;
     this.descH = infoH - 58 - 34;
     // Arabic card text reads right to left, so its lines sit against the right edge
-    const rtl = isRTL() ? { align: 'right', fixedWidth: w - 30 } : {};
+    const rtl = box(w - 30);
     this.desc = scene.add.text(x + 14, this.descTop, '', { fontFamily: FONT_B, fontSize: compact ? '11px' : '14px', color: COL.text, wordWrap: { width: w - 30 }, lineSpacing: compact ? 3 : 4, ...rtl });
     this.statsBottom = infoY + infoH - 42;
     this.fullBottom = infoY + infoH - 10;
@@ -160,6 +162,7 @@ export class CardPanel {
     const levelSpace = hasLevelIcon ? levelSize + this.levelText.width + 9 : 0;
     const iconSpace = attributeSpace + levelSpace;
     this.type.setX(this.x + 14 + iconSpace).setWordWrapWidth(this.w - 28 - iconSpace);
+    if (isRTL()) this.type.setFixedSize(this.w - 28 - iconSpace, 0);
     this.type.setText(t).setColor(def.attr ? ATTR_COLOR[def.attr] : def.kind === 'trap' ? '#ff8ac0' : '#5ee8c8');
     this.type.y = this.name.y + this.name.height + 2;
     this.attributeIcon.setVisible(hasIcon);

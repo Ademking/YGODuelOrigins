@@ -44,12 +44,12 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
       </div>
       <button class="mp-icon" data-next aria-label="${esc(t('Next'))}">${icon('next')}</button>
     </div>
-    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[repeat(auto-fill,minmax(64px,1fr)] xl:grid-cols-[repeat(auto-fill,minmax(76px,1fr))] lg:content-start lg:overflow-x-hidden lg:overflow-y-auto" data-strip role="listbox" aria-label="${esc(label)}"></div>
+    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[repeat(auto-fill,4rem)] lg:justify-between lg:gap-2 xl:grid-cols-[repeat(auto-fill,76px)] lg:content-start lg:overflow-x-hidden lg:overflow-y-auto" data-strip role="listbox" aria-label="${esc(label)}"></div>
   </section>`);
   const strip = root.querySelector<HTMLElement>('[data-strip]')!;
   const tiles = [RANDOM, ...roster.map((_, index) => index)].map((index) => {
     const duelist = roster[index];
-    const tile = html<HTMLButtonElement>(`<button role="option" class="relative grid aspect-square w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-60 transition hover:opacity-100 lg:w-auto [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
+    const tile = html<HTMLButtonElement>(`<button role="option" class="relative grid aspect-square w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-75 transition hover:opacity-100 lg:size-16 xl:size-[76px] [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
       index === RANDOM ? DIE : duelist.id === extra?.id ? '<span class="font-display text-xl text-brass-txt">+</span>' : face(duelist)}</button>`);
     tile.dataset.click = '';
     tile.onclick = () => choose(index);

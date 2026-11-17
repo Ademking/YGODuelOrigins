@@ -477,7 +477,7 @@ export class DuelScene extends Phaser.Scene {
           const halo = this.add.graphics().lineStyle(2, COL.gold, 1).strokeCircle(0, 0, SIZE / 2 + 9).setAlpha(0);
           const image = this.add.image(0, 0, icon(choice)).setDisplaySize(SIZE, SIZE);
           const base = image.scale;
-          const name = this.add.text(0, SIZE / 2 + 30, choice.toUpperCase(), { fontFamily: FONT_H, fontSize: '12px', color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
+          const name = this.add.text(0, SIZE / 2 + 30, t(choice).toUpperCase(), { fontFamily: FONT_H, fontSize: '12px', color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
           item.add([halo, image, name]).setSize(SIZE + 40, SIZE + 90).setInteractive({ useHandCursor: true });
           layer.add(item);
           moving.push(item, image, halo);
@@ -517,8 +517,8 @@ export class DuelScene extends Phaser.Scene {
         if (!layer.active || this.dead) return;
         mine.image.setTexture(icon(player)).setDisplaySize(SIZE, SIZE);
         theirs.image.setTexture(icon(opponent)).setDisplaySize(SIZE, SIZE);
-        mine.name.setText(player.toUpperCase());
-        theirs.name.setText(opponent.toUpperCase());
+        mine.name.setText(t(player).toUpperCase());
+        theirs.name.setText(t(opponent).toUpperCase());
         headline.setText(t(result === 'win' ? 'YOU WIN' : result === 'lose' ? 'YOU LOSE' : 'DRAW'));
         detail.setText(t(result === 'win' ? 'Choose who takes the first turn' : result === 'lose' ? 'Your opponent takes the first turn' : 'Choose again to break the tie'));
         const winner = result === 'win' ? mine : result === 'lose' ? theirs : null;
