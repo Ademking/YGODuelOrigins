@@ -3,6 +3,7 @@
 import { icon } from './icons';
 import { t } from '../i18n';
 import { esc, html } from './dom';
+import { onJingle } from '../ui/sfx';
 
 const SONGS = [
   ['SsoY3W8-2zQ', 'Fang of Critias'],
@@ -42,7 +43,7 @@ function ready() {
         width: 200, height: 200, videoId: SONGS[state.track][0],
         playerVars: { autoplay: 0, controls: 0, playsinline: 1 },
         events: {
-          onReady: () => { player = made; made.setVolume(45); if (state.muted) made.mute(); resolve(made); },
+          onReady: () => { player = made; made.setVolume(volumeNow); if (state.muted) made.mute(); resolve(made); },
           // 0: ended → next song
           onStateChange: (event: { data: number }) => { if (event.data === 0) play(state.track + 1); },
           // a video that cannot be embedded is skipped
@@ -56,6 +57,34 @@ function ready() {
   });
   return loading;
 }
+
+// ---------------------------------------------------------------- dipping under the game's own jingles
+const VOLUME = 45, DIPPED = 6;
+let volumeNow = VOLUME, fadeTimer: ReturnType<typeof setInterval> | undefined;
+/** Slide the music's volume to `target` over `ms`. */
+function fadeTo(target: number, ms: number) {
+  clearInterval(fadeTimer);
+  const from = volumeNow, start = performance.now();
+  fadeTimer = setInterval(() => {
+    const k = Math.min(1, (performance.now() - start) / ms);
+    volumeNow = Math.round(from + (target - from) * k);
+    player?.setVolume(volumeNow);
+    if (k === 1) clearInterval(fadeTimer);
+  }, 50);
+}
+const jingles = new Set<HTMLAudioElement>();
+onJingle((audio) => {
+  jingles.add(audio);
+  fadeTo(DIPPED, 350);
+  const done = () => {
+    audio.removeEventListener('ended', done);
+    audio.removeEventListener('pause', done);
+    jingles.delete(audio);
+    if (!jingles.size) fadeTo(VOLUME, 1500);
+  };
+  audio.addEventListener('ended', done);
+  audio.addEventListener('pause', done);
+});
 
 function play(track = state.track) {
   const changed = track !== state.track || !player;
