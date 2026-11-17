@@ -11,7 +11,7 @@ export const PORTRAIT_IDS = [
 export const HD_PORTRAITS = new Set([
   'yugi', 'kaiba', 'joey', 'mai', 'pegasus', 'jaden', 'zane', 'syrus', 'crowler', 'bakura', 'marik', 'mako', 'weevil', 'chazz',
   'aster', 'jesse', 'axel', 'bastion', 'alexis', 'rex', 'keith', 'bonz', 'tyranno', 'sartorius', 'paradox', 'rebecca', 'espa',
-  'odion', 'ishizu', 'zaloog',
+  'odion', 'ishizu', 'zaloog', 'panik', 'exodia', 'titan', 'atticus', 'camula', 'amnael', 'kagemaru', 'adrian',
 ]);
 /** Where a portrait id's picture lives. */
 export const portraitPath = (id: string) => HD_PORTRAITS.has(id) ? `/portraits/hd/${id}.png` : `/portraits/${id}.png`;
