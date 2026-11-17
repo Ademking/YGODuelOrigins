@@ -70,9 +70,9 @@ const title: Screen = (root) => {
         <button class="mp-btn small gap-2" data-lang aria-label="${esc(t('Language'))}">${flag(current.flag)}<span>${esc(current.name)}</span><span class="text-brass-txt">${icon('down', 'size-3.5')}</span></button>
       </div>
       <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise lg:max-h-[38svh] lg:flex-none lg:pb-[5svh]"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain lg:w-[min(100%,560px)] drop-shadow-[0_0_40px_#d8b25e55]"></h1>
-      <nav class="flex w-full max-w-sm flex-col gap-1" aria-label="${esc(t('Main menu'))}">
+      <nav class="flex w-full max-w-sm flex-col gap-2" aria-label="${esc(t('Main menu'))}">
         ${([['Multiplayer', 'online', t('Online Duel'), t('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), t('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), t('Build and edit your decks')], ['Watch', 'replay', t('Replays'), t('Watch two CPU duelists play each other')]] as const)
-          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="menu-item flex animate-rise items-center gap-4 px-4 py-[min(12px,1.4svh)] text-start focus-visible:outline-2 focus-visible:outline-glow">
+          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="menu-item ${index === 0 ? 'primary' : ''} flex animate-rise items-center gap-4 px-4 py-[min(12px,1.4svh)] text-start focus-visible:outline-2 focus-visible:outline-glow">
             <span class="menu-icon flex-none">${icon(key, 'size-6')}</span>
             <span class="min-w-0 flex-1"><b class="block font-display text-base tracking-wide lg:text-lg">${esc(label)}</b><small class="block truncate text-xs text-dim">${esc(sub)}</small></span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>

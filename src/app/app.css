@@ -195,14 +195,14 @@ input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
   .title-card { opacity: .65; transform: rotate(var(--r)); }
 }
 
-/* Main menu: a plain column of rows; the only colour is the brass of the logo, on hover and focus. */
-.menu-item { position: relative; color: var(--color-ink); transition: color .15s, background-color .15s, padding .15s; }
-.menu-item::before { content: ''; position: absolute; inset-block: 10px; inset-inline-start: 0; width: 2px; background: var(--color-brass); opacity: 0; transition: opacity .15s; }
-.menu-item .menu-icon { color: var(--color-dim); transition: color .15s; }
-.menu-item:hover, .menu-item:focus-visible { color: var(--color-brass-lit); background: linear-gradient(90deg, #e0b34f14, transparent); padding-inline-start: 1.5rem; }
-.menu-item:hover::before, .menu-item:focus-visible::before { opacity: 1; }
-.menu-item:hover .menu-icon, .menu-item:focus-visible .menu-icon { color: var(--color-brass); }
-[dir=rtl] .menu-item:hover, [dir=rtl] .menu-item:focus-visible { background: linear-gradient(-90deg, #e0b34f14, transparent); }
+/* Main menu: the old title screen's buttons. Dark panels with a hairline that turns gold on hover; the first is solid gold. */
+.menu-item { background: #14121f; border: 1px solid #3a3456; color: var(--color-ink); transition: background-color .15s, border-color .15s, color .15s; }
+.menu-item .menu-icon { color: var(--color-brass); }
+.menu-item:hover, .menu-item:focus-visible { background: #242039; border-color: #d8b25e; color: #f0d08a; }
+.menu-item.primary { background: #d8b25e; border-color: #fff1c9e6; color: #1d1505; }
+.menu-item.primary small { color: #1d1505b3; }
+.menu-item.primary .menu-icon { color: #1d1505; }
+.menu-item.primary:hover, .menu-item.primary:focus-visible { background: #f2d48c; }
 @media (prefers-reduced-motion: reduce) { .menu-item { transition: none; } }
 
 /* Anime card style: its own card back in the menus. */
