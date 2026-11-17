@@ -31,8 +31,10 @@ const PATHS = {
 } as const;
 export type IconName = keyof typeof PATHS;
 
+/** Arrows that point along the reading direction mirror in right-to-left languages. */
+const DIRECTIONAL = new Set<IconName>(['arrowLeft', 'back', 'prev', 'next']);
 export const icon = (name: IconName, cls = 'size-5') =>
-  `<svg viewBox="0 0 24 24" class="${cls} flex-none" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
+  `<svg viewBox="0 0 24 24" class="${cls} flex-none${DIRECTIONAL.has(name) ? ' rtl:-scale-x-100' : ''}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
 
 /** An icon as an SVG data URL, for canvas textures (the duel's menu). */
 export const iconUrl = (name: IconName, color = '#e0b34f') =>

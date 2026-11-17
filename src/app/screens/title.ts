@@ -49,11 +49,11 @@ const changelog = (): [string, string[]][] => [
 /** A subtitle only where it reads in the player's language: a new line without a translation stays out. */
 const sub = (text: string) => (locale() === 'en' || t(text) !== text ? t(text) : '');
 
-/** Desktop menu tiles: the card's art, faded, behind the label. */
+/** Desktop menu tiles: the card's square art window (card image is 421x614, art box at 50,110 size 320). */
 const tileArt = (name: string, lit: boolean) => {
   const card = CARDS.find((c) => c.name === name);
   const src = card ? cardSrc(card.id) : '';
-  return src ? `<img src="${esc(src)}" alt="" aria-hidden="true" class="pointer-events-none absolute -top-6 -right-10 hidden w-44 rotate-12 object-cover transition duration-300 group-hover:rotate-6 lg:block ${lit ? 'opacity-25 mix-blend-multiply' : 'opacity-20 group-hover:opacity-35'}">` : '';
+  return src ? `<span aria-hidden="true" class="pointer-events-none absolute top-5 end-5 hidden size-24 overflow-hidden border transition duration-300 lg:block ${lit ? 'border-[#1d1505]/40 shadow-[0_6px_18px_#1d150555]' : 'border-brass/40 opacity-70 shadow-[0_6px_18px_#0008] group-hover:opacity-100'}"><img src="${esc(src)}" alt="" class="absolute top-[-34.4%] left-[-15.6%] w-[131.6%] max-w-none transition duration-300 group-hover:scale-105"></span>` : '';
 };
 
 const title: Screen = (root) => {
@@ -80,7 +80,7 @@ const title: Screen = (root) => {
       <nav class="grid w-full gap-2.5 lg:grid-cols-4 lg:gap-4" aria-label="${esc(t('Main menu'))}">
         ${([['Multiplayer', 'online', t('Online Duel'), sub('Play the live lobby or a friend'), 'Dark Magician'], ['Setup', 'solo', t('Solo Duel'), sub('Duel a CPU opponent'), 'Blue-Eyes White Dragon'], ['DeckEditor', 'deck', t('Deck Builder'), sub('Build and edit your decks'), 'Pot of Greed'], ['Watch', 'replay', t('Replays'), sub('Watch two CPU duelists play each other'), 'Time Wizard']] as const)
           .map(([to, key, label, sub, art], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group relative flex animate-rise items-center gap-4 overflow-hidden border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-56 lg:flex-col lg:items-start lg:justify-end lg:gap-2 lg:p-5 ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
-            ${tileArt(art, index === 0)}<span class="relative grid place-items-center lg:mb-auto lg:size-12 lg:border ${index === 0 ? 'lg:border-[#1d1505]/30 lg:bg-[#1d1505]/10' : 'lg:border-brass/40 lg:bg-void/60 lg:text-brass-txt'}">${icon(key, 'size-6')}</span><span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="block font-display text-[15px] tracking-wide lg:text-lg">${esc(label)}</b>${sub ? `<small class="block truncate text-xs lg:mt-1 lg:line-clamp-2 lg:text-[13px] lg:whitespace-normal ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="relative text-xl opacity-60 transition group-hover:translate-x-1 lg:absolute lg:top-5 lg:right-5">${icon('next', 'size-5')}</span></button>`).join('')}
+            ${tileArt(art, index === 0)}<span class="relative grid place-items-center lg:mb-auto lg:size-12 lg:border ${index === 0 ? 'lg:border-[#1d1505]/30 lg:bg-[#1d1505]/10' : 'lg:border-brass/40 lg:bg-void/60 lg:text-brass-txt'}">${icon(key, 'size-6')}</span><span class="relative min-w-0 flex-1 lg:w-full lg:flex-none lg:pe-8"><b class="block font-display text-[15px] tracking-wide lg:text-lg">${esc(label)}</b>${sub ? `<small class="block truncate text-xs lg:mt-1 lg:line-clamp-2 lg:text-[13px] lg:whitespace-normal ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="relative text-xl opacity-60 transition group-hover:translate-x-1 rtl:group-hover:-translate-x-1 lg:absolute lg:bottom-6 lg:end-5">${icon('next', 'size-5')}</span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
       </nav>
       <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-6 lg:flex lg:w-auto lg:justify-center">

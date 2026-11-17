@@ -30,21 +30,21 @@ function face(duelist: Pick<Opponent, 'id' | 'ace' | 'name'>) {
 
 export function duelistPicker(label: string, selected: number, onChange: (index: number) => void, extra?: Omit<Opponent, 'deck'>) {
   const roster = extra ? [...OPPONENTS, extra] : OPPONENTS;
-  const root = html(`<section class="mp-panel overflow-hidden">
+  const root = html(`<section class="mp-panel flex min-h-0 flex-col overflow-hidden">
     <div class="flex items-center justify-between px-5 pt-4"><span class="eyebrow">${esc(label)}</span><span class="text-xs text-dim" data-pos></span></div>
     <div class="flex items-center gap-2 px-3 py-3 lg:gap-3 lg:px-5 lg:pb-4">
       <button class="mp-icon" data-prev aria-label="${esc(t('Previous'))}">${icon('prev')}</button>
-      <div class="flex min-w-0 flex-1 items-center gap-3 lg:flex-col lg:gap-0">
-        <div class="relative grid aspect-square w-20 flex-none place-items-center overflow-hidden border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 lg:mx-auto lg:w-36" data-big></div>
-        <div class="min-w-0 flex-1 lg:w-full lg:pt-3 lg:text-center">
-          <h2 class="truncate font-display text-base text-ink lg:text-xl" data-name></h2>
-          <p class="line-clamp-2 text-xs text-brass-txt lg:text-sm" data-title></p>
-          <p class="mx-auto mt-1 line-clamp-2 max-w-[44ch] text-xs text-dim max-lg:hidden lg:min-h-[2.5em]" data-style></p>
+      <div class="flex min-w-0 flex-1 items-center gap-3 lg:gap-6">
+        <div class="relative grid aspect-square w-20 flex-none place-items-center overflow-hidden border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 lg:w-40 xl:w-48" data-big></div>
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate font-display text-base text-ink lg:text-3xl" data-name></h2>
+          <p class="line-clamp-2 text-xs text-brass-txt lg:mt-1 lg:text-base" data-title></p>
+          <p class="mt-3 line-clamp-3 max-w-[48ch] text-sm text-dim max-lg:hidden" data-style></p>
         </div>
       </div>
       <button class="mp-icon" data-next aria-label="${esc(t('Next'))}">${icon('next')}</button>
     </div>
-    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(40px,1fr))] lg:overflow-visible" data-strip role="listbox" aria-label="${esc(label)}"></div>
+    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[repeat(auto-fill,minmax(64px,1fr)] xl:grid-cols-[repeat(auto-fill,minmax(76px,1fr))] lg:content-start lg:overflow-x-hidden lg:overflow-y-auto" data-strip role="listbox" aria-label="${esc(label)}"></div>
   </section>`);
   const strip = root.querySelector<HTMLElement>('[data-strip]')!;
   const tiles = [RANDOM, ...roster.map((_, index) => index)].map((index) => {

@@ -31,7 +31,7 @@ const setup: Screen = (root) => {
   let startingLP: 4000 | 8000 = store.get('arcana-duel.starting-lp') === '4000' ? 4000 : 8000;
 
   root.className = 'app-bg fixed inset-0 overflow-y-auto';
-  const page = html(`<div class="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-3 px-4 lg:gap-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
+  const page = html(`<div class="mx-auto flex min-h-full w-full max-w-6xl lg:h-full flex-col gap-3 px-4 lg:gap-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
   root.append(page);
   page.append(header(t('Duel Setup'), () => void go('Title')));
   const picker = duelistPicker(t('CPU opponent'), opponentIndex, (index) => {
@@ -60,15 +60,18 @@ const setup: Screen = (root) => {
       <button class="mp-btn max-lg:!w-11 max-lg:!px-0" data-edit aria-label="${esc(t('Edit Deck'))}" title="${esc(t('Edit Deck'))}">${icon('rename', 'size-4')}<span class="max-lg:hidden">${esc(t('Edit Deck'))}</span></button>
       <button class="mp-btn max-lg:!w-11 max-lg:!px-0" data-new aria-label="${esc(t('+ New Deck'))}" title="${esc(t('+ New Deck'))}">${icon('plus', 'size-4')}<span class="max-lg:hidden">${esc(t('+ New Deck').replace('+ ', ''))}</span></button>
     </div></section>`);
-  const grid = html('<div class="grid items-start gap-3 lg:grid-cols-[1fr_auto_1fr] lg:gap-4"></div>');
-  grid.append(picker.el, html(`<div class="self-center text-center font-display text-lg text-brass-txt/80 max-lg:-my-2 lg:text-3xl">${esc(t('VS'))}</div>`), deckPanel);
+  // phones: one column with the duel button at the bottom; desktop: the roster fills the left, your deck and the button sit on the right
+  const grid = html('<div class="flex flex-1 flex-col gap-3 lg:grid lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5"></div>');
+  const side = html('<div class="flex flex-1 flex-col gap-3 lg:min-h-0 lg:gap-5"></div>');
+  grid.append(picker.el, html(`<div class="text-center font-display text-lg text-brass-txt/80 -my-2 lg:hidden">${esc(t('VS'))}</div>`), side);
   const lp = html(`<div class="flex items-center justify-center gap-2" role="radiogroup" aria-label="${esc(t('Starting Life Points'))}">
     <span class="mr-1 text-sm text-dim">${esc(t('Starting Life Points'))}</span>
     ${[4000, 8000].map((value) => `<button class="mp-btn small" role="radio" data-lp="${value}">${num(value)}</button>`).join('')}</div>`);
-  const start = html<HTMLButtonElement>(`<button class="mp-btn primary big w-full sm:w-80">${icon('play', 'size-4')}${esc(t('Begin Duel'))}</button>`);
-  const footer = html('<div class="mt-auto flex flex-col items-center gap-3 pt-1"></div>');
+  const start = html<HTMLButtonElement>(`<button class="mp-btn primary big w-full sm:w-80 lg:w-full">${icon('play', 'size-4')}${esc(t('Begin Duel'))}</button>`);
+  const footer = html('<div class="mt-auto flex flex-col items-center gap-3 pt-1 lg:border lg:border-white/[.09] lg:bg-panel lg:p-5 lg:shadow-[0_10px_30px_#0006]"></div>');
   footer.append(lp, start);
-  page.append(grid, footer);
+  side.append(deckPanel, footer);
+  page.append(grid);
 
   const edit = (createNew: boolean) => {
     if (names[deckIndex]) setSelectedDeck(names[deckIndex]);
