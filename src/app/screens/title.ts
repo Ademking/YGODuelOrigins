@@ -49,6 +49,13 @@ const changelog = (): [string, string[]][] => [
 /** A subtitle only where it reads in the player's language: a new line without a translation stays out. */
 const sub = (text: string) => (locale() === 'en' || t(text) !== text ? t(text) : '');
 
+/** Desktop menu tiles: the card's art, faded, behind the label. */
+const tileArt = (name: string, lit: boolean) => {
+  const card = CARDS.find((c) => c.name === name);
+  const src = card ? cardSrc(card.id) : '';
+  return src ? `<img src="${esc(src)}" alt="" aria-hidden="true" class="pointer-events-none absolute -top-6 -right-10 hidden w-44 rotate-12 object-cover transition duration-300 group-hover:rotate-6 lg:block ${lit ? 'opacity-25 mix-blend-multiply' : 'opacity-20 group-hover:opacity-35'}">` : '';
+};
+
 const title: Screen = (root) => {
   const current = LOCALES.find((language) => language.code === locale())!;
   // random cards pop in face-down, flip to their face, drift up and fade, then return as another card (as in the original)
@@ -65,18 +72,18 @@ const title: Screen = (root) => {
   root.className = 'app-bg fixed inset-0 overflow-hidden';
   root.innerHTML = `
     <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-floats>${floats}<div class="absolute inset-0 bg-[radial-gradient(closest-side,#0d0916b0,#0d091640_75%,transparent)]"></div></div>
-    <div class="relative mx-auto flex h-full w-full max-w-md flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]">
-      <div class="flex w-full justify-end">
+    <div class="relative mx-auto flex h-full w-full max-w-md flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)] lg:max-w-6xl lg:justify-center lg:px-10">
+      <div class="flex w-full justify-end lg:absolute lg:top-6 lg:right-10 lg:w-auto">
         <button class="mp-btn small gap-2" data-lang aria-label="${esc(t('Language'))}">${flag(current.flag)}<span>${esc(current.name)}</span><span class="text-brass-txt">${icon('down', 'size-3.5')}</span></button>
       </div>
-      <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain drop-shadow-[0_0_40px_#d8b25e55]"></h1>
-      <nav class="grid w-full gap-2.5" aria-label="${esc(t('Main menu'))}">
-        ${([['Multiplayer', 'online', t('Online Duel'), sub('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), sub('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), sub('Build and edit your decks')], ['Watch', 'replay', t('Replays'), sub('Watch two CPU duelists play each other')]] as const)
-          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group flex animate-rise items-center gap-4 rounded-2xl border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
-            ${icon(key, 'size-6')}<span class="min-w-0 flex-1"><b class="block font-display text-[15px] tracking-wide">${esc(label)}</b>${sub ? `<small class="block truncate text-xs ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="text-xl opacity-60 transition group-hover:translate-x-1">›</span></button>`).join('')}
+      <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise lg:max-h-[38svh] lg:flex-none lg:pb-[5svh]"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain lg:w-[min(100%,560px)] drop-shadow-[0_0_40px_#d8b25e55]"></h1>
+      <nav class="grid w-full gap-2.5 lg:grid-cols-4 lg:gap-4" aria-label="${esc(t('Main menu'))}">
+        ${([['Multiplayer', 'online', t('Online Duel'), sub('Play the live lobby or a friend'), 'Dark Magician'], ['Setup', 'solo', t('Solo Duel'), sub('Duel a CPU opponent'), 'Blue-Eyes White Dragon'], ['DeckEditor', 'deck', t('Deck Builder'), sub('Build and edit your decks'), 'Pot of Greed'], ['Watch', 'replay', t('Replays'), sub('Watch two CPU duelists play each other'), 'Time Wizard']] as const)
+          .map(([to, key, label, sub, art], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group relative flex animate-rise items-center gap-4 overflow-hidden border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-56 lg:flex-col lg:items-start lg:justify-end lg:gap-2 lg:p-5 ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
+            ${tileArt(art, index === 0)}<span class="relative grid place-items-center lg:mb-auto lg:size-12 lg:border ${index === 0 ? 'lg:border-[#1d1505]/30 lg:bg-[#1d1505]/10' : 'lg:border-brass/40 lg:bg-void/60 lg:text-brass-txt'}">${icon(key, 'size-6')}</span><span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="block font-display text-[15px] tracking-wide lg:text-lg">${esc(label)}</b>${sub ? `<small class="block truncate text-xs lg:mt-1 lg:line-clamp-2 lg:text-[13px] lg:whitespace-normal ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="relative text-xl opacity-60 transition group-hover:translate-x-1 lg:absolute lg:top-5 lg:right-5">${icon('next', 'size-5')}</span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
       </nav>
-      <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
+      <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-6 lg:flex lg:w-auto lg:justify-center">
         <button class="mp-btn small gap-2" data-about>${icon('info', 'size-4')}${esc(t('About'))}</button>
         <button class="mp-btn small gap-2" data-news>${icon('news', 'size-4')}${esc(t('What’s New'))}</button>
         <button class="mp-btn small gap-2" data-settings>${icon('settings', 'size-4')}${esc(t('Settings'))}</button>

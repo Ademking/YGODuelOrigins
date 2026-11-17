@@ -152,7 +152,7 @@ export function prefetchCards(ids: Iterable<string>) {
 /** Header used by the menu screens: back button and title. */
 export function header(title: string, back: () => void, extra = '') {
   const node = html(`<header class="sticky top-0 z-20 -mx-4 flex items-center gap-3 bg-void/90 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:backdrop-blur-none">
-    <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" data-back aria-label="${esc(t('Back'))}"><svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg><span class="hidden sm:inline">${esc(t('Back'))}</span></button>
+    <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" data-back aria-label="${esc(t('Back'))}"><svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span class="hidden sm:inline">${esc(t('Back'))}</span></button>
     <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${esc(title)}</h1>${extra}</header>`);
   node.querySelector<HTMLButtonElement>('[data-back]')!.onclick = back;
   return node;

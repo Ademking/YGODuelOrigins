@@ -935,7 +935,9 @@ export class DuelScene extends Phaser.Scene {
         }
         const corners = this.cardQuad({ x: sprite.x, y: sprite.y, angle: sprite.angle, sx: sprite.scaleX, sy: sprite.scaleY }, sprite.width, sprite.height, 0, true);
         const x = Math.min(...corners.map((point) => point.x)) + 10;
-        const y = Math.min(...corners.map((point) => point.y)) + 10;
+        // the corner away from the ATK / DEF plate: the opponent's plate is drawn along the top of the card
+        const statsAtBottom = card.ctrl === this.me || (this.hologramsEnabled && card.faceUp);
+        const y = statsAtBottom ? Math.min(...corners.map((point) => point.y)) + 10 : Math.max(...corners.map((point) => point.y)) - 10;
         badge.container.setPosition(x, y).setAlpha(sprite.alpha);
         const remaining = [card.data.turnCounter !== undefined ? String(card.data.turnCounter) : card.def.lifetime ? String(Math.max(0, card.def.lifetime - card.counter)) : '', counters ? String(counters) : ''].filter(Boolean).join('/');
         if (badge.label.text !== remaining) badge.label.setText(remaining);

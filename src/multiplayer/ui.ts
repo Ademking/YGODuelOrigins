@@ -11,7 +11,7 @@ const POP = 'mp-scope rounded-2xl border border-brass/30 bg-panel/[.98] shadow-2
 const NOTE = 'px-1.5 py-4 text-center text-xs text-dim';
 
 /** Button; kind adds the gold primary look or the compact size. */
-export function btn(text: string, kind: '' | 'primary' | 'small' = '') {
+export function btn(text: string, kind: '' | 'primary' | 'small' | 'small primary' = '') {
   const b = element('button', '', kind ? 'mp-btn ' + kind : 'mp-btn');
   b.type = 'button'; b.append(element('span', text));
   return b;

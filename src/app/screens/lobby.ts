@@ -18,7 +18,7 @@ const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
 const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
 const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
 /** The Duelist license: your avatar beside your name and deck. The one loud card on the screen. */
-const LICENSE = (artId: string, body: string) => `<div class="relative grid grid-cols-[88px_minmax(0,1fr)] items-center gap-4 rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
+const LICENSE = (artId: string, body: string) => `<div class="relative grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[112px_minmax(0,1fr)] rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
     <div class="relative aspect-square" id="mp-${artId}"></div>
     <div class="flex min-w-0 flex-col gap-2.5">${body}</div>
   </div>`;
@@ -36,7 +36,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     // Only the lists inside (duelists, chat) scroll.
     root.innerHTML = `<div class="mx-auto flex h-full w-full max-w-[1480px] flex-col gap-3 px-3 pt-[calc(env(safe-area-inset-top)+10px)] pb-[calc(env(safe-area-inset-bottom)+10px)] sm:gap-5 sm:px-6 sm:pt-6 lg:py-6">
       <header class="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
-        <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" id="mp-back" aria-label="${h('Back')}">${icon('back')}<span class="hidden sm:inline">${h('Back')}</span></button>
+        <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" id="mp-back" aria-label="${h('Back')}">${icon('arrowLeft')}<span class="hidden sm:inline">${h('Back')}</span></button>
         <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${h('Online Duel')}</h1>
         <button class="mp-btn small" id="mp-reconnect" hidden><span>${h('Reconnect')}</span></button>
         <p class="order-last flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-dim [overflow-wrap:anywhere] before:size-2 before:flex-none before:rounded-full before:bg-ok before:shadow-[0_0_8px_var(--color-ok)] sm:order-none sm:w-auto sm:max-w-[45%]" id="mp-status" role="status">${h(t('Connecting…'))}</p>
@@ -50,11 +50,11 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
           ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`)}
           <section class="mp-panel flex-none">
-            <h2>${h('Play a friend')}</h2>
+            <h2>${icon('online', 'size-4 text-brass')}${h('Play a friend')}</h2>
             <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
             <div class="flex flex-col gap-2 px-5 pb-5">
-              <button class="mp-btn primary w-full" id="mp-create"><span>${h('Create room')}</span></button>
-              <div class="flex gap-2"><input class="mp-field min-w-0 flex-1 [&:not(:placeholder-shown)]:tracking-wider [&:not(:placeholder-shown)]:uppercase" id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}" autocomplete="off" autocapitalize="characters"><button class="mp-btn" id="mp-join"><span>${h('Join')}</span></button></div>
+              <button class="mp-btn primary w-full" id="mp-create">${icon('plus', 'size-4')}<span>${h('Create room')}</span></button>
+              <div class="flex gap-2"><input class="mp-field min-w-0 flex-1 [&:not(:placeholder-shown)]:tracking-wider [&:not(:placeholder-shown)]:uppercase" id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}" autocomplete="off" autocapitalize="characters"><button class="mp-btn" id="mp-join">${icon('next', 'size-4')}<span>${h('Join')}</span></button></div>
             </div>
           </section>
           <a class="flex flex-none items-center gap-3.5 rounded-2xl border border-discord/60 bg-[linear-gradient(135deg,#2a2b6b,#191a45)] p-4 text-ink no-underline transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow" href="https://discord.gg/VYfWyXyRuf" target="_blank" rel="noopener noreferrer">
@@ -63,12 +63,12 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
           </a>
         </aside>
         <section class="mp-panel" data-pane>
-          <h2>${h('Duelists online')} <span class="min-w-6 rounded-full border border-white/10 bg-raised px-2 text-center font-sans text-xs leading-5 text-ink" id="mp-count">0</span></h2>
+          <h2>${icon('solo', 'size-4 text-brass')}${h('Duelists online')} <span class="min-w-6 rounded-full border border-white/10 bg-raised px-2 text-center font-sans text-xs leading-5 text-ink" id="mp-count">0</span></h2>
           <div id="mp-invite"></div>
           <div class="mp-scroll px-4 pb-4 sm:px-5"><div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-2" id="mp-roster"></div></div>
         </section>
         <section class="mp-panel" data-pane>
-          <h2>${h('Lobby chat')}</h2>
+          <h2>${icon('chat', 'size-4 text-brass')}${h('Lobby chat')}</h2>
           <div class="${MESSAGES} px-4 sm:px-5" id="mp-messages" role="log" aria-live="polite" data-empty="${h('Nothing said yet.')}"></div>
           <div id="mp-compose"></div>
         </section>
@@ -182,16 +182,24 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       void current?.leave(); lobby?.setBusy(false); select.disabled = false; renderRoom(); renderRoster();
       status(t('Online'));
     };
+    /** You and your opponent face to face: avatars, flags, names and whether each is ready. */
     const versus = (s: PrivateRoom) => {
-      const side = (who: string, state: string, ok: boolean) => {
-        const d = el('div', who, 'truncate px-2.5 py-3.5'); d.append(el('small', state, ok ? 'block text-xs text-ok' : 'block text-xs text-dim')); return frame('min-w-0 text-center', d);
+      const side = (who: string, look: { avatar?: string; country?: string } | undefined, state: string, ok: boolean) => {
+        const box = el('div', '', 'flex min-w-0 flex-col items-center gap-2 text-center');
+        const art = el('div', '', `relative size-20 overflow-hidden border-2 bg-raised shadow-xl shadow-black/60 sm:size-24 ${ok ? 'border-ok' : look ? 'border-brass/60' : 'border-white/15 animate-pulse'}`);
+        art.append(look ? portrait(avatarFor(look.avatar, who), look.country, who) : el('span', '?', 'grid size-full place-items-center font-display text-4xl text-faint'));
+        box.append(art, el('b', who, 'block w-full truncate font-display text-sm text-ink sm:text-base'),
+          el('small', state, `inline-flex items-center gap-1.5 text-xs before:size-1.5 before:rounded-full ${ok ? 'text-ok before:bg-ok' : 'text-dim before:bg-brass before:animate-pulse'}`));
+        return box;
       };
-      const row = el('div', '', 'mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5');
+      // before they connect, the challenged duelist's look comes from the lobby
+      const invited = challengeWith ? [...(lobby?.peers.values() ?? [])].find((peer) => peer.name === challengeWith) : undefined;
+      const row = el('div', '', 'relative mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border border-white/[.08] bg-[radial-gradient(ellipse_at_center,#2a2250_0%,#120e22_70%)] px-3 py-5');
       row.append(
-        side(lobby?.name ?? 'You', s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
-        el('b', 'VS', 'font-display text-lg text-brass-txt'),
-        s.opponent ? side(s.opponent.name, s.opponent.ready ? t('Ready ✓') : t('Choosing…'), s.opponent.ready)
-          : side(challengeWith ?? t('Waiting…'), challengeWith ? t('Connecting…') : t('No one yet'), false),
+        side(lobby?.name ?? 'You', { avatar: seed, country }, s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
+        el('b', 'VS', 'font-display text-3xl text-brass-txt italic drop-shadow-[0_0_14px_#e0b34f99] sm:text-4xl'),
+        s.opponent ? side(s.opponent.name, s.opponent, s.opponent.ready ? t('Ready ✓') : t('Choosing…'), s.opponent.ready)
+          : side(challengeWith ?? t('Waiting…'), invited, challengeWith ? t('Connecting…') : t('No one yet'), false),
       );
       return row;
     };
@@ -199,7 +207,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!session) { if (roomModal.open) roomModal.close(); roomModal.replaceChildren(); return; }
       const s = session;
       const box = el('div', '', 'mp-sheet');
-      const err = el('div', s.error, 'mt-2.5 min-h-[18px] text-xs text-bad');
+      roomModal.classList.add('w-[min(560px,calc(100vw-24px))]');
+      const err = el('div', s.error, 'mt-2 min-h-[18px] text-xs text-bad');
       const actions = el('div', '', ROW);
       const cancel = btn(challengeWith ? t('Cancel') : t('Leave')); cancel.onclick = leaveRoom;
       // A failed WebRTC handshake often succeeds on a second attempt: rejoin the same room.
@@ -211,8 +220,9 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         const hint = s.error ? t('The challenge could not start.')
           : !s.opponent ? t('Waiting for {player} to accept…', { player: challengeWith }) : t('Starting the duel…');
         actions.append(cancel, ...(retry ? [retry] : []));
-        box.append(el('h2', t('Challenge')), el('p', hint), versus(s), err, actions);
+        box.append(el('h2', t('Challenge')), el('p', hint), versus(s));
         if (!s.opponent && !s.error && s.isHost) box.append(challengeBar ??= expiry());
+        box.append(err, actions);
       } else {
         const copies = el('div', '', 'mt-3 flex gap-2 *:flex-1');
         const copyCode = btn(t('Copy code'), 'small'), copyLink = btn(t('Copy invite link'), 'small');
@@ -264,25 +274,27 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       status(text);
     };
     /** Bar that drains over the challenge lifetime. */
-    const expiry = () => { const bar = el('div', '', 'mt-2.5 h-[3px] basis-full origin-left animate-drain rounded-full bg-brass'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
+    const expiry = () => { const bar = el('div', '', 'h-[3px] basis-full origin-left animate-drain bg-brass'); bar.style.animationDuration = `${CHALLENGE_MS}ms`; return bar; };
     const renderRoster = () => {
       const grid = q('roster'); grid.replaceChildren();
       q('count').textContent = String(lobby?.peers.size ?? 0);
       if (!lobby?.peers.size) {
-        const empty = el('div', '', 'col-span-full px-1.5 py-12 text-center text-xs text-dim');
+        const empty = el('div', '', 'col-span-full flex flex-col items-center px-1.5 py-12 text-center text-xs text-dim');
+        if (lobby) empty.insertAdjacentHTML('beforeend', `<span class="mb-4 grid size-16 place-items-center border border-brass/30 bg-[radial-gradient(#2a2250,#120e22)] text-brass-txt shadow-[0_0_30px_#e0b34f22]">${icon('solo', 'size-8')}</span>`);
         if (lobby) empty.append(el('b', t('Nobody else is here yet'), 'mb-1.5 block text-sm text-ink'),
           el('p', t('Duelists appear here when they open Multiplayer. Create a room to invite a friend directly.'), 'mx-auto max-w-[40ch]'));
         grid.append(empty);
         return;
       }
       for (const [id, profile] of lobby.peers) {
-        const card = el('article', '', 'group/d grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border border-white/[.08] bg-raised/60 p-2 pr-2.5 transition hover:border-brass/40' + (profile.busy ? ' busy' : ''));
+        const card = el('article', '', 'group/d grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-x-3 border border-white/[.08] bg-[linear-gradient(90deg,#241c3a,#18122a)] p-2 pr-2.5 transition hover:border-brass/50' + (profile.busy ? ' busy' : ''));
         const who = el('div', '', 'min-w-0');
         who.append(el('b', profile.name, 'block truncate font-semibold'),
           el('small', profile.busy ? t('In a duel') : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
         card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true), who);
         if (!profile.busy) {
-          const challenge = btn(t('Challenge'), 'small');
+          const challenge = btn(t('Challenge'), 'small primary');
+          challenge.insertAdjacentHTML('afterbegin', icon('solo', 'size-4'));
           challenge.disabled = !!session || outgoingInvite;
           challenge.onclick = async () => {
             if (!lobby || session || outgoingInvite) return;

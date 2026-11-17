@@ -20,7 +20,8 @@ const DIE = '<svg viewBox="0 0 24 24" class="size-[70%] -rotate-12" aria-hidden=
 /** A duelist's portrait, or their ace card's art when they have none. */
 function face(duelist: Pick<Opponent, 'id' | 'ace' | 'name'>) {
   const portrait = portraitURL(duelist.id);
-  if (portrait) return `<img src="${portrait}" alt="${esc(duelist.name)}" class="size-full object-cover object-top" draggable="false">`;
+  // ponytail: the portraits carry a game frame round their edges; scaling past it leaves a square face
+  if (portrait) return `<img src="${portrait}" alt="${esc(duelist.name)}" class="absolute top-[-6%] left-[-11%] h-auto w-[122%] max-w-none" draggable="false">`;
   const ace = CARDS.find((card) => card.name === duelist.ace);
   const src = ace ? cardSrc(ace.id) : '';
   return src ? `<img src="${esc(src)}" alt="${esc(duelist.name)}" class="size-full object-cover" draggable="false">` : `<span class="font-display text-2xl text-brass-txt">${esc(duelist.name.slice(0, 1))}</span>`;
@@ -33,7 +34,7 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
     <div class="flex items-center gap-2 px-3 py-3 lg:gap-3 lg:px-5 lg:pb-4">
       <button class="mp-icon" data-prev aria-label="${esc(t('Previous'))}">${icon('prev')}</button>
       <div class="flex min-w-0 flex-1 items-center gap-3 lg:flex-col lg:gap-0">
-        <div class="relative grid aspect-[118/141] w-20 flex-none place-items-center overflow-hidden border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 lg:mx-auto lg:w-36" data-big></div>
+        <div class="relative grid aspect-square w-20 flex-none place-items-center overflow-hidden border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 lg:mx-auto lg:w-36" data-big></div>
         <div class="min-w-0 flex-1 lg:w-full lg:pt-3 lg:text-center">
           <h2 class="truncate font-display text-base text-ink lg:text-xl" data-name></h2>
           <p class="line-clamp-2 text-xs text-brass-txt lg:text-sm" data-title></p>
@@ -47,7 +48,7 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
   const strip = root.querySelector<HTMLElement>('[data-strip]')!;
   const tiles = [RANDOM, ...roster.map((_, index) => index)].map((index) => {
     const duelist = roster[index];
-    const tile = html<HTMLButtonElement>(`<button role="option" class="grid aspect-[5/6] w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-60 transition hover:opacity-100 lg:w-auto [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
+    const tile = html<HTMLButtonElement>(`<button role="option" class="relative grid aspect-square w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-60 transition hover:opacity-100 lg:w-auto [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
       index === RANDOM ? DIE : duelist.id === extra?.id ? '<span class="font-display text-xl text-brass-txt">+</span>' : face(duelist)}</button>`);
     tile.dataset.click = '';
     tile.onclick = () => choose(index);

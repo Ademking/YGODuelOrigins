@@ -52,7 +52,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   root.className = 'app-bg fixed inset-0 overflow-hidden';
   root.innerHTML = `<div class="mx-auto flex h-full w-full max-w-[1800px] flex-col gap-2 px-2 pt-[calc(env(safe-area-inset-top)+8px)] pb-[calc(env(safe-area-inset-bottom)+8px)] sm:gap-3 sm:px-4 sm:pt-4 sm:pb-4">
     <header class="flex items-center gap-1.5 sm:gap-2">
-      ${iconBtn('back', 'back', t('Back'))}
+      <button class="mp-btn !h-10 !px-3 sm:!px-4" data-act="back" aria-label="${esc(t('Back'))}">${icon('arrowLeft', 'size-5')}<span class="max-sm:hidden">${esc(t('Back'))}</span></button>
       <div class="flex h-10 min-w-0 flex-1 items-center border border-white/10 bg-panel/90">
         <button class="grid h-full w-9 flex-none place-items-center text-dim hover:text-brass-lit" data-act="prev" aria-label="${esc(t('Previous'))}">${icon('prev', 'size-4')}</button>
         <button class="flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 px-1 font-display text-sm text-brass-txt hover:bg-white/5 sm:text-base" data-act="pick"><span class="truncate" data-name></span>${icon('down', 'size-4 text-dim')}</button>

@@ -1,7 +1,8 @@
 // Line icons (24px grid, drawn with the current text colour) for menus and action buttons.
 const PATHS = {
   online: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9m0-18C9.5 5.6 8.3 8.6 8.3 12s1.2 6.4 3.7 9M3.5 9h17M3.5 15h17"/>',
-  solo: '<path d="m14.5 4 5.5 5.5-9 9H5.5V13l9-9ZM4 20h16"/>',
+  solo: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/>',
+  arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   deck: '<rect x="4" y="6" width="11" height="15" rx="2"/><path d="M9 3h9a2 2 0 0 1 2 2v13"/>',
   replay: '<path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7M4 4v4.7h4.7"/><path d="m10 9 5 3-5 3V9Z"/>',
   back: '<path d="m15 5-7 7 7 7"/>',
