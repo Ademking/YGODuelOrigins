@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { COL, txt } from './theme';
+import { cardBackUrl } from './animeCard';
 
 export class LoadingScreen extends Phaser.GameObjects.Container {
   private label: Phaser.GameObjects.Text;
@@ -10,8 +11,11 @@ export class LoadingScreen extends Phaser.GameObjects.Container {
     scene.add.existing(this);
     this.setDepth(5000);
     const back = scene.add.rectangle(640, 360, 4000, 4000, 0x000000).setInteractive();
-    this.gif = scene.add.dom(640, 330).createElement('img', 'width: 210px; height: 210px; pointer-events: none;');
-    (this.gif.node as HTMLImageElement).src = '/ui/loading.gif';
+    // a face-down deck whose top card keeps lifting off and sliding back (app.css .loading-deck)
+    this.gif = scene.add.dom(640, 330).createElement('div', 'width: 210px; height: 210px; pointer-events: none;');
+    const backImage = `url(${cardBackUrl()})`;
+    (this.gif.node as HTMLElement).innerHTML = `<div class="loading-deck">${'<i></i>'.repeat(5)}</div>`;
+    (this.gif.node as HTMLElement).style.setProperty('--back', backImage);
     this.once('destroy', () => this.gif.destroy());
     this.label = txt(scene, 640, 455, '0%', 13, COL.dim).setOrigin(0.5, 0);
     this.add([back, this.label]);

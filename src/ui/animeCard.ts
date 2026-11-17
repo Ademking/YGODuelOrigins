@@ -7,7 +7,12 @@ import { cardStat } from './cardStat';
 
 const KEY = 'arcana-duel.card-style';
 export const animeCards = () => { try { return localStorage.getItem(KEY) === 'anime'; } catch { return false; } };
-export const setAnimeCards = (on: boolean) => { try { localStorage.setItem(KEY, on ? 'anime' : 'official'); } catch { /* storage unavailable */ } };
+/** The card back for the chosen style. */
+export const cardBackUrl = () => (animeCards() ? '/cards/anime/back.png' : '/ui/card-back.png');
+/** html.anime-cards swaps the menus' card backs (app.css). */
+const markStyle = () => { if (typeof document !== 'undefined') document.documentElement.classList.toggle('anime-cards', animeCards()); };
+markStyle();
+export const setAnimeCards = (on: boolean) => { try { localStorage.setItem(KEY, on ? 'anime' : 'official'); } catch { /* storage unavailable */ } markStyle(); };
 
 export const CARD_BASE: string = import.meta.env?.VITE_CARD_IMAGE_BASE ?? 'https://wsrv.nl/?url=images.ygoprodeck.com/images/cards/';
 // ponytail: derived from the card image base; a custom VITE_CARD_IMAGE_BASE must also serve /cards_cropped/.

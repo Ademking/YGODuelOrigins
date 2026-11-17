@@ -1,6 +1,7 @@
 import { iconUrl, MENU_ICONS } from '../app/icons';
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
+import { cardBackUrl } from '../ui/animeCard';
 import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
 import { PORTRAIT_IDS, portraitKey, portraitPath } from '../ui/portraits';
@@ -8,7 +9,6 @@ import { loadCardTexts } from '../i18n/cards';
 import { LOCALES } from '../i18n';
 
 // Boot loads only the card back and zone icons. Card faces are fetched on demand by ui/cardLoader.
-const CARD_BACK_URL = '/ui/card-back.png';
 // The UI fonts are requested right away so they are usually ready before the loading screen's text is drawn.
 const fontReady = loadFonts();
 // Card names and text in the player's language load alongside (English needs nothing).
@@ -26,7 +26,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', (progress: number) => this.screen.progress(progress * 0.8));
     this.load.on('filecomplete', (key: string) => { if (key === BACK) this.normalizeCard(BACK); });
     this.load.setCORS('anonymous');
-    this.load.image(BACK, CARD_BACK_URL);
+    this.load.image(BACK, cardBackUrl());
     this.load.image('game_logo', '/ui/duel-origins-logo.webp');
     for (const name of MENU_ICONS) this.load.svg(`icon_${name}`, iconUrl(name), { width: 48, height: 48 });
     this.load.image('zone_field', '/zone-icons/field.png');

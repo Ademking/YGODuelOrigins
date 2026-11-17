@@ -165,8 +165,10 @@ document.addEventListener('load', (event) => {
   const img = event.target;
   if (!(img instanceof HTMLImageElement) || !img.dataset.paint) return;
   const id = img.dataset.paint;
-  delete img.dataset.paint;
+  // the image stays hidden (card back showing) until it is painted; if it cannot be, the bare art shows
   void animeAssets().then(() => {
+    if (img.dataset.paint !== id) return;
+    delete img.dataset.paint;
     try {
       const canvas = document.createElement('canvas');
       canvas.width = 300;

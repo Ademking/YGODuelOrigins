@@ -220,3 +220,24 @@ input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
 }
 .menu-tile:hover .menu-emblem { box-shadow: 0 0 0 1.5px var(--a), 0 0 0 5px #0b0816, 0 0 0 6px color-mix(in srgb, var(--a) 55%, transparent), 0 0 40px color-mix(in srgb, var(--a) 55%, transparent); }
 @media (prefers-reduced-motion: reduce) { .menu-tile, .menu-emblem { transition: none; } .menu-tile:hover { transform: none; } }
+
+/* Anime card style: its own card back in the menus. */
+.anime-cards .card { background-image: url(/cards/anime/back.png); }
+/* An anime face shows the card back until it has been painted into its frame. */
+.card > img[data-paint] { opacity: 0; }
+
+/* Loading screen: a face-down deck; the top card lifts off and slides back under. */
+.loading-deck { position: relative; width: 100%; height: 100%; perspective: 600px; }
+.loading-deck i {
+  position: absolute; left: 50%; top: 50%; width: 96px; height: 140px; margin: -70px 0 0 -48px;
+  background: var(--back) center / cover; box-shadow: 0 6px 16px #000a;
+  transform: translate(calc(var(--n) * -2px), calc(var(--n) * -2px)) rotateX(18deg) rotateZ(-8deg);
+}
+.loading-deck i:nth-child(1) { --n: 0; } .loading-deck i:nth-child(2) { --n: 1; } .loading-deck i:nth-child(3) { --n: 2; }
+.loading-deck i:nth-child(4) { --n: 3; } .loading-deck i:nth-child(5) { --n: 4; animation: deck-draw 1.4s ease-in-out infinite; }
+@keyframes deck-draw {
+  0%, 15% { transform: translate(-8px, -8px) rotateX(18deg) rotateZ(-8deg); }
+  45% { transform: translate(70px, -40px) rotateX(18deg) rotateZ(8deg); }
+  75%, 100% { transform: translate(-8px, -8px) rotateX(18deg) rotateZ(-8deg); }
+}
+@media (prefers-reduced-motion: reduce) { .loading-deck i:nth-child(5) { animation: none; } }
