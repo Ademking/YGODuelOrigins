@@ -66,7 +66,7 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
     if (duelist) big.innerHTML = face(duelist);
     else {
       // Random flicks through the roster's faces
-      const show = () => { big.innerHTML = `${face(anyone())}<span class="absolute font-display text-4xl text-brass-txt drop-shadow-[0_2px_6px_#000] lg:text-6xl">?</span>`; };
+      const show = () => { big.innerHTML = `<div class="absolute inset-0 opacity-40 grayscale">${face(anyone())}</div><span class="relative font-display text-5xl text-brass-txt drop-shadow-[0_2px_8px_#000] lg:text-8xl">?</span>`; };
       show();
       if (!reducedMotionPreferred()) shuffle = setInterval(() => { if (big.isConnected) show(); else clearInterval(shuffle); }, 260);
     }
