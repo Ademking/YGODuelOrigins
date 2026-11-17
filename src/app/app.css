@@ -195,17 +195,15 @@ input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
   .title-card { opacity: .65; transform: rotate(var(--r)); }
 }
 
-/* Main-menu tiles: a plain dark panel; its accent --a lights the icon, the top edge and the border on hover. */
-.menu-tile {
-  background: linear-gradient(180deg, #ffffff0d, #ffffff05), #0e0b1acc;
-  border: 1px solid #ffffff1a; border-top: 2px solid color-mix(in srgb, var(--a) 70%, transparent);
-  backdrop-filter: blur(6px);
-  transition: transform .2s, border-color .2s, background-color .2s;
-}
-.menu-tile:hover, .menu-tile:focus-visible { border-color: color-mix(in srgb, var(--a) 60%, transparent); border-top-color: var(--a); background-color: #18122acc; }
-@media (hover: hover) { .menu-tile:hover { transform: translateY(-2px); } }
-.menu-emblem { color: var(--a); }
-@media (prefers-reduced-motion: reduce) { .menu-tile { transition: none; } .menu-tile:hover { transform: none; } }
+/* Main menu: a plain column of rows; the only colour is the brass of the logo, on hover and focus. */
+.menu-item { position: relative; color: var(--color-ink); transition: color .15s, background-color .15s, padding .15s; }
+.menu-item::before { content: ''; position: absolute; inset-block: 10px; inset-inline-start: 0; width: 2px; background: var(--color-brass); opacity: 0; transition: opacity .15s; }
+.menu-item .menu-icon { color: var(--color-dim); transition: color .15s; }
+.menu-item:hover, .menu-item:focus-visible { color: var(--color-brass-lit); background: linear-gradient(90deg, #e0b34f14, transparent); padding-inline-start: 1.5rem; }
+.menu-item:hover::before, .menu-item:focus-visible::before { opacity: 1; }
+.menu-item:hover .menu-icon, .menu-item:focus-visible .menu-icon { color: var(--color-brass); }
+[dir=rtl] .menu-item:hover, [dir=rtl] .menu-item:focus-visible { background: linear-gradient(-90deg, #e0b34f14, transparent); }
+@media (prefers-reduced-motion: reduce) { .menu-item { transition: none; } }
 
 /* Anime card style: its own card back in the menus. */
 .anime-cards .card { background-image: url(/cards/anime/back.png); }

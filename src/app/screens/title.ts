@@ -70,13 +70,11 @@ const title: Screen = (root) => {
         <button class="mp-btn small gap-2" data-lang aria-label="${esc(t('Language'))}">${flag(current.flag)}<span>${esc(current.name)}</span><span class="text-brass-txt">${icon('down', 'size-3.5')}</span></button>
       </div>
       <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise lg:max-h-[38svh] lg:flex-none lg:pb-[5svh]"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain lg:w-[min(100%,560px)] drop-shadow-[0_0_40px_#d8b25e55]"></h1>
-      <nav class="grid w-full gap-2.5 lg:grid-cols-4 lg:gap-4" aria-label="${esc(t('Main menu'))}">
+      <nav class="flex w-full max-w-sm flex-col gap-1" aria-label="${esc(t('Main menu'))}">
         ${([['Multiplayer', 'online', t('Online Duel'), t('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), t('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), t('Build and edit your decks')], ['Watch', 'replay', t('Replays'), t('Watch two CPU duelists play each other')]] as const)
-          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms;--a:${['#e0b34f', '#e2574b', '#559ee6', '#4cbc7d'][index]}" class="menu-tile ${index === 0 ? 'primary' : ''} group relative flex animate-rise items-center gap-4 px-5 py-[min(14px,1.6svh)] text-start text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-64 lg:flex-col lg:justify-center lg:gap-5 lg:px-6 lg:text-center">
-            
-            <span class="menu-emblem relative grid size-11 flex-none place-items-center lg:size-14">${icon(key, 'size-6 lg:size-10')}</span>
-            <span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="block font-display text-[15px] tracking-wide lg:text-xl">${esc(label)}</b><small class="block truncate text-xs text-dim lg:mt-1.5 lg:line-clamp-2 lg:min-h-[2lh] lg:text-[13px] lg:whitespace-normal">${esc(sub)}</small></span>
-            <span class="relative text-xl text-dim lg:hidden">${icon('next', 'size-5')}</span></button>`).join('')}
+          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="menu-item flex animate-rise items-center gap-4 px-4 py-[min(12px,1.4svh)] text-start focus-visible:outline-2 focus-visible:outline-glow">
+            <span class="menu-icon flex-none">${icon(key, 'size-6')}</span>
+            <span class="min-w-0 flex-1"><b class="block font-display text-base tracking-wide lg:text-lg">${esc(label)}</b><small class="block truncate text-xs text-dim">${esc(sub)}</small></span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
       </nav>
       <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-6 lg:flex lg:w-auto lg:justify-center">
