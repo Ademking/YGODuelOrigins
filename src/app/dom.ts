@@ -112,7 +112,7 @@ export function chooseFromList(title: string, options: readonly string[], select
 export function sheet(title: string, body: string, width = 'w-[min(640px,calc(100vw-24px))]') {
   const dialog = html<HTMLDialogElement>(`<dialog autofocus class="mp-modal ${width}"><div class="mp-sheet">
     <div class="flex items-start gap-3"><h2 class="flex-1">${esc(title)}</h2>
-    <button class="mp-icon !size-9 text-base" data-close aria-label="${esc(t('Close'))}">✕</button></div>
+    <button class="mp-icon !size-9 text-base focus-visible:outline-2" data-close aria-label="${esc(t('Close'))}"><svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="mt-4">${body}</div></div></dialog>`);
   dialog.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
@@ -152,7 +152,7 @@ export function prefetchCards(ids: Iterable<string>) {
 /** Header used by the menu screens: back button and title. */
 export function header(title: string, back: () => void, extra = '') {
   const node = html(`<header class="sticky top-0 z-20 -mx-4 flex items-center gap-3 bg-void/90 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:backdrop-blur-none">
-    <button class="mp-btn small sm:h-11 sm:rounded-xl sm:px-5 sm:text-sm" data-back aria-label="${esc(t('Back'))}"><span aria-hidden="true">‹</span><span class="hidden sm:inline">${esc(t('Back'))}</span></button>
+    <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" data-back aria-label="${esc(t('Back'))}"><svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg><span class="hidden sm:inline">${esc(t('Back'))}</span></button>
     <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${esc(title)}</h1>${extra}</header>`);
   node.querySelector<HTMLButtonElement>('[data-back]')!.onclick = back;
   return node;

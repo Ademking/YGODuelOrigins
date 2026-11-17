@@ -4,6 +4,7 @@ import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import { go } from '../app/dom';
 import { showCardSheet } from '../app/cardInfo';
+import { MENU_ICONS } from '../app/icons';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
 import type { Side, Zone } from '../engine/types';
@@ -716,8 +717,8 @@ export class DuelScene extends Phaser.Scene {
     // phase track on the midline
     PHASES.forEach((ph, i) => {
       const b = this.portrait
-        ? button(this, CX + (i - 2.5) * 90, Y.phase, 84, 42, ph, () => this.clickPhase(ph), { size: 19, tab: true })
-        : button(this, CX + (i - 2.5) * 66, Y.phase, 60, 26, ph, () => this.clickPhase(ph), { size: 13, tab: true });
+        ? button(this, CX + (i - 2.5) * 90, Y.phase, 86, 58, ph, () => this.clickPhase(ph), { size: 25, tab: true })
+        : button(this, CX + (i - 2.5) * 80, Y.phase, 74, 32, ph, () => this.clickPhase(ph), { size: 15, tab: true });
       b.setDepth(350);
       this.phaseBtns[ph] = b;
     });
@@ -1821,7 +1822,7 @@ export class DuelScene extends Phaser.Scene {
     if (minimize) {
       this.dialog.setVisible(false);
       this.minimizedDialog = this.add.container(0, 0).setDepth(950);
-      this.minimizedDialog.add(button(this, CX, 70, 230, 36, t('Return to prompt'), () => this.minimizePrompt(false), { size: 13 }));
+      this.minimizedDialog.add(button(this, CX, 74, 300, 46, t('Return to prompt'), () => this.minimizePrompt(false), { size: 17 }));
     } else {
       this.closeMenu();
       this.minimizedDialog?.destroy();
@@ -1835,10 +1836,10 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(850);
     const selected = new Set<number>();
     const top = this.portrait ? PORTRAIT.top + 8 : viewOf(this).top + 12;
-    const label = htxt(this, CX - 76, top + 22, '', 14, COL.goldTxt).setOrigin(0.5);
-    layer.add(panel(this, CX - 228, top, 456, 44, 0.98));
+    const label = htxt(this, CX - 86, top + 30, '', 18, COL.goldTxt).setOrigin(0.5);
+    layer.add(panel(this, CX - 260, top, 520, 60, 0.98));
     layer.add(label);
-    const confirm = button(this, CX + 142, top + 22, 132, 32, t('Confirm'), () => this.choose([...selected]), { size: 13, primary: true });
+    const confirm = button(this, CX + 160, top + 30, 172, 44, t('Confirm'), () => this.choose([...selected]), { size: 16, primary: true });
     const update = () => {
       label.setText(`${t('Disable zones')} · ${selected.size}/${prompt.count}`);
       confirm.setEnabled(selected.size === prompt.count);
@@ -1869,22 +1870,22 @@ export class DuelScene extends Phaser.Scene {
   private showFieldSelect(prompt: Extract<Prompt, { t: 'select' }>) {
     const layer = this.add.container(0, 0).setDepth(850);
     // portrait: larger, over the opponent's plate so it leaves the whole board clear
-    if (this.enlarge(layer, 600, CX, 40, 0, PORTRAIT.top + 4) > 1) {
+    if (this.enlarge(layer, 640, CX, 40, 0, PORTRAIT.top + 4) > 1) {
       // a solid backing hides the opponent's plate underneath
-      layer.add(this.add.graphics().fillStyle(0x0e0c1b, 1).fillRect(CX - 300, 36, 600, 96).lineStyle(1, COL.line, 1).strokeRect(CX - 300, 36, 600, 96));
+      layer.add(this.add.graphics().fillStyle(0x0e0c1b, 1).fillRect(CX - 320, 34, 640, 126).lineStyle(1, COL.line, 1).strokeRect(CX - 320, 34, 640, 126));
     }
-    const title = htxt(this, CX, 62, prompt.text, 14).setOrigin(0.5);
-    if (title.width > 560) title.setScale(560 / title.width);
-    layer.add(panel(this, CX - 300, 40, 600, 45, 0.95, 6));
+    const title = htxt(this, CX, 68, prompt.text, 19).setOrigin(0.5);
+    if (title.width > 600) title.setScale(600 / title.width);
+    layer.add(panel(this, CX - 320, 40, 640, 56, 0.95, 6));
     layer.add(title);
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
     const hasSecondary = prompt.finish || prompt.cancel;
-    const confirm = single ? null : button(this, hasSecondary ? CX - 66 : CX, 110, 160, 32, t('Confirm'), () => this.choose([...chosen]), { size: 12, primary: true });
+    const confirm = single ? null : button(this, hasSecondary ? CX - 90 : CX, 128, 200, 44, t('Confirm'), () => this.choose([...chosen]), { size: 16, primary: true });
     if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
     if (prompt.finish || prompt.cancel) {
-      layer.add(button(this, single ? CX : CX + 86, 110, 120, 32, prompt.finish ? t('Confirm') : t('Cancel'),
-        () => this.choose(null), { size: 12 }));
+      layer.add(button(this, single ? CX : CX + 116, 128, 160, 44, prompt.finish ? t('Confirm') : t('Cancel'),
+        () => this.choose(null), { size: 16 }));
     }
     this.fieldSelection = { prompt, chosen, layer, confirm };
     this.refreshHighlights();
@@ -2047,41 +2048,48 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(980);
     const blocker = this.playfieldBlocker(0x000000, 0.55);
     layer.add(blocker);
-    this.enlarge(layer, 340, CX, 145, 0, PORTRAIT.top + 60);
-    const all: [string, () => void][] = [
-      [t('Resume'), () => this.closeMenu()],
-      [t('Log'), () => { this.closeMenu(); this.toggleLogs(); }],
+    this.enlarge(layer, 380, CX, 145, 0, PORTRAIT.top + 60);
+    const all: [string, () => void, (typeof MENU_ICONS)[number]][] = [
+      [t('Resume'), () => this.closeMenu(), 'play'],
+      [t('Log'), () => { this.closeMenu(); this.toggleLogs(); }, 'log'],
       [t(this.chainMode === 'auto' ? 'Chain prompts: Smart' : 'Chain prompts: Always'), () => {
         this.chainMode = this.chainMode === 'auto' ? 'always' : 'auto';
         try { localStorage.setItem('arcana-duel.chain', this.chainMode); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
+      }, 'chain'],
       [t(this.spd < 0.7 ? 'Speed: Fast' : 'Speed: Normal'), () => {
         this.spd = this.spd < 0.7 ? 1 : 0.4;
         this.duel.delay = this.duel.nearDelay = 200 * this.spd;
         try { localStorage.setItem('arcana-duel.fast', this.spd < 0.7 ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
-      [t('Volume'), () => this.showVolume()],
+      }, 'speed'],
+      [t('Volume'), () => this.showVolume(), 'volume'],
       [t(this.hologramsEnabled ? 'Holograms: On' : 'Holograms: Off'), () => {
         this.hologramsEnabled = !this.hologramsEnabled;
         this.refreshStats();
         try { localStorage.setItem('arcana-duel.holograms', this.hologramsEnabled ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
+      }, 'news'],
       [t(this.reducedEffects ? 'Effects: Reduced' : 'Effects: Full'), () => {
         this.reducedEffects = !this.reducedEffects;
         try { localStorage.setItem('arcana-duel.reduced-effects', this.reducedEffects ? '1' : '0'); } catch { /* ignore */ }
         this.closeMenu(); this.showMenu();
-      }],
-      [t('Surrender'), () => { this.closeMenu(); this.surrender(); }],
-      [t('Quit to Home'), () => { this.closeMenu(); this.surrender(true); void go('Title'); }],
+      }, 'settings'],
+      [t('Surrender'), () => { this.closeMenu(); this.surrender(); }, 'flag'],
+      [t('Quit to Home'), () => { this.closeMenu(); this.surrender(true); void go('Title'); }, 'home'],
     ];
     // a spectator has no chains to answer and nothing to surrender
     const items = this.init0.watch ? all.filter((_, index) => index !== 2 && index !== 7) : all;
-    layer.add(panel(this, CX - 170, 145, 340, 94 + items.length * 48));
+    layer.add(panel(this, CX - 190, 145, 380, 94 + items.length * 48));
     layer.add(htxt(this, CX, 175, t('Menu'), 24).setOrigin(0.5));
-    items.forEach(([l, f], i) => layer.add(button(this, CX, 225 + i * 48, 270, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') })));
+    items.forEach(([l, f, name], i) => {
+      const b = button(this, CX, 225 + i * 48, 320, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') });
+      // the icon on the left; a label too long to clear it shrinks and moves right
+      if (this.textures.exists(`icon_${name}`)) b.add(this.add.image(-136, 0, `icon_${name}`).setDisplaySize(20, 20));
+      const label = b.list.find((child): child is Phaser.GameObjects.Text => child instanceof Phaser.GameObjects.Text);
+      if (label && label.width > 240) label.setScale(240 / label.width).setX(14);
+      layer.add(b);
+    });
     this.overlay = layer;
   }
 

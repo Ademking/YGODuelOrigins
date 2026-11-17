@@ -1,4 +1,5 @@
 // Duelist picker: a large portrait with name and deck style, arrows, and a strip of every duelist's face plus Random.
+import { icon } from './icons';
 import { OPPONENTS, type Opponent } from '../data/decks';
 import { CARDS } from '../ocgcore/catalog';
 import { portraitURL } from '../ui/portraits';
@@ -29,22 +30,24 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
   const roster = extra ? [...OPPONENTS, extra] : OPPONENTS;
   const root = html(`<section class="mp-panel overflow-hidden">
     <div class="flex items-center justify-between px-5 pt-4"><span class="eyebrow">${esc(label)}</span><span class="text-xs text-dim" data-pos></span></div>
-    <div class="flex items-center gap-3 px-3 pt-3 sm:px-5">
-      <button class="mp-icon text-2xl" data-prev aria-label="${esc(t('Previous'))}">‹</button>
-      <div class="relative mx-auto grid aspect-[118/141] w-32 flex-none place-items-center overflow-hidden rounded-2xl border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 sm:w-36" data-big></div>
-      <button class="mp-icon text-2xl" data-next aria-label="${esc(t('Next'))}">›</button>
+    <div class="flex items-center gap-2 px-3 py-3 lg:gap-3 lg:px-5 lg:pb-4">
+      <button class="mp-icon" data-prev aria-label="${esc(t('Previous'))}">${icon('prev')}</button>
+      <div class="flex min-w-0 flex-1 items-center gap-3 lg:flex-col lg:gap-0">
+        <div class="relative grid aspect-[118/141] w-20 flex-none place-items-center overflow-hidden border border-brass/40 bg-[linear-gradient(160deg,#2a2250,#0c0a18)] shadow-xl shadow-black/50 lg:mx-auto lg:w-36" data-big></div>
+        <div class="min-w-0 flex-1 lg:w-full lg:pt-3 lg:text-center">
+          <h2 class="truncate font-display text-base text-ink lg:text-xl" data-name></h2>
+          <p class="line-clamp-2 text-xs text-brass-txt lg:text-sm" data-title></p>
+          <p class="mx-auto mt-1 line-clamp-2 max-w-[44ch] text-xs text-dim max-lg:hidden lg:min-h-[2.5em]" data-style></p>
+        </div>
+      </div>
+      <button class="mp-icon" data-next aria-label="${esc(t('Next'))}">${icon('next')}</button>
     </div>
-    <div class="px-5 pt-3 pb-4 text-center">
-      <h2 class="truncate font-display text-lg text-ink sm:text-xl" data-name></h2>
-      <p class="text-sm text-brass-txt" data-title></p>
-      <p class="mx-auto mt-1 min-h-[2.5em] max-w-[44ch] text-xs text-dim" data-style></p>
-    </div>
-    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(40px,1fr))] sm:overflow-visible" data-strip role="listbox" aria-label="${esc(label)}"></div>
+    <div class="flex snap-x gap-1.5 overflow-x-auto border-t border-white/[.06] bg-field/50 p-3 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(40px,1fr))] lg:overflow-visible" data-strip role="listbox" aria-label="${esc(label)}"></div>
   </section>`);
   const strip = root.querySelector<HTMLElement>('[data-strip]')!;
   const tiles = [RANDOM, ...roster.map((_, index) => index)].map((index) => {
     const duelist = roster[index];
-    const tile = html<HTMLButtonElement>(`<button role="option" class="grid aspect-[5/6] w-10 flex-none snap-start place-items-center overflow-hidden rounded-lg border-2 border-transparent bg-raised opacity-60 transition hover:opacity-100 sm:w-auto [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
+    const tile = html<HTMLButtonElement>(`<button role="option" class="grid aspect-[5/6] w-10 flex-none snap-start place-items-center overflow-hidden border-2 border-transparent bg-raised opacity-60 transition hover:opacity-100 lg:w-auto [&.on]:border-brass [&.on]:opacity-100" title="${esc(duelist?.name ?? t('Random'))}">${
       index === RANDOM ? DIE : duelist.id === extra?.id ? '<span class="font-display text-xl text-brass-txt">+</span>' : face(duelist)}</button>`);
     tile.dataset.click = '';
     tile.onclick = () => choose(index);
@@ -57,8 +60,8 @@ export function duelistPicker(label: string, selected: number, onChange: (index:
     const duelist = roster[selected];
     const custom = !!extra && duelist?.id === extra.id;
     root.querySelector('[data-pos]')!.textContent = duelist ? `${selected + 1} / ${roster.length}` : '';
-    big.innerHTML = custom ? '<span class="font-display text-6xl text-brass-txt">+</span>'
-      : duelist ? face(duelist) : `<div class="absolute inset-0 opacity-25">${face(anyone())}</div><span class="relative font-display text-6xl text-brass-txt">?</span>`;
+    big.innerHTML = custom ? '<span class="font-display text-4xl text-brass-txt lg:text-6xl">+</span>'
+      : duelist ? face(duelist) : `<div class="absolute inset-0 opacity-25">${face(anyone())}</div><span class="relative font-display text-4xl text-brass-txt lg:text-6xl">?</span>`;
     root.querySelector('[data-name]')!.textContent = duelist?.name ?? t('Random');
     root.querySelector('[data-title]')!.textContent = duelist?.title ? t(duelist.title) : t('A surprise duelist, picked when the duel starts');
     root.querySelector('[data-style]')!.textContent = duelist?.style ? t(duelist.style) : '';

@@ -1,3 +1,4 @@
+import { icon } from '../icons';
 import { loadDecks, OPPONENTS, selectedDeck, setSelectedDeck, validateDeck, type Opponent } from '../../data/decks';
 import { getCard } from '../../ocgcore/catalog';
 import type { DeckList } from '../../engine/duel';
@@ -30,7 +31,7 @@ const setup: Screen = (root) => {
   let startingLP: 4000 | 8000 = store.get('arcana-duel.starting-lp') === '4000' ? 4000 : 8000;
 
   root.className = 'app-bg fixed inset-0 overflow-y-auto';
-  const page = html(`<div class="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
+  const page = html(`<div class="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-3 px-4 lg:gap-4 pb-[calc(env(safe-area-inset-bottom)+20px)] sm:px-6"></div>`);
   root.append(page);
   page.append(header(t('Duel Setup'), () => void go('Title')));
   const picker = duelistPicker(t('CPU opponent'), opponentIndex, (index) => {
@@ -38,31 +39,34 @@ const setup: Screen = (root) => {
     store.set('arcana-duel.opp', index === customIndex ? custom.id : OPPONENTS[index]?.id ?? 'random');
     refresh();
   }, custom);
-  const cpuSelect = html<HTMLButtonElement>('<button class="mp-btn mx-5 mb-4 !justify-between"></button>');
+  const cpuSelect = html<HTMLButtonElement>('<button class="mp-btn mx-3 mb-3 !justify-between lg:mx-5 lg:mb-4"></button>');
   picker.el.append(cpuSelect);
   const deckPanel = html(`<section class="mp-panel overflow-hidden">
     <div class="flex items-center justify-between px-5 pt-4"><span class="eyebrow">${esc(t('Player deck'))}</span><span class="text-xs text-dim" data-pos></span></div>
-    <div class="flex items-center gap-3 px-3 pt-3 sm:px-5">
-      <button class="mp-icon text-2xl" data-prev aria-label="${esc(t('Previous'))}">‹</button>
-      <div class="mx-auto w-28 flex-none sm:w-32" data-art></div>
-      <button class="mp-icon text-2xl" data-next aria-label="${esc(t('Next'))}">›</button>
+    <div class="flex items-center gap-2 px-3 py-3 lg:gap-3 lg:px-5">
+      <button class="mp-icon" data-prev aria-label="${esc(t('Previous'))}">${icon('prev')}</button>
+      <div class="flex min-w-0 flex-1 items-center gap-3 lg:flex-col lg:gap-0">
+        <div class="w-16 flex-none lg:mx-auto lg:w-32" data-art></div>
+        <div class="min-w-0 flex-1 lg:w-full lg:pt-3 lg:text-center">
+          <h2 class="truncate font-display text-base lg:text-xl" data-name></h2>
+          <p class="text-xs text-brass-txt lg:text-sm" data-count></p>
+          <p class="mt-1 line-clamp-2 text-xs lg:min-h-[1.5em]" data-status></p>
+        </div>
+      </div>
+      <button class="mp-icon" data-next aria-label="${esc(t('Next'))}">${icon('next')}</button>
     </div>
-    <div class="px-5 pt-3 pb-2 text-center">
-      <h2 class="truncate font-display text-lg sm:text-xl" data-name></h2>
-      <p class="text-sm text-brass-txt" data-count></p>
-      <p class="mt-1 min-h-[1.5em] text-xs" data-status></p>
-    </div>
-    <div class="grid gap-2 px-5 pb-5">
-      <button class="mp-btn !justify-between" data-choose><span>${esc(t('Choose Player Deck ▾').replace(' ▾', ''))}</span><span class="text-brass-txt">▾</span></button>
-      <div class="grid grid-cols-2 gap-2"><button class="mp-btn small" data-edit>${esc(t('Edit Deck'))}</button><button class="mp-btn small" data-new>${esc(t('+ New Deck'))}</button></div>
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 border-t border-white/[.06] px-3 py-3 lg:grid-cols-2 lg:px-5 lg:pb-5">
+      <button class="mp-btn !justify-between lg:col-span-2" data-choose><span class="truncate">${esc(t('Choose Player Deck ▾').replace(' ▾', ''))}</span>${icon('down', 'size-4 text-brass-txt')}</button>
+      <button class="mp-btn max-lg:!w-11 max-lg:!px-0" data-edit aria-label="${esc(t('Edit Deck'))}" title="${esc(t('Edit Deck'))}">${icon('rename', 'size-4')}<span class="max-lg:hidden">${esc(t('Edit Deck'))}</span></button>
+      <button class="mp-btn max-lg:!w-11 max-lg:!px-0" data-new aria-label="${esc(t('+ New Deck'))}" title="${esc(t('+ New Deck'))}">${icon('plus', 'size-4')}<span class="max-lg:hidden">${esc(t('+ New Deck').replace('+ ', ''))}</span></button>
     </div></section>`);
-  const grid = html('<div class="grid items-start gap-4 lg:grid-cols-[1fr_auto_1fr]"></div>');
-  grid.append(picker.el, html(`<div class="self-center text-center font-display text-2xl text-brass-txt/80 lg:text-3xl">${esc(t('VS'))}</div>`), deckPanel);
+  const grid = html('<div class="grid items-start gap-3 lg:grid-cols-[1fr_auto_1fr] lg:gap-4"></div>');
+  grid.append(picker.el, html(`<div class="self-center text-center font-display text-lg text-brass-txt/80 max-lg:-my-2 lg:text-3xl">${esc(t('VS'))}</div>`), deckPanel);
   const lp = html(`<div class="flex items-center justify-center gap-2" role="radiogroup" aria-label="${esc(t('Starting Life Points'))}">
     <span class="mr-1 text-sm text-dim">${esc(t('Starting Life Points'))}</span>
     ${[4000, 8000].map((value) => `<button class="mp-btn small" role="radio" data-lp="${value}">${num(value)}</button>`).join('')}</div>`);
-  const start = html<HTMLButtonElement>(`<button class="mp-btn primary big w-full sm:w-80">${esc(t('Begin Duel'))}</button>`);
-  const footer = html('<div class="sticky bottom-0 mt-auto -mx-4 flex flex-col items-center gap-3 bg-void/90 px-4 py-4 backdrop-blur sm:static sm:bg-transparent sm:backdrop-blur-none"></div>');
+  const start = html<HTMLButtonElement>(`<button class="mp-btn primary big w-full sm:w-80">${icon('play', 'size-4')}${esc(t('Begin Duel'))}</button>`);
+  const footer = html('<div class="mt-auto flex flex-col items-center gap-3 pt-1"></div>');
   footer.append(lp, start);
   page.append(grid, footer);
 
@@ -118,7 +122,7 @@ const setup: Screen = (root) => {
     const isCustom = opponentIndex === customIndex;
     cpuSelect.hidden = !isCustom;
     cpuSelect.disabled = !cpuDecks.length;
-    cpuSelect.innerHTML = `<span class="truncate">${esc(cpuIndex >= 0 ? cpuDecks[cpuIndex] : cpuDecks.length ? t('Choose CPU Deck ▾').replace(' ▾', '') : t('No valid saved decks'))}</span><span class="text-brass-txt">▾</span>`;
+    cpuSelect.innerHTML = `<span class="truncate">${esc(cpuIndex >= 0 ? cpuDecks[cpuIndex] : cpuDecks.length ? t('Choose CPU Deck ▾').replace(' ▾', '') : t('No valid saved decks'))}</span>${icon('down', 'size-4 text-brass-txt')}`;
     cpuSelect.classList.toggle('on', cpuIndex >= 0);
     lp.querySelectorAll<HTMLButtonElement>('[data-lp]').forEach((button) => {
       const on = Number(button.dataset.lp) === startingLP;

@@ -428,7 +428,6 @@ export const DE: Dictionary = {
   "Surrender?": "Aufgeben?",
   "TAILS": "ZAHL",
   "Tails": "Zahl",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "Tippe auf eine Karte, um ihre Details zu sehen. Tippe auf eine Karte der Liste, um sie hinzuzufügen; tippe auf eine Deckkarte, um sie zu entfernen.",
   "Tap one card to choose it.": "Tippe auf eine Karte, um sie zu wählen.",
   "Temple Guardian": "Tempelwächter",
   "The Alchemist": "Der Alchemist",

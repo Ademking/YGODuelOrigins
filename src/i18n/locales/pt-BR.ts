@@ -428,7 +428,6 @@ export const PT_BR: Dictionary = {
   "Surrender?": "Desistir?",
   "TAILS": "COROA",
   "Tails": "Coroa",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "Toque em uma carta para ver os detalhes. Toque em uma carta da lista para adicioná-la; toque em uma carta do deck para removê-la.",
   "Tap one card to choose it.": "Toque em uma carta para escolhê-la.",
   "Temple Guardian": "Guardião do Templo",
   "The Alchemist": "O Alquimista",

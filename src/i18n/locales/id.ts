@@ -428,7 +428,6 @@ export const ID: Dictionary = {
   "Surrender?": "Menyerah?",
   "TAILS": "GAMBAR",
   "Tails": "Gambar",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "Ketuk kartu untuk melihat detailnya. Ketuk kartu di daftar untuk menambahkannya; ketuk kartu di deck untuk melepasnya.",
   "Tap one card to choose it.": "Ketuk satu kartu untuk memilihnya.",
   "Temple Guardian": "Penjaga Kuil",
   "The Alchemist": "Sang Alkemis",

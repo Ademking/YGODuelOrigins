@@ -10,7 +10,7 @@ export function mountBackdrop() {
   canvas.width = 320;
   canvas.height = 180;
   canvas.setAttribute('aria-hidden', 'true');
-  canvas.className = 'pointer-events-none fixed inset-0 -z-10 size-full';
+  canvas.className = 'pointer-events-none fixed inset-0 z-0 size-full';
   document.body.prepend(canvas);
   const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' });
   if (!gl) return canvas.remove(); // the CSS gradient on body stays

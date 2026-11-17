@@ -428,7 +428,6 @@ export const ES: Dictionary = {
   "Surrender?": "¿Rendirte?",
   "TAILS": "CRUZ",
   "Tails": "Cruz",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "Toca una carta para ver sus detalles. Toca una carta de la lista para añadirla; toca una carta del deck para quitarla.",
   "Tap one card to choose it.": "Toca una carta para elegirla.",
   "Temple Guardian": "Guardián del Templo",
   "The Alchemist": "El Alquimista",

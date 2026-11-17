@@ -1,3 +1,4 @@
+import { icon } from '../icons';
 import { CARDS } from '../../ocgcore/catalog';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { LOCALES, locale, setLocale, t } from '../../i18n';
@@ -45,15 +46,8 @@ const changelog = (): [string, string[]][] => [
   ]],
 ];
 
-const MENU_ICON = {
-  online: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9m0-18C9.5 5.6 8.3 8.6 8.3 12s1.2 6.4 3.7 9M3.5 9h17M3.5 15h17"/>',
-  solo: '<path d="m14.5 4 5.5 5.5-9 9H5.5V13l9-9ZM4 20h16"/>',
-  deck: '<rect x="4" y="6" width="11" height="15" rx="2"/><path d="M9 3h9a2 2 0 0 1 2 2v13"/>',
-  replay: '<path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7M4 4v4.7h4.7"/><path d="m10 9 5 3-5 3V9Z"/>',
-};
 /** A subtitle only where it reads in the player's language: a new line without a translation stays out. */
 const sub = (text: string) => (locale() === 'en' || t(text) !== text ? t(text) : '');
-const icon = (path: string) => `<svg viewBox="0 0 24 24" class="size-6 flex-none" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 
 const title: Screen = (root) => {
   const current = LOCALES.find((language) => language.code === locale())!;
@@ -68,27 +62,27 @@ const title: Screen = (root) => {
     const ms = 5000 + Math.random() * 3000;
     return `<div class="title-card" style="left:${jitter(x)}%;top:${jitter(y)}%;--r:${r}deg;--ms:${ms}ms;width:calc(${size} * ${tall ? '62vw' : 'min(15.6vw, 28vh)'});animation-delay:-${((index * 5) % spots.length) / spots.length * ms}ms" data-r="${r}" data-x="${x}" data-y="${y}">${cardHtml(randomCard(), 'shadow-2xl shadow-black', true)}</div>`;
   }).join('');
-  root.className = 'app-bg fixed inset-0 overflow-y-auto';
+  root.className = 'app-bg fixed inset-0 overflow-hidden';
   root.innerHTML = `
     <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true" data-floats>${floats}<div class="absolute inset-0 bg-[radial-gradient(closest-side,#0d0916b0,#0d091640_75%,transparent)]"></div></div>
-    <div class="relative mx-auto flex min-h-full w-full max-w-md flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+16px)] pb-[calc(env(safe-area-inset-bottom)+20px)]">
+    <div class="relative mx-auto flex h-full w-full max-w-md flex-col items-center px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]">
       <div class="flex w-full justify-end">
-        <button class="mp-btn small gap-2" data-lang aria-label="${esc(t('Language'))}">${flag(current.flag)}<span>${esc(current.name)}</span><span class="text-brass-txt">▾</span></button>
+        <button class="mp-btn small gap-2" data-lang aria-label="${esc(t('Language'))}">${flag(current.flag)}<span>${esc(current.name)}</span><span class="text-brass-txt">${icon('down', 'size-3.5')}</span></button>
       </div>
-      <h1 class="my-auto w-full pt-6 pb-8 animate-rise"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="mx-auto w-[min(100%,420px)] drop-shadow-[0_0_40px_#d8b25e55]"></h1>
+      <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain drop-shadow-[0_0_40px_#d8b25e55]"></h1>
       <nav class="grid w-full gap-2.5" aria-label="${esc(t('Main menu'))}">
         ${([['Multiplayer', 'online', t('Online Duel'), sub('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), sub('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), sub('Build and edit your decks')], ['Watch', 'replay', t('Replays'), sub('Watch two CPU duelists play each other')]] as const)
-          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group flex animate-rise items-center gap-4 rounded-2xl border px-5 py-3.5 text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
-            ${icon(MENU_ICON[key])}<span class="min-w-0 flex-1"><b class="block font-display text-[15px] tracking-wide">${esc(label)}</b>${sub ? `<small class="block truncate text-xs ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="text-xl opacity-60 transition group-hover:translate-x-1">›</span></button>`).join('')}
+          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group flex animate-rise items-center gap-4 rounded-2xl border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
+            ${icon(key, 'size-6')}<span class="min-w-0 flex-1"><b class="block font-display text-[15px] tracking-wide">${esc(label)}</b>${sub ? `<small class="block truncate text-xs ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="text-xl opacity-60 transition group-hover:translate-x-1">›</span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
       </nav>
-      <div class="mt-5 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
-        <button class="mp-btn small" data-about>${esc(t('About'))}</button>
-        <button class="mp-btn small" data-news>${esc(t('What’s New'))}</button>
-        <button class="mp-btn small" data-settings>${esc(t('Settings'))}</button>
-        <a class="mp-btn small !border-discord/50 hover:!bg-discord/20" href="${DISCORD}" target="_blank" rel="noopener">Discord</a>
+      <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
+        <button class="mp-btn small gap-2" data-about>${icon('info', 'size-4')}${esc(t('About'))}</button>
+        <button class="mp-btn small gap-2" data-news>${icon('news', 'size-4')}${esc(t('What’s New'))}</button>
+        <button class="mp-btn small gap-2" data-settings>${icon('settings', 'size-4')}${esc(t('Settings'))}</button>
+        <a class="mp-btn small gap-2 !border-discord/50 hover:!bg-discord/20" href="${DISCORD}" target="_blank" rel="noopener">${icon('chat', 'size-4')}Discord</a>
       </div>
-      <p class="mt-6 text-center text-[11px] text-faint">${esc(t('Fan-made duel simulator'))} · ${esc(t('2004 Expert Rules'))} · v${__APP_VERSION__}</p>
+      <p class="mt-[min(24px,2svh)] text-center text-[11px] text-faint">${esc(t('Fan-made duel simulator'))} · ${esc(t('2004 Expert Rules'))} · v${__APP_VERSION__}</p>
     </div>`;
   root.querySelector('[data-floats]')!.addEventListener('animationiteration', (event) => {
     const spot = event.target as HTMLElement;

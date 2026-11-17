@@ -1,3 +1,4 @@
+import { icon } from '../icons';
 import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../../data/decks';
 import { cleanName, newCode, parseCode, inviteURL } from '../../multiplayer/protocol';
 import { Lobby, PrivateRoom } from '../../multiplayer/client';
@@ -30,17 +31,23 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
   {
     // invite links come straight here: warm the duel engine while the lobby is open
     loadRuntime().catch(() => undefined);
-    const root = el('main', '', 'mp-root mp-scope fixed inset-0 z-[100] overflow-y-auto overscroll-contain lg:overflow-hidden');
-    // Mobile first: one scrolling column; two columns from lg, three from xl, each panel scrolling on its own.
-    root.innerHTML = `<div class="mx-auto flex min-h-full w-full max-w-[1480px] flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:gap-5 sm:px-6 lg:h-full lg:min-h-0 lg:py-6">
-      <header class="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 bg-[#06050d]/95 px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 sm:static sm:mx-0 sm:flex-nowrap sm:bg-transparent sm:p-0 sm:pt-6 lg:pt-0">
-        <button class="mp-btn small sm:h-11 sm:rounded-xl sm:px-5 sm:text-sm" id="mp-back" aria-label="${h('Back')}"><span aria-hidden="true">‹</span><span class="hidden sm:inline">${h('Back')}</span></button>
+    const root = el('main', '', 'mp-root mp-scope fixed inset-0 z-[100] overflow-hidden');
+    // The page never scrolls: below lg one panel at a time behind tabs; two columns from lg, three from xl.
+    // Only the lists inside (duelists, chat) scroll.
+    root.innerHTML = `<div class="mx-auto flex h-full w-full max-w-[1480px] flex-col gap-3 px-3 pt-[calc(env(safe-area-inset-top)+10px)] pb-[calc(env(safe-area-inset-bottom)+10px)] sm:gap-5 sm:px-6 sm:pt-6 lg:py-6">
+      <header class="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 sm:flex-nowrap">
+        <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" id="mp-back" aria-label="${h('Back')}">${icon('back')}<span class="hidden sm:inline">${h('Back')}</span></button>
         <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${h('Online Duel')}</h1>
         <button class="mp-btn small" id="mp-reconnect" hidden><span>${h('Reconnect')}</span></button>
         <p class="order-last flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-dim [overflow-wrap:anywhere] before:size-2 before:flex-none before:rounded-full before:bg-ok before:shadow-[0_0_8px_var(--color-ok)] sm:order-none sm:w-auto sm:max-w-[45%]" id="mp-status" role="status">${h(t('Connecting…'))}</p>
       </header>
-      <div class="grid gap-4 sm:gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
-        <aside class="flex flex-col gap-4 lg:row-span-2 lg:min-h-0 lg:overflow-y-auto xl:row-span-1">
+      <div class="grid flex-none grid-cols-3 gap-1.5 lg:hidden" role="tablist">
+        <button class="mp-btn small on !h-auto !flex-col !gap-1 !whitespace-normal !py-1.5 text-center !text-[11px] leading-tight" role="tab" data-pane="0">${icon('online', 'size-4')}<span>${h('Play a friend')}</span></button>
+        <button class="mp-btn small !h-auto !flex-col !gap-1 !whitespace-normal !py-1.5 text-center !text-[11px] leading-tight" role="tab" data-pane="1">${icon('solo', 'size-4')}<span>${h('Duelists online')}</span></button>
+        <button class="mp-btn small !h-auto !flex-col !gap-1 !whitespace-normal !py-1.5 text-center !text-[11px] leading-tight" role="tab" data-pane="2">${icon('chat', 'size-4')}<span>${h('Lobby chat')}</span></button>
+      </div>
+      <div class="grid min-h-0 flex-1 gap-4 sm:gap-5 max-lg:grid-rows-[minmax(0,1fr)] max-lg:[&>*:not(.on)]:hidden lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
+        <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
           ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`)}
           <section class="mp-panel flex-none">
             <h2>${h('Play a friend')}</h2>
@@ -55,12 +62,12 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
             <span><b class="block font-semibold text-white">${h('Find duelists on Discord')}</b><small class="mt-0.5 block text-xs text-[#b9bfff]">${h('The lobby is quiet? Post your room link on our Discord and someone will join.')}</small></span>
           </a>
         </aside>
-        <section class="mp-panel max-h-[560px] lg:max-h-none">
+        <section class="mp-panel" data-pane>
           <h2>${h('Duelists online')} <span class="min-w-6 rounded-full border border-white/10 bg-raised px-2 text-center font-sans text-xs leading-5 text-ink" id="mp-count">0</span></h2>
           <div id="mp-invite"></div>
           <div class="mp-scroll px-4 pb-4 sm:px-5"><div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] gap-2" id="mp-roster"></div></div>
         </section>
-        <section class="mp-panel h-[70svh] max-h-[600px] lg:h-auto lg:max-h-none">
+        <section class="mp-panel" data-pane>
           <h2>${h('Lobby chat')}</h2>
           <div class="${MESSAGES} px-4 sm:px-5" id="mp-messages" role="log" aria-live="polite" data-empty="${h('Nothing said yet.')}"></div>
           <div id="mp-compose"></div>
@@ -81,6 +88,14 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
       </div></dialog>`;
     app.append(root);
+    // phones and tablets: tabs pick the panel on show
+    const panes = root.querySelectorAll<HTMLElement>('[data-pane]:not([role])');
+    root.querySelectorAll<HTMLButtonElement>('[role=tab][data-pane]').forEach((tab, index, tabs) => {
+      tab.onclick = () => {
+        tabs.forEach((other, n) => { other.classList.toggle('on', n === index); other.setAttribute('aria-selected', String(n === index)); });
+        panes.forEach((pane, n) => pane.classList.toggle('on', n === index));
+      };
+    });
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
     const name = q<HTMLInputElement>('name'), decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');

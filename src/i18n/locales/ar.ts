@@ -428,7 +428,6 @@ export const AR: Dictionary = {
   "Surrender?": "استسلام؟",
   "TAILS": "كتابة",
   "Tails": "كتابة",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "المس بطاقة لرؤية تفاصيلها. المس بطاقة من القائمة لإضافتها، والمس بطاقة من المجموعة لإزالتها.",
   "Tap one card to choose it.": "المس بطاقة لاختيارها.",
   "Temple Guardian": "حارس المعبد",
   "The Alchemist": "الخيميائي",

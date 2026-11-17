@@ -6,7 +6,8 @@ import { sfx } from '../../ui/sfx';
 import { num, t } from '../../i18n';
 import { cardName, matchesTranslated } from '../../i18n/cards';
 import { $, cardHtml, chooseFromList, coarsePointer, esc, go, html, modal, type Screen } from '../dom';
-import { cardInfo } from '../cardInfo';
+import { cardInfo, showCardSheet } from '../cardInfo';
+import { icon, type IconName } from '../icons';
 
 const ATTRS: (Attr | 'Any')[] = ['Any', 'DARK', 'LIGHT', 'EARTH', 'WATER', 'FIRE', 'WIND', 'DIVINE'];
 const RACES: (Race | 'Any')[] = ['Any', ...[...new Set(CARDS.filter((c) => c.race).map((c) => c.race!))].sort()];
@@ -14,8 +15,17 @@ const LEVELS = ['Any', '1-4', '5-6', '7+'];
 const MTYPES = ['Any', 'Normal', 'Effect', 'Ritual', 'Fusion'];
 const SORTS = ['Name', 'ATK', 'DEF', 'Level', 'Type'];
 const KIND_ORDER = { monster: 0, spell: 1, trap: 2 };
-/** Pool cards drawn per batch; more are added as the list scrolls. */
-const BATCH = 60;
+const RATIO = 86 / 59; // card height / width
+/** Columns and card width that fit `n` cards into a w x h box with the largest cards. */
+function fit(n: number, w: number, h: number, gap: number) {
+  let best = { cols: 1, cw: 0 };
+  for (let cols = 1; cols <= Math.min(n, 20); cols++) {
+    const rows = Math.ceil(n / cols);
+    const cw = Math.min((w - (cols - 1) * gap) / cols, (h - (rows - 1) * gap) / rows / RATIO);
+    if (cw > best.cw) best = { cols, cw };
+  }
+  return { cols: best.cols, cw: Math.floor(best.cw) };
+}
 
 const sorted = (ids: string[]) => [...ids].sort((a, b) => {
   const ca = getCard(a), cb = getCard(b);
@@ -37,47 +47,50 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
         ${values.map((value, index) => `<option value="${index}">${esc(index ? show(value) : `${label}: ${t('Any')}`)}</option>`).join('')}</select>
       <span class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-brass-txt">▾</span></label>`;
 
-  root.className = 'app-bg fixed inset-0';
-  root.innerHTML = `<div class="mx-auto flex h-full w-full max-w-[1500px] flex-col gap-3 px-3 pt-[calc(env(safe-area-inset-top)+10px)] pb-[calc(env(safe-area-inset-bottom)+10px)] sm:px-5 sm:pt-5">
-    <header class="flex flex-wrap items-center gap-2">
-      <button class="mp-btn small" data-act="back" aria-label="${esc(t('Back'))}">‹<span class="hidden sm:inline">${esc(t('Back'))}</span></button>
-      <div class="flex min-w-0 flex-1 items-center gap-1">
-        <button class="mp-btn small !px-2.5" data-act="prev" aria-label="${esc(t('Previous'))}">‹</button>
-        <button class="min-w-0 flex-1 truncate rounded-lg px-2 py-1 text-center font-display text-sm text-brass-txt hover:bg-white/5 sm:text-lg" data-act="pick" data-name></button>
-        <button class="mp-btn small !px-2.5" data-act="next" aria-label="${esc(t('Next'))}">›</button>
+  const iconBtn = (act: string, name: IconName, label: string, extra = '') =>
+    `<button class="mp-icon !size-10 ${extra}" data-act="${act}" aria-label="${esc(label)}" title="${esc(label)}">${icon(name)}</button>`;
+  root.className = 'app-bg fixed inset-0 overflow-hidden';
+  root.innerHTML = `<div class="mx-auto flex h-full w-full max-w-[1800px] flex-col gap-2 px-2 pt-[calc(env(safe-area-inset-top)+8px)] pb-[calc(env(safe-area-inset-bottom)+8px)] sm:gap-3 sm:px-4 sm:pt-4 sm:pb-4">
+    <header class="flex items-center gap-1.5 sm:gap-2">
+      ${iconBtn('back', 'back', t('Back'))}
+      <div class="flex h-10 min-w-0 flex-1 items-center border border-white/10 bg-panel/90">
+        <button class="grid h-full w-9 flex-none place-items-center text-dim hover:text-brass-lit" data-act="prev" aria-label="${esc(t('Previous'))}">${icon('prev', 'size-4')}</button>
+        <button class="flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 px-1 font-display text-sm text-brass-txt hover:bg-white/5 sm:text-base" data-act="pick"><span class="truncate" data-name></span>${icon('down', 'size-4 text-dim')}</button>
+        <button class="grid h-full w-9 flex-none place-items-center text-dim hover:text-brass-lit" data-act="next" aria-label="${esc(t('Next'))}">${icon('next', 'size-4')}</button>
       </div>
-      <div class="flex w-full gap-1.5 sm:w-auto">
-        <button class="mp-btn small flex-1" data-act="new">${esc(t('New'))}</button>
-        <button class="mp-btn small flex-1" data-act="rename">${esc(t('Rename'))}</button>
-        <button class="mp-btn small flex-1" data-act="clear">${esc(t('Clear'))}</button>
-        <button class="mp-btn small danger flex-1" data-act="delete">${esc(t('Delete'))}</button>
-        <button class="mp-btn small primary flex-1" data-act="save">${esc(t('Save'))}</button>
-      </div>
+      <div class="flex gap-1.5 max-sm:hidden">${iconBtn('new', 'plus', t('New'))}${iconBtn('rename', 'rename', t('Rename'))}${iconBtn('clear', 'clear', t('Clear'))}${iconBtn('delete', 'trash', t('Delete'), 'text-bad hover:!border-hot')}</div>
+      <button class="mp-icon !size-10 sm:hidden" data-act="more" aria-label="${esc(t('Menu'))}">${icon('more')}</button>
+      <button class="mp-btn primary !h-10 !px-3 sm:!px-4" data-act="save">${icon('save', 'size-4')}<span class="max-sm:hidden">${esc(t('Save'))}</span></button>
     </header>
-    <p class="-mt-1 truncate text-center text-xs" data-status role="status"></p>
+    <p class="-my-0.5 truncate text-center text-xs" data-status role="status"></p>
     <div class="grid grid-cols-2 gap-1.5 lg:hidden" role="tablist">
-      <button class="mp-btn small" role="tab" data-tab="deck"></button><button class="mp-btn small" role="tab" data-tab="pool">${esc(t('Card List'))}</button>
+      <button class="mp-btn small" role="tab" data-tab="deck"></button><button class="mp-btn small" role="tab" data-tab="pool">${icon('search', 'size-4')}${esc(t('Card List'))}</button>
     </div>
-    <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(340px,440px)] xl:grid-cols-[280px_minmax(0,1fr)_440px] xl:grid-rows-1">
-      <section class="mp-panel lg:flex" data-deck>
-        <p class="px-4 pt-3 font-display text-[10px] tracking-wider text-brass-txt sm:text-[11px]" data-stats></p>
-        <div class="mp-scroll px-3 py-2"><div class="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(60px,1fr))]" data-main></div></div>
-        <div class="border-t border-white/[.08] px-3 pt-2 pb-3"><p class="eyebrow mb-1.5">${esc(t('Fusion Deck'))} <span data-fcount></span></p>
-          <div class="flex gap-1 overflow-x-auto pb-1" data-extra></div></div>
+    <div class="grid min-h-0 flex-1 gap-2 sm:gap-3 lg:grid-cols-[230px_minmax(0,1.15fr)_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1.15fr)_minmax(0,1fr)]">
+      <aside class="mp-panel overflow-hidden p-3 max-lg:hidden" data-info></aside>
+      <section class="mp-panel" data-deck>
+        <p class="flex-none border-b border-white/[.07] px-3 py-2 font-display text-[11px] tracking-wide text-brass-txt" data-stats></p>
+        <div class="min-h-0 flex-1 p-2" data-main-box><div class="grid h-full content-center justify-center gap-1" data-main></div></div>
+        <div class="flex-none border-t border-white/[.07] px-2 pt-1.5 pb-2" data-extra-box><p class="eyebrow mb-1">${esc(t('Fusion Deck'))} <span data-fcount></span></p>
+          <div class="grid gap-1" data-extra></div></div>
       </section>
-      <section class="mp-panel lg:flex" data-pool>
-        <div class="grid gap-2 p-3">
-          <input class="mp-field" type="search" placeholder="${esc(t('Search name or text…'))}" aria-label="${esc(t('Search name or text…'))}" data-q>
-          <div class="grid grid-cols-4 gap-1">${['all', 'monster', 'spell', 'trap'].map((kind) => `<button class="mp-btn small !px-1" data-kind="${kind}">${esc(t(kind === 'all' ? 'All' : kind[0].toUpperCase() + kind.slice(1)))}</button>`).join('')}</div>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-1.5">${select(t('Card'), MTYPES, 'mtype')}${select(t('Attr'), ATTRS, 'attr', (v) => v)}${select(t('Lv'), LEVELS, 'level')}${select(t('Type'), RACES, 'race')}${select(t('Sort'), SORTS, 'sort')}</div>
-          <p class="text-xs text-dim" data-total></p>
+      <section class="mp-panel @container" data-pool>
+        <div class="grid flex-none gap-1.5 border-b border-white/[.07] p-2">
+          <label class="relative block"><span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim">${icon('search', 'size-4')}</span>
+            <input class="mp-field !h-10 !pl-9" type="search" placeholder="${esc(t('Search name or text…'))}" aria-label="${esc(t('Search name or text…'))}" data-q></label>
+          <div class="grid grid-cols-4 gap-1">${['all', 'monster', 'spell', 'trap'].map((kind) => `<button class="mp-btn small !h-8 !px-1" data-kind="${kind}">${esc(t(kind === 'all' ? 'All' : kind[0].toUpperCase() + kind.slice(1)))}</button>`).join('')}</div>
+          <div class="grid grid-cols-3 gap-1 @lg:grid-cols-5">${select(t('Card'), MTYPES, 'mtype')}${select(t('Attr'), ATTRS, 'attr', (v) => v)}${select(t('Lv'), LEVELS, 'level')}${select(t('Type'), RACES, 'race')}${select(t('Sort'), SORTS, 'sort')}</div>
         </div>
-        <div class="mp-scroll px-3 pb-3" data-scroll><div class="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(80px,1fr))]" data-grid></div><div class="h-px" data-sentinel></div></div>
+        <div class="min-h-0 flex-1 touch-pan-y p-2" data-pool-box><div class="grid content-start justify-center gap-1.5" data-grid></div></div>
+        <footer class="flex flex-none items-center gap-2 border-t border-white/[.07] px-2 py-1.5">
+          <button class="mp-icon !size-9" data-page="-1" aria-label="${esc(t('Previous'))}">${icon('prev', 'size-4')}</button>
+          <p class="min-w-0 flex-1 truncate text-center text-xs text-dim"><span data-total></span> <span class="text-faint" data-pages></span></p>
+          <button class="mp-icon !size-9" data-page="1" aria-label="${esc(t('Next'))}">${icon('next', 'size-4')}</button>
+        </footer>
       </section>
-      <aside class="mp-panel max-h-[34svh] p-3 xl:col-start-1 xl:row-start-1 xl:max-h-none lg:col-span-2 xl:col-span-1" data-info></aside>
     </div></div>`;
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => $<T>(root, selector);
-  const info = cardInfo(coarsePointer() ? t('Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.') : t('Hover over a card to see its details.'), 'row-xl');
+  const info = cardInfo(t('Hover over a card to see its details.'), 'stack');
   info.el.classList.add('h-full');
   q('[data-info]').append(info.el);
   const status = q('[data-status]');
@@ -97,16 +110,25 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     flashTimer = window.setTimeout(refreshStatus, 1600);
   };
   const tile = (id: string, from: 'pool' | 'main' | 'extra') =>
-    `<button class="group relative block w-full touch-manipulation text-left ${from === 'extra' ? 'w-12 flex-none sm:w-14' : ''}" data-id="${id}" data-from="${from}" draggable="true" title="${esc(cardName(getCard(id)))}">${cardHtml(id, 'transition duration-150 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-brass/20')}${from === 'pool' ? '<span data-badge class="absolute right-1 bottom-1 rounded-md bg-void/90 px-1.5 py-px font-display text-[10px] font-bold"></span>' : ''}</button>`;
+    `<button class="group relative block w-full touch-manipulation text-left" data-id="${id}" data-from="${from}" draggable="true" title="${esc(cardName(getCard(id)))}">${cardHtml(id, 'transition duration-150 group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-brass/70')}${from === 'pool' ? '<span data-badge class="absolute right-0.5 bottom-0.5 bg-void/90 px-1 py-px font-display text-[10px] font-bold"></span>' : ''}</button>`;
 
   const renderDeck = () => {
     const main = sorted(deck.main), extra = sorted(deck.extra);
     const kind = (k: string) => deck.main.filter((id) => getCard(id).kind === k).length;
     q('[data-stats]').textContent = t('MAIN {main}  ·  MONSTERS {monsters}  ·  SPELLS {spells}  ·  TRAPS {traps}', { main: main.length, monsters: kind('monster'), spells: kind('spell'), traps: kind('trap') });
-    q('[data-main]').innerHTML = main.map((id) => tile(id, 'main')).join('') || `<p class="col-span-full py-10 text-center text-sm text-dim">${esc(t('Deck created. Add cards from the right.'))}</p>`;
-    q('[data-extra]').innerHTML = extra.map((id) => tile(id, 'extra')).join('');
+    const box = q('[data-main-box]'), gap = 4;
+    const { cols, cw } = fit(Math.max(main.length, 40), box.clientWidth - 16, box.clientHeight - 16, gap);
+    const grid = q('[data-main]');
+    grid.style.gridTemplateColumns = main.length ? `repeat(${cols}, ${cw}px)` : '';
+    grid.innerHTML = main.map((id) => tile(id, 'main')).join('') || `<p class="py-10 text-center text-sm text-dim">${esc(t('Deck created. Add cards from the right.'))}</p>`;
+    // the Fusion Deck: one row of up to 15, no larger than the main deck's cards
+    const ew = Math.max(8, Math.min(cw, Math.floor((q('[data-extra-box]').clientWidth - 16 - 14 * gap) / 15)));
+    const extraGrid = q('[data-extra]');
+    extraGrid.style.gridTemplateColumns = `repeat(15, ${ew}px)`;
+    extraGrid.style.minHeight = `${Math.round(ew * RATIO)}px`;
+    extraGrid.innerHTML = extra.map((id) => tile(id, 'extra')).join('');
     q('[data-fcount]').textContent = `(${extra.length})`;
-    q('[data-tab=deck]').textContent = `${t('Deck')} (${main.length}${extra.length ? ` + ${extra.length}` : ''})`;
+    q('[data-tab=deck]').innerHTML = `${icon('deck', 'size-4')}${esc(`${t('Deck')} (${main.length}${extra.length ? ` + ${extra.length}` : ''})`)}`;
     refreshStatus();
   };
 
@@ -133,7 +155,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
           : sort === 'Type' ? KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || (a.mtype ?? a.stype ?? '').localeCompare(b.mtype ?? b.stype ?? '') : 0;
     return list.sort((a, b) => key(a, b) || a.name.localeCompare(b.name));
   };
-  let pool: CardDef[] = [], drawn = 0;
+  let pool: CardDef[] = [], page = 0, perPage = 1;
   const badge = (button: HTMLElement) => {
     const id = button.dataset.id!, n = count(id), limit = copyLimit(getCard(id));
     const el = button.querySelector<HTMLElement>('[data-badge]')!;
@@ -143,25 +165,59 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     el.style.color = n >= limit ? '#ff9a7a' : n ? '#f0d08a' : '#a39cb8';
   };
   const refreshBadges = () => q('[data-grid]').querySelectorAll<HTMLElement>('[data-id]').forEach(badge);
-  const drawMore = () => {
-    const grid = q('[data-grid]');
-    const next = pool.slice(drawn, drawn + BATCH);
-    if (!next.length) return;
-    grid.insertAdjacentHTML('beforeend', next.map((card) => tile(card.id, 'pool')).join(''));
-    drawn += next.length;
-    Array.from(grid.children).slice(-next.length).forEach((node) => badge(node as HTMLElement));
+  /** One page of the list: as many cards as fit the panel, about 92px wide (78px on narrow panels). */
+  const drawPage = () => {
+    const box = q('[data-pool-box]'), grid = q('[data-grid]'), gap = 6;
+    const w = box.clientWidth - 16, h = box.clientHeight - 16;
+    if (w <= 0 || h <= 0) return; // hidden tab: drawn when it shows
+    const cols = Math.max(3, Math.floor((w + gap) / ((w < 520 ? 78 : 92) + gap)));
+    const wide = (w - (cols - 1) * gap) / cols;
+    // round to the nearest row count, then shrink the cards a little so those rows fill the height exactly
+    const rows = Math.max(1, Math.round((h + gap) / (wide * RATIO + gap)));
+    const cw = Math.floor(Math.min(wide, (h - (rows - 1) * gap) / rows / RATIO));
+    const first = page * perPage;
+    perPage = cols * rows;
+    const pages = Math.max(1, Math.ceil(pool.length / perPage));
+    page = Math.min(Math.floor(first / perPage), pages - 1);
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${cw}px)`;
+    grid.innerHTML = pool.length ? pool.slice(page * perPage, (page + 1) * perPage).map((card) => tile(card.id, 'pool')).join('')
+      : `<p class="col-span-full py-10 text-center text-dim">${esc(t('No cards match.'))}</p>`;
+    refreshBadges();
+    q('[data-pages]').textContent = pages > 1 ? `· ${page + 1} / ${pages}` : '';
+    q<HTMLButtonElement>('[data-page="-1"]').disabled = page === 0;
+    q<HTMLButtonElement>('[data-page="1"]').disabled = page >= pages - 1;
+  };
+  const turn = (step: number) => {
+    const next = Math.max(0, Math.min(page + step, Math.ceil(pool.length / perPage) - 1));
+    if (next !== page) { page = next; drawPage(); }
   };
   const renderPool = () => {
     pool = poolCards();
-    drawn = 0;
-    q('[data-grid]').innerHTML = pool.length ? '' : `<p class="col-span-full py-10 text-center text-dim">${esc(t('No cards match.'))}</p>`;
-    q('[data-scroll]').scrollTop = 0;
+    page = 0;
     q('[data-total]').textContent = pool.length === 1 ? t('1 card') : t('{n} cards', { n: num(pool.length) });
     root.querySelectorAll<HTMLElement>('[data-kind]').forEach((button) => button.classList.toggle('on', button.dataset.kind === filter.kind));
-    drawMore();
+    drawPage();
   };
-  const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) drawMore(); }, { root: q('[data-scroll]'), rootMargin: '400px' });
-  observer.observe(q('[data-sentinel]'));
+  root.querySelectorAll<HTMLButtonElement>('[data-page]').forEach((button) => { button.onclick = () => turn(Number(button.dataset.page)); });
+  // the wheel and a sideways swipe turn pages too
+  const poolBox = q('[data-pool-box]');
+  let wheelAt = 0;
+  poolBox.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    if (Math.abs(event.deltaY) < 4 || performance.now() - wheelAt < 180) return;
+    wheelAt = performance.now();
+    turn(Math.sign(event.deltaY));
+  }, { passive: false });
+  let swipeX = 0, swiped = false;
+  root.addEventListener('pointerdown', (event) => { swipeX = event.clientX; swiped = false; }, true);
+  poolBox.addEventListener('pointerup', (event) => {
+    const dx = event.clientX - swipeX;
+    if (event.pointerType !== 'mouse' && Math.abs(dx) > 50) { swiped = true; turn(dx < 0 ? 1 : -1); }
+  });
+  // cards and pages follow the panels' size
+  const resized = new ResizeObserver(() => { renderDeck(); drawPage(); });
+  resized.observe(q('[data-main-box]'));
+  resized.observe(poolBox);
 
   const showTab = (next: 'deck' | 'pool') => {
     tab = next;
@@ -191,9 +247,20 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   // cards: hover shows details; click adds (pool) or removes (deck); right-click on the pool removes a copy
   const cardOf = (event: Event) => (event.target as HTMLElement).closest<HTMLElement>('[data-id]');
   root.addEventListener('pointerover', (event) => { const card = cardOf(event); if (card && event.pointerType === 'mouse') info.show(getCard(card.dataset.id!)); });
+  // touch: a long press shows a card's details instead of adding or removing it
+  let pressTimer = 0, pressed = false;
+  root.addEventListener('pointerdown', (event) => {
+    const card = cardOf(event);
+    pressed = false;
+    clearTimeout(pressTimer);
+    if (card && event.pointerType !== 'mouse') pressTimer = window.setTimeout(() => { pressed = true; showCardSheet(getCard(card.dataset.id!)); }, 450);
+  });
+  root.addEventListener('pointerup', () => clearTimeout(pressTimer));
+  root.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+  root.addEventListener('pointermove', (event) => { if (Math.abs(event.clientX - swipeX) > 12) clearTimeout(pressTimer); });
   root.addEventListener('click', (event) => {
     const card = cardOf(event);
-    if (!card) return;
+    if (!card || pressed || swiped) return;
     info.show(getCard(card.dataset.id!));
     if (card.dataset.from === 'pool') add(card.dataset.id!); else remove(card.dataset.id!);
   });
@@ -201,6 +268,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     const card = cardOf(event);
     if (!card) return;
     event.preventDefault();
+    if (coarsePointer()) return; // a long press: handled on pointerdown
     if (card.dataset.from === 'pool' && !event.shiftKey) remove(card.dataset.id!); else add(card.dataset.id!);
   });
   // drag from the list onto the deck to add; from the deck onto the list to remove
@@ -276,6 +344,11 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
       if (index !== null) load(names[index]);
     },
     new: newDeck,
+    more: async () => {
+      const keys = ['new', 'rename', 'clear', 'delete'];
+      const index = await chooseFromList(t('Menu'), [t('New'), t('Rename'), t('Clear'), t('Delete')], -1);
+      if (index !== null) void actions[keys[index]]();
+    },
     rename: async () => {
       const typed = await askName(t('Rename deck'), name);
       if (!typed || typed === name) return;
@@ -315,6 +388,6 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   renderDeck();
   renderPool();
   if (data.createNew) void newDeck();
-  return () => { observer.disconnect(); clearTimeout(flashTimer); window.removeEventListener('keydown', keys); window.removeEventListener('beforeunload', unload); };
+  return () => { resized.disconnect(); clearTimeout(flashTimer); window.removeEventListener('keydown', keys); window.removeEventListener('beforeunload', unload); };
 };
 export default deckEditor;

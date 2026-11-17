@@ -1,3 +1,4 @@
+import { iconUrl, MENU_ICONS } from '../app/icons';
 import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
 import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
@@ -27,6 +28,7 @@ export class BootScene extends Phaser.Scene {
     this.load.setCORS('anonymous');
     this.load.image(BACK, CARD_BACK_URL);
     this.load.image('game_logo', '/ui/duel-origins-logo.webp');
+    for (const name of MENU_ICONS) this.load.svg(`icon_${name}`, iconUrl(name), { width: 48, height: 48 });
     this.load.image('zone_field', '/zone-icons/field.png');
     this.load.image('zone_extra', '/zone-icons/extra.png');
     this.load.image('equip_badge', '/zone-icons/equip.png');

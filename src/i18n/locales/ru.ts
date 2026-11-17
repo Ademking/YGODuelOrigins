@@ -428,7 +428,6 @@ export const RU: Dictionary = {
   "Surrender?": "Сдаться?",
   "TAILS": "РЕШКА",
   "Tails": "Решка",
-  "Tap a card to see its details. Tap a listed card to add it; tap a deck card to remove it.": "Коснитесь карты, чтобы увидеть описание. Коснитесь карты в списке, чтобы добавить её; коснитесь карты в колоде, чтобы убрать её.",
   "Tap one card to choose it.": "Коснитесь карты, чтобы выбрать её.",
   "Temple Guardian": "Страж Храма",
   "The Alchemist": "Алхимик",
