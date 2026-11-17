@@ -30,62 +30,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&amp;family=Michroma&amp;display=swap" rel="stylesheet" />
+  <meta name="theme-color" content="#06050d" />
   <style>
-    html, body { margin: 0; height: 100%; background: #06050d; overflow: hidden; }
-    #game { position: absolute; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overflow: hidden; }
-    #game canvas { touch-action: none; }
-    /* Arabic: Phaser positions its HTML overlays left to right, so the game area stays LTR; only text inside reads RTL */
-    #game { direction: ltr; }
-    html[dir="rtl"] #game .ad-log, html[dir="rtl"] #game input { direction: rtl; text-align: right; }
-    #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; text-align: center; font: 16px/1.5 Arial, sans-serif; }
-    input.ad-input { font: 16px Michroma, Cairo, Arial, sans-serif; background: #0a0916; color: #f1ebdc; border: 1px solid #3a3456; border-radius: 2px; padding: 7px 12px; outline: none; }
-    .ad-log { box-sizing: border-box; overflow-y: auto; padding-right: 10px; font: 12px/1.65 Michroma, Cairo, Arial, sans-serif; color: #9a93ae; scrollbar-width: thin; scrollbar-color: #7c6638 #0a0916; }
-    .ad-log b { color: #f1ebdc; }
-    .ad-log .turn { margin: 14px 0 6px; padding: 4px 10px; background: #1f1b33; color: #f0d08a; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
-    .ad-log .turn:first-child { margin-top: 0; }
-    .ad-log .play { color: #f1ebdc; }
-    .ad-log .hurt { color: #ff8a9a; font-weight: bold; }
-    .ad-log .lost { color: #ffb070; }
-    .ad-log .heal { color: #7dffa6; font-weight: bold; }
-    .ad-volume {
-      appearance: none;
-      -webkit-appearance: none;
-      height: 36px;
-      display: block;
-      margin: 0;
-      padding: 0;
-      background: transparent;
-      cursor: pointer;
-      touch-action: none;
-      --volume: 100%;
-    }
-    .ad-volume:focus-visible { outline: 2px solid #d8b25e; outline-offset: 3px; border-radius: 4px; }
-    .ad-volume::-webkit-slider-runnable-track {
-      height: 8px;
-      border-radius: 4px;
-      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
-    }
-    .ad-volume::-moz-range-track {
-      height: 8px;
-      border-radius: 4px;
-      background: linear-gradient(to right, #d8b25e var(--volume), #302946 var(--volume));
-    }
-    .ad-volume::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 18px;
-      height: 18px;
-      margin-top: -5px;
-      border: 2px solid #fff1c9;
-      border-radius: 4px;
-      background: #d8b25e;
-    }
-    .ad-volume::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid #fff1c9; border-radius: 4px; background: #d8b25e; }
-    input.ad-input::placeholder { color: #9a93ae; }
-    input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
+    html, body { margin: 0; height: 100%; background: #06050d; }
+    #startup-status { position: fixed; inset: 42% 18% auto; z-index: 120; color: #f1ebdc; background: #14121f; padding: 20px; border-radius: 16px; text-align: center; font: 16px/1.5 system-ui, sans-serif; }
+    #app:empty::after { content: ''; position: fixed; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px; border: 3px solid #d8b25e33; border-top-color: #d8b25e; border-radius: 50%; animation: boot-spin .8s linear infinite; }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="game"></div>
+  <div id="app"></div>
   <div id="startup-status" role="alert" hidden></div>
   <script type="module">
     const status = document.getElementById('startup-status');
@@ -103,10 +57,6 @@
       status.hidden = true;
     }, { once: true });
     document.addEventListener('duel-origins:boot-error', startupFailed, { once: true });
-    document.addEventListener('duel-origins:graphics-error', () => {
-      status.hidden = false;
-      status.textContent = 'The browser lost the graphics connection. Reload to start a new duel.';
-    });
     import('/src/main.ts').catch(startupFailed);
   </script>
 </body>

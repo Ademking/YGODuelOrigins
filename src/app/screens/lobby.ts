@@ -1,13 +1,12 @@
-import Phaser from 'phaser';
-import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../data/decks';
-import { cleanName, newCode, parseCode, inviteURL } from '../multiplayer/protocol';
-import { Lobby, PrivateRoom } from '../multiplayer/client';
-import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../multiplayer/ui';
-import { fitCamera, sceneBackground } from '../ui/theme';
-import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../multiplayer/profile';
-import { sfx } from '../ui/sfx';
-import { loadRuntime } from '../ocgcore/runtime';
-import { t } from '../i18n';
+import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../../data/decks';
+import { cleanName, newCode, parseCode, inviteURL } from '../../multiplayer/protocol';
+import { Lobby, PrivateRoom } from '../../multiplayer/client';
+import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
+import { go, type Screen } from '../dom';
+import { sfx } from '../../ui/sfx';
+import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../../multiplayer/profile';
+import { loadRuntime } from '../../ocgcore/runtime';
+import { t } from '../../i18n';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -27,15 +26,10 @@ const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
 const CHALLENGE_MS = 30000;
 
-export class MultiplayerScene extends Phaser.Scene {
-  constructor() { super('Multiplayer'); }
-  create(data: { rejoin?: boolean } = {}) {
+const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) => {
+  {
     // invite links come straight here: warm the duel engine while the lobby is open
     loadRuntime().catch(() => undefined);
-    // invite links skip the title screen, which otherwise tells index.html the game started (or it shows a failure after 18s)
-    document.dispatchEvent(new Event('duel-origins:ready'));
-    fitCamera(this);
-    sceneBackground(this);
     const root = el('main', '', 'mp-root mp-scope fixed inset-0 z-[100] overflow-y-auto overscroll-contain lg:overflow-hidden');
     // Mobile first: one scrolling column; two columns from lg, three from xl, each panel scrolling on its own.
     root.innerHTML = `<div class="mx-auto flex min-h-full w-full max-w-[1480px] flex-col gap-4 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] sm:gap-5 sm:px-6 lg:h-full lg:min-h-0 lg:py-6">
@@ -86,10 +80,7 @@ export class MultiplayerScene extends Phaser.Scene {
         <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
         <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
       </div></dialog>`;
-    document.body.append(root);
-    // ponytail: Phaser's keyboard listener lives on window; stop keys leaking into the scene while typing.
-    root.addEventListener('keydown', e => e.stopPropagation());
-    root.addEventListener('click', e => { if ((e.target as HTMLElement).closest('.mp-btn:not(:disabled)')) sfx.click(); });
+    app.append(root);
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
     const name = q<HTMLInputElement>('name'), decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
@@ -238,7 +229,7 @@ export class MultiplayerScene extends Phaser.Scene {
         room.onChange = renderRoom;
         room.onStart = match => {
           transferred = true;
-          this.scene.start('Duel', {
+          void go('Duel', {
             deck: match.deck, deckName: select.value,
             opp: { id: 'online', name: match.opponent, title: t('Online opponent'), art: '', ace: '', style: '', deck: match.opponentDeck, suggested: 'normal' },
             level: 'normal', startingLP: 8000, multiplayer: match, lobby,
@@ -347,7 +338,7 @@ export class MultiplayerScene extends Phaser.Scene {
       const me = lobby.name; lobby.close(); lobby = undefined;
       status(t('Reconnecting…')); connect(me);
     };
-    const back = () => this.scene.start('Title');
+    const back = () => void go('Title');
     nameModal.addEventListener('cancel', back);
     q<HTMLButtonElement>('name-back').onclick = back;
     q<HTMLButtonElement>('back').onclick = back;
@@ -362,9 +353,10 @@ export class MultiplayerScene extends Phaser.Scene {
       nameModal.showModal();
       name.focus(); name.setSelectionRange(name.value.length, name.value.length);
     }
-    this.events.once('shutdown', () => {
+    return () => {
       alive = false; root.remove();
       if (!transferred) { lobby?.close(); void session?.leave(); }
-    });
+    };
   }
-}
+};
+export default lobbyScreen;

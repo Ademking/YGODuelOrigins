@@ -1,5 +1,4 @@
 import type { ChatLine, PrivateRoom } from './client';
-import './multiplayer.css';
 import { t } from '../i18n';
 import { avatarFor, avatarURL, flagURL } from './profile';
 import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';

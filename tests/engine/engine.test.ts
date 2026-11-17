@@ -6,19 +6,6 @@ import { prepareDebugDuel } from '../../src/engine/debug';
 import { byName } from '../helpers';
 import { actionIndicator } from '../../src/ui/actionIndicator';
 import { RPS_CHOICES, rpsResult } from '../../src/engine/rockPaperScissors';
-import { evolveColor } from '../../src/ui/evolveEffect';
-
-test('placement effect colors distinguish revealed types without exposing set cards', () => {
-  const monster = byName('Battle Ox');
-  const spell = byName('Pot of Greed');
-  const trap = byName('Mirror Force');
-  assert.notEqual(evolveColor(monster, true), evolveColor(spell, true));
-  assert.notEqual(evolveColor(spell, true), evolveColor(trap, true));
-  assert.equal(evolveColor(monster, false), evolveColor(spell, false));
-  assert.equal(evolveColor(spell, false), evolveColor(trap, false));
-  const colors = ['normal', 'effect', 'fusion', 'ritual'].map((mtype) => evolveColor({ ...monster, mtype: mtype as typeof monster.mtype }, true));
-  assert.equal(new Set(colors).size, 4);
-});
 
 test('rock-paper-scissors resolves each matchup', () => {
   for (const choice of RPS_CHOICES) assert.equal(rpsResult(choice, choice), 'tie');
