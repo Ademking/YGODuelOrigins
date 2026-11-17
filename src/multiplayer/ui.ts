@@ -136,7 +136,7 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     let last = 0;
     const load = async (query: string) => {
       const mine = ++last;
-      grid.replaceChildren(); note.textContent = t('Loading…'); note.hidden = false;
+      grid.replaceChildren(); note.innerHTML = `<img src="/ui/loading.gif" alt="${t('Loading…')}" class="mx-auto size-20">`; note.hidden = false;
       try {
         const paths = await klipy(query);
         if (mine !== last) return;

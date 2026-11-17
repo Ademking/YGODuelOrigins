@@ -376,14 +376,16 @@ export class DuelScene extends Phaser.Scene {
     const layer = this.add.container(0, 0).setDepth(960);
     layer.add(this.playfieldBlocker(0x06050d, 0.85));
     this.enlarge(layer, 360);
-    layer.add(panel(this, CX - 180, CY - 70, 360, 140, 0.98));
-    layer.add(htxt(this, CX, CY - 32, t('Loading duel engine'), 18).setOrigin(0.5));
+    const gif = this.add.dom(CX, CY - 50).createElement('img', 'width: 170px; height: 170px; pointer-events: none;').setDepth(961);
+    (gif.node as HTMLImageElement).src = '/ui/loading.gif';
+    layer.once('destroy', () => gif.destroy());
+    layer.add(htxt(this, CX, CY + 54, t('Loading duel engine'), 18).setOrigin(0.5));
     const bar = this.add.graphics();
-    const label = txt(this, CX, CY + 40, '0%', 13, COL.dim).setOrigin(0.5);
+    const label = txt(this, CX, CY + 106, '0%', 13, COL.dim).setOrigin(0.5);
     layer.add([bar, label]);
     const stop = onRuntimeProgress((fraction) => {
       if (!layer.active) return;
-      bar.clear().fillStyle(0x231f38, 1).fillRect(CX - 140, CY + 4, 280, 8).fillStyle(COL.gold, 1).fillRect(CX - 140, CY + 4, 280 * fraction, 8);
+      bar.clear().fillStyle(0x231f38, 1).fillRect(CX - 140, CY + 80, 280, 8).fillStyle(COL.gold, 1).fillRect(CX - 140, CY + 80, 280 * fraction, 8);
       label.setText(`${Math.round(fraction * 100)}%`);
     });
     try {

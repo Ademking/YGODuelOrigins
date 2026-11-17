@@ -73,8 +73,8 @@ const title: Screen = (root) => {
       <nav class="grid w-full gap-2.5 lg:grid-cols-4 lg:gap-4" aria-label="${esc(t('Main menu'))}">
         ${([['Multiplayer', 'online', t('Online Duel'), t('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), t('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), t('Build and edit your decks')], ['Watch', 'replay', t('Replays'), t('Watch two CPU duelists play each other')]] as const)
           .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms;--a:${['#e0b34f', '#e2574b', '#559ee6', '#4cbc7d'][index]}" class="menu-tile ${index === 0 ? 'primary' : ''} group relative flex animate-rise items-center gap-4 px-5 py-[min(14px,1.6svh)] text-start text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-64 lg:flex-col lg:justify-center lg:gap-5 lg:px-6 lg:text-center">
-            <span class="menu-tile-frame" aria-hidden="true"></span>
-            <span class="menu-emblem relative grid size-11 flex-none place-items-center lg:size-[76px]">${icon(key, 'size-5 lg:size-8')}</span>
+            
+            <span class="menu-emblem relative grid size-11 flex-none place-items-center lg:size-14">${icon(key, 'size-6 lg:size-10')}</span>
             <span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="block font-display text-[15px] tracking-wide lg:text-xl">${esc(label)}</b><small class="block truncate text-xs text-dim lg:mt-1.5 lg:line-clamp-2 lg:min-h-[2lh] lg:text-[13px] lg:whitespace-normal">${esc(sub)}</small></span>
             <span class="relative text-xl text-dim lg:hidden">${icon('next', 'size-5')}</span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
