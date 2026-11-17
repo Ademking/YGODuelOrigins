@@ -20,8 +20,9 @@ const DIE = '<svg viewBox="0 0 24 24" class="size-[70%] -rotate-12" aria-hidden=
 /** A duelist's portrait, or their ace card's art when they have none. */
 function face(duelist: Pick<Opponent, 'id' | 'ace' | 'name'>) {
   const portrait = portraitURL(duelist.id);
-  // ponytail: the portraits carry a game frame round their edges; scaling past it leaves a square face
-  if (portrait) return `<img src="${portrait}" alt="${esc(duelist.name)}" class="absolute top-[-6%] left-[-11%] h-auto w-[122%] max-w-none" draggable="false">`;
+  // the hi-res close-ups are square; the small ones carry a game frame, so they are scaled past it
+  if (portrait) return portrait.includes('/hd/') ? `<img src="${portrait}" alt="${esc(duelist.name)}" class="size-full object-cover" draggable="false">`
+    : `<img src="${portrait}" alt="${esc(duelist.name)}" class="absolute top-[-6%] left-[-11%] h-auto w-[122%] max-w-none" draggable="false">`;
   const ace = CARDS.find((card) => card.name === duelist.ace);
   const src = ace ? cardSrc(ace.id) : '';
   return src ? `<img src="${esc(src)}" alt="${esc(duelist.name)}" class="size-full object-cover" draggable="false">` : `<span class="font-display text-2xl text-brass-txt">${esc(duelist.name.slice(0, 1))}</span>`;

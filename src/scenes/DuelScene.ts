@@ -81,7 +81,7 @@ let HAND_SCALE = 0.46 * CARD_K;
 let OPP_HAND_SCALE = 0.28 * CARD_K;
 let HAND_SPACING = 92, HAND_ROW = 600;
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
-const LEFT_W = 242; // width of the HUD column on the left
+const LEFT_W = 214; // width of the HUD column on the left: as wide as the card preview
 type Pos = { x: number; y: number; s: number; k: number; w: number };
 const QUAD_IDX = [0, 1, 2, 0, 2, 3]; // TL,TR,BR + TL,BR,BL
 const HOVER_GLOW = 0x7fdcea;
@@ -1026,15 +1026,17 @@ export class DuelScene extends Phaser.Scene {
     const sidebarBackground = this.add.graphics();
     for (const s of [opp(this.me), this.me]) this.buildPlate(s);
     // the card text runs down to your plate; Menu and Log live behind the hamburger in the top-right corner
-    this.cardPanel = new CardPanel(this, x + 8, 88, 268, 362, 270, w - 16, true);
+    this.cardPanel = new CardPanel(this, x + 8, 86, 300, 394, 238, w - 16, true);
     const sidebar = this.add.container(0, 0, this.children.list.slice(first));
     const resize = () => {
       this.sidePanelX = 640 - this.scale.baseSize.width / (2 * this.cameras.main.zoom) - x;
       sidebar.x = this.sidePanelX;
       const height = this.scale.baseSize.height / this.cameras.main.zoom;
       const top = (H - height) / 2;
-      sidebarBackground.clear().fillStyle(0x090814, 0.95).fillRect(x, top, w, height)
-        .lineStyle(1, COL.line, 1).lineBetween(x + w, top, x + w, top + height);
+      // a dark violet column, lit from the top, with a gold edge facing the board
+      sidebarBackground.clear().fillGradientStyle(0x171230, 0x171230, 0x07060f, 0x07060f, 0.97).fillRect(x, top, w, height)
+        .fillStyle(COL.gold, 0.08).fillRect(x + w - 3, top, 3, height)
+        .lineStyle(1, COL.gold, 0.5).lineBetween(x + w, top, x + w, top + height);
       this.cardPanel.setOffsetX(this.sidePanelX);
       const view = viewOf(this);
       menuButton.setPosition(view.cx + view.width / 2 - 34, view.cy - view.height / 2 + 30);
@@ -1094,7 +1096,7 @@ export class DuelScene extends Phaser.Scene {
     // portrait well
     const px = PLATE.x + 34, py = y + PLATE.h / 2;
     if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
-    else g.fillStyle(0x05040b, 1).fillPoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     const watched = s === this.me ? this.init0.watch : undefined;
     const online = this.init0.multiplayer;
     if (online) {
@@ -1106,16 +1108,22 @@ export class DuelScene extends Phaser.Scene {
       const deck = this.init0.deck;
       const ace = [...deck.main, ...deck.extra].map(getCard).filter((card) => card.kind === 'monster').sort((a, b) => (b.atk ?? 0) - (a.atk ?? 0))[0];
       if (ace) {
-        const k = 46 / 192;
-        setCardTexture(this.add.image(px, py + 25 * k, BACK), ace.id).setCrop(54, 79, 192, 230).setScale(k);
+        // the square middle of the card's art, filling the portrait slot
+        const k = 50 / 192;
+        setCardTexture(this.add.image(px, py + 44 * k, BACK), ace.id).setCrop(54, 79, 192, 192).setScale(k);
       } else htxt(this, px, py, t('YOU'), 11).setOrigin(0.5);
     } else {
       const duelist = watched ?? this.init0.opp;
       const portrait = portraitKey(duelist.id);
-      if (portrait && this.textures.exists(portrait)) this.add.image(px, py, portrait).setDisplaySize(46, 55);
+      if (portrait && this.textures.exists(portrait)) {
+        const image = this.add.image(px, py, portrait);
+        // the hi-res close-ups are square already; the small framed portraits are cropped inside their frame
+        if (image.width === image.height) image.setDisplaySize(52, 52);
+        else image.setCrop(9, 20, 100, 100).setScale(0.52);
+      }
       else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
     }
-    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.goldDim, 1).strokePoints(chamfer(px - 24, py - 29, 48, 58, 5), true);
+    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
     const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? t('You') : this.init0.opp.name),
       { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
     if (this.init0.multiplayer) {

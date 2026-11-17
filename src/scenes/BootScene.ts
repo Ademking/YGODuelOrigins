@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { BACK, CH, CW } from '../ui/cardArt';
 import { fitCamera, loadFonts, portraitScreen } from '../ui/theme';
 import { LoadingScreen } from '../ui/loading';
-import { PORTRAIT_IDS, portraitKey } from '../ui/portraits';
+import { PORTRAIT_IDS, portraitKey, portraitPath } from '../ui/portraits';
 import { loadCardTexts } from '../i18n/cards';
 import { LOCALES } from '../i18n';
 
@@ -40,7 +40,7 @@ export class BootScene extends Phaser.Scene {
     for (const attribute of ['dark', 'light', 'earth', 'water', 'fire', 'wind', 'divine', 'spell', 'trap']) {
       this.load.image(`attribute_${attribute}`, `/ui/attributes/${attribute}.png`);
     }
-    for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, `/portraits/${id}.png`);
+    for (const id of PORTRAIT_IDS) this.load.image(portraitKey(id)!, portraitPath(id));
     for (const choice of ['rock', 'paper', 'scissors']) this.load.image(`rps_${choice}`, `/ui/rps-${choice}.png`);
     // Language flags (flag-icons, MIT), rendered from assets/flags/<flag>.svg to 96x72 PNGs, twice the largest size
     // they are drawn. Phaser resizes an SVG with DOMParser, which can throw in Firefox and stall the whole loader.
