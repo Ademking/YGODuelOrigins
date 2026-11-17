@@ -32,8 +32,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   let tab: 'deck' | 'pool' = data.createNew ? 'pool' : 'deck';
 
   const select = (label: string, values: readonly string[], key: 'mtype' | 'attr' | 'race' | 'level' | 'sort', show = (v: string) => t(v)) =>
-    `<label class="relative min-w-0 flex-1 basis-[30%] sm:basis-0"><span class="sr-only">${esc(label)}</span>
-      <select data-filter="${key}" class="h-9 w-full cursor-pointer appearance-none rounded-lg border border-white/10 bg-field/80 pr-6 pl-2.5 text-xs text-ink outline-none focus:border-glow/70">
+    `<label class="relative min-w-0"><span class="sr-only">${esc(label)}</span>
+      <select data-filter="${key}" class="h-9 w-full cursor-pointer appearance-none truncate rounded-lg border border-white/10 bg-field/80 pr-6 pl-2.5 text-xs text-ink outline-none focus:border-glow/70">
         ${values.map((value, index) => `<option value="${index}">${esc(index ? show(value) : `${label}: ${t('Any')}`)}</option>`).join('')}</select>
       <span class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-[10px] text-brass-txt">▾</span></label>`;
 
@@ -69,7 +69,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
         <div class="grid gap-2 p-3">
           <input class="mp-field" type="search" placeholder="${esc(t('Search name or text…'))}" aria-label="${esc(t('Search name or text…'))}" data-q>
           <div class="grid grid-cols-4 gap-1">${['all', 'monster', 'spell', 'trap'].map((kind) => `<button class="mp-btn small !px-1" data-kind="${kind}">${esc(t(kind === 'all' ? 'All' : kind[0].toUpperCase() + kind.slice(1)))}</button>`).join('')}</div>
-          <div class="flex flex-wrap gap-1">${select(t('Card'), MTYPES, 'mtype')}${select(t('Attr'), ATTRS, 'attr', (v) => v)}${select(t('Lv'), LEVELS, 'level')}${select(t('Type'), RACES, 'race')}${select(t('Sort'), SORTS, 'sort')}</div>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-1.5">${select(t('Card'), MTYPES, 'mtype')}${select(t('Attr'), ATTRS, 'attr', (v) => v)}${select(t('Lv'), LEVELS, 'level')}${select(t('Type'), RACES, 'race')}${select(t('Sort'), SORTS, 'sort')}</div>
           <p class="text-xs text-dim" data-total></p>
         </div>
         <div class="mp-scroll px-3 pb-3" data-scroll><div class="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(80px,1fr))]" data-grid></div><div class="h-px" data-sentinel></div></div>

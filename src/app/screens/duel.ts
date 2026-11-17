@@ -109,7 +109,7 @@ class DuelView {
     ];
     const label: Partial<Record<Zone, string>> = { deck: t('Deck'), extra: t('Fusion Deck'), gy: t('Graveyard'), fzone: t('Field') };
     const slot = (side: Side, [zone, i]: [Zone, number]) => `<div class="${SLOT} ${zone === 'mzone' || zone === 'szone' ? '' : 'border-dashed'}" data-slot="${side}:${zone}:${i}" data-zone-label="${esc(label[zone] ?? '')}">
-      ${label[zone] ? `<span class="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 px-0.5 text-center text-[clamp(7px,calc(var(--cw)*.11),11px)] leading-tight text-faint uppercase">${esc(label[zone]!)}</span>` : ''}
+      ${label[zone] ? `<span class="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 px-0.5 text-center text-[clamp(7px,calc(var(--cw)*.11),11px)] leading-tight text-faint">${esc(label[zone]!)}</span>` : ''}
       ${zone === 'deck' || zone === 'gy' || zone === 'extra' ? `<b data-count="${side}:${zone}" class="absolute -bottom-1.5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-void/90 px-1.5 font-display text-[10px] text-brass-txt ring-1 ring-brass/40" hidden></b>` : ''}
       ${zone === 'gy' ? `<button data-banished="${side}" class="absolute z-20 ${side === this.me ? '-right-1 -top-2' : '-left-1 -bottom-2'} flex items-center gap-0.5 rounded-full bg-[#2a1a3a] px-1.5 py-px text-[10px] text-[#d9b8ff] ring-1 ring-[#d9a2ff66]" title="${esc(t('Banished'))}" hidden>⊘ <b></b></button>` : ''}
     </div>`;
@@ -133,8 +133,8 @@ class DuelView {
           <button class="mp-icon !size-11 text-dim" data-menu title="${esc(t('Menu'))}" aria-label="${esc(t('Menu'))}">${ICON.menu}</button>
         </header>
         <div class="flex h-[calc(var(--cw)*.62*${CARD_H})] flex-none justify-center overflow-hidden px-2 pt-1 [--hw:calc(var(--cw)*.62)]" data-hand="1"></div>
-        <div class="relative grid min-h-0 flex-1 place-items-center" data-stage>
-          <div class="relative flex flex-col items-center gap-[calc(var(--cw)*.08)] rounded-3xl p-[calc(var(--cw)*.1)]" data-board>
+        <div class="relative grid min-h-0 flex-1 place-items-center [perspective:1000px] [perspective-origin:50%_35%]" data-stage>
+          <div class="relative flex flex-col items-center gap-[calc(var(--cw)*.08)] p-[calc(var(--cw)*.12)] duel-board" data-board>
             <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-3xl" data-mat></div>
             <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-1/2 rounded-t-3xl transition duration-700 [&.on]:bg-[linear-gradient(#ff4d6314,transparent)]" data-glow="1"></div>
             <div class="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-1/2 rounded-b-3xl transition duration-700 [&.on]:bg-[linear-gradient(transparent,#d8b25e14)]" data-glow="0"></div>
@@ -224,13 +224,14 @@ class DuelView {
     for (const cleanup of this.cleanups) { try { cleanup(); } catch (error) { console.error(error); } }
   }
 
-  /** Card width: as large as both the stage's width (7 columns) and height (4 rows and the phase strip) allow. */
+  /** Card width: as large as the stage allows. The tilted board's projected size is measured, then scaled to fit. */
   private fit() {
     const stage = this.q('[data-stage]').getBoundingClientRect();
-    const byWidth = (stage.width - 16) / 7.75;
-    const byHeight = (stage.height - 44) / (4 * CARD_H + 0.6);
-    const cw = Math.max(34, Math.min(112, byWidth, byHeight));
+    let cw = Math.min(112, (stage.width - 16) / 7.75, (stage.height - 44) / (4 * CARD_H + 0.6));
     this.root.style.setProperty('--cw', `${cw.toFixed(1)}px`);
+    const board = this.q('[data-board]').getBoundingClientRect();
+    cw *= Math.min(1, (stage.width - 8) / board.width, (stage.height - 8) / board.height);
+    this.root.style.setProperty('--cw', `${Math.max(30, cw).toFixed(1)}px`);
     this.render(true);
   }
 

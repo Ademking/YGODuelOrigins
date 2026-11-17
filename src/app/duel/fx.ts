@@ -49,7 +49,7 @@ export async function activate(host: FxHost, card: Card, link: number) {
 export async function coinToss(host: FxHost, results: boolean[]) {
   sfx.coinToss();
   const coin = (heads: boolean, index: number) => `<div class="flex flex-col items-center gap-3">
-    <div class="${host.reduced ? '' : 'fx-coin'} grid size-20 place-items-center rounded-full border-4 shadow-xl shadow-black/60 ${heads ? 'border-[#ffe6a0] bg-[radial-gradient(#e4bb58,#81611d)]' : 'border-[#e1edf2] bg-[radial-gradient(#b2c0c9,#566574)]'}" style="animation-delay:${index * 110}ms">
+    <div class="${host.reduced ? '' : 'fx-coin'} grid size-20 place-items-center round border-4 shadow-xl shadow-black/60 ${heads ? 'border-[#ffe6a0] bg-[radial-gradient(#e4bb58,#81611d)]' : 'border-[#e1edf2] bg-[radial-gradient(#b2c0c9,#566574)]'}" style="animation-delay:${index * 110}ms">
       ${heads ? '<img src="/ui/coin-symbol.png" alt="" class="w-12">' : ''}</div>
     <b class="font-display text-xs tracking-widest text-ink">${esc(t(heads ? 'HEADS' : 'TAILS'))}</b></div>`;
   await show(host, `<div class="${BACKDROP}"><div class="animate-pop rounded-3xl border border-brass/50 bg-[#030711]/90 px-8 py-5 text-center shadow-2xl">
