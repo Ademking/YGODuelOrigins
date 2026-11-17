@@ -1025,7 +1025,7 @@ export class DuelScene extends Phaser.Scene {
     const first = this.children.length;
     const sidebarBackground = this.add.graphics();
     for (const s of [opp(this.me), this.me]) this.buildPlate(s);
-    // the card text runs down to your plate; Menu and Log live behind the hamburger in the top-right corner
+    // the card text runs down to your plate; Menu and Log live behind the hamburger in the bottom-left corner of the board
     this.cardPanel = new CardPanel(this, x + 8, 86, 300, 394, 238, w - 16, true);
     const sidebar = this.add.container(0, 0, this.children.list.slice(first));
     const resize = () => {
@@ -1039,7 +1039,7 @@ export class DuelScene extends Phaser.Scene {
         .lineStyle(1, COL.gold, 0.5).lineBetween(x + w, top, x + w, top + height);
       this.cardPanel.setOffsetX(this.sidePanelX);
       const view = viewOf(this);
-      menuButton.setPosition(view.cx + view.width / 2 - 34, view.cy - view.height / 2 + 30);
+      menuButton.setPosition(this.playLeft() + 34, view.cy + view.height / 2 - 30);
     };
     const menuButton = this.hamburger(0, 0, 44, 40).setDepth(400);
     resize();

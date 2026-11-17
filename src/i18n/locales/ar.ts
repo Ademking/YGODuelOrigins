@@ -563,4 +563,9 @@ export const AR: Dictionary = {
   "Next ›": "‹ التالي",
   "Volume": "الصوت",
   "‹ Previous": "السابق ›",
+  "Play the live lobby or a friend": "العب في الردهة المباشرة أو ضد صديق",
+  "Duel a CPU opponent": "بارز خصمًا من الحاسوب",
+  "Build and edit your decks": "أنشئ مجموعاتك وعدّلها",
+  "Cards: Official": "البطاقات: الرسمية",
+  "Cards: Anime": "البطاقات: أسلوب الأنمي",
 };

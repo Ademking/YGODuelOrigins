@@ -1,6 +1,7 @@
 // Saved preferences (chain prompts, speed, effects) and the volume control, shared by the title screen and the duel menu.
 import { t } from '../i18n';
 import { sfx } from '../ui/sfx';
+import { animeCards, setAnimeCards } from '../ui/animeCard';
 import { coarsePointer, esc, html } from './dom';
 
 const read = (key: string) => { try { return localStorage.getItem(`arcana-duel.${key}`); } catch { return null; } };
@@ -43,6 +44,7 @@ export function settingsRows() {
     [t('Chain prompts: Smart'), t('Chain prompts: Always'), () => prefs.chainAlways, (on) => { prefs.chainAlways = on; }],
     [t('Speed: Normal'), t('Speed: Fast'), () => prefs.fast, (on) => { prefs.fast = on; }],
     [t('Effects: Full'), t('Effects: Reduced'), () => prefs.reduced, (on) => { prefs.reduced = on; }],
+    [t('Cards: Official'), t('Cards: Anime'), animeCards, setAnimeCards],
   ];
   const root = html('<div class="grid gap-2"></div>');
   for (const [off, on, get, set] of rows) {

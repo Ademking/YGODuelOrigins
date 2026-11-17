@@ -20,6 +20,7 @@ export const opp = (side: Side): Side => side === 0 ? 1 : 0;
 const hidden: CardDef = { id: '', name: 'Face-down card', kind: 'monster', mtype: 'normal', art: '', text: '' };
 const REASON_DESTROY = 0x1;
 const REASON_BATTLE = 0x20;
+const REASON_MATERIAL = 0x8;
 const displayCards = new Map(CARDS.map(card => [Number(cardImagePasscode(card.id)), card]));
 const phases: Partial<Record<number, Phase>> = {
   [P.DRAW]: 'DP', [P.STANDBY]: 'SP', [P.MAIN1]: 'M1', [P.BATTLE_START]: 'BP', [P.BATTLE_STEP]: 'BP', [P.MAIN2]: 'M2', [P.END]: 'EP',
@@ -87,6 +88,8 @@ export class OcgDuel {
   private attackTarget?: Card | null;
   private choosingAttack = false;
   private destroyed = new Set<number>();
+  /** Cards just used as summon materials, shown spiralling into the next Fusion Summon. */
+  private materials: Card[] = [];
   /** The side that just summoned a monster, until play moves on: the CPU answers summons with its traps. */
   private lastSummon: Side | null = null;
   /** Chain windows already shown to the human this turn, so Smart chain prompts ask once per moment. */
@@ -242,7 +245,9 @@ export class OcgDuel {
         const to = zoneOf(message.to);
         const card = this.lookup(message.from) ?? this.card(this.side(message.to.controller), to ?? 'deck');
         const battleDestroyed = this.destroyed.delete(card.uid);
-        const reason = from && to && from !== to && this.onField(card) ? this.session?.moveReason(message.to, message.card) ?? 0 : 0;
+        // materials leave the hand or field for the Graveyard, banishment or the deck
+        const reason = from && to && from !== to && (this.onField(card) || ['gy', 'banished', 'deck', 'extra'].includes(to)) ? this.session?.moveReason(message.to, message.card) ?? 0 : 0;
+        if (reason & REASON_MATERIAL) this.materials.push(card);
         if (this.onField(card) && (battleDestroyed || (reason & REASON_DESTROY))) {
           await this.emit({ t: 'destroy', card, by: battleDestroyed || (reason & REASON_BATTLE) ? 'battle' : 'effect' });
         }
@@ -284,7 +289,8 @@ export class OcgDuel {
           this.lastSummon = card.ctrl;
           this.summons++;
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
-          if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: [] });
+          if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: this.materials });
+          this.materials = [];
           event = { t: 'summon', card, how };
         }
         break;

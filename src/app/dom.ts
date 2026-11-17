@@ -2,6 +2,8 @@
 import { cardImagePasscode } from '../data/cardImages';
 import { t } from '../i18n';
 import { sfx } from '../ui/sfx';
+import { animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from '../ui/animeCard';
+import { getCard } from '../ocgcore/catalog';
 
 export const esc = (value: unknown) => String(value).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
@@ -125,21 +127,55 @@ export function sheet(title: string, body: string, width = 'w-[min(640px,calc(10
 }
 
 // ---------------------------------------------------------------- cards
-const BASE: string = import.meta.env.VITE_CARD_IMAGE_BASE ?? 'https://wsrv.nl/?url=images.ygoprodeck.com/images/cards/';
 // ponytail: the default image proxy resizes and re-encodes; a custom base is used as is.
-const SIZED = BASE.includes('wsrv.nl') ? '&w=320&output=webp' : '';
+const SIZED = CARD_BASE.includes('wsrv.nl') ? '&w=320&output=webp' : '';
 
-/** URL of a card's artwork, or '' for cards without one (they show the card back). */
-export function cardSrc(id: string) {
+/** A card's frameless artwork (square), or '' for cards without one. */
+export function artSrc(id: string) {
   const pass = cardImagePasscode(id);
-  return pass ? `${BASE}${pass}.jpg${SIZED}` : '';
+  return pass ? `${CROPPED_BASE}${pass}.jpg${SIZED}` : '';
+}
+
+/** Anime-style faces, painted once per card and kept as image URLs. */
+const painted = new Map<string, string>();
+
+/** URL of a card's face in the chosen card style, or '' for cards without one (they show the card back). */
+export function cardSrc(id: string) {
+  if (animeCards()) return painted.get(id) ?? artSrc(id);
+  const pass = cardImagePasscode(id);
+  return pass ? `${CARD_BASE}${pass}.jpg${SIZED}` : '';
 }
 
 /** A card face (art over the card back, which shows while it loads or if it fails). */
 export function cardHtml(id: string | null, className = '', eager = false) {
   const src = id ? cardSrc(id) : '';
-  return `<div class="card ${className}">${src ? `<img src="${esc(src)}" alt="" draggable="false" decoding="async"${eager ? '' : ' loading="lazy"'}>` : ''}</div>`;
+  // anime style: the bare art loads first, then is painted into a card frame (see the load listener below)
+  const paint = id && animeCards() && !painted.has(id) ? ` data-paint="${esc(id)}" crossorigin="anonymous"` : '';
+  return `<div class="card ${className}">${src ? `<img src="${esc(src)}" alt="" draggable="false" decoding="async"${paint}${eager ? '' : ' loading="lazy"'}>` : ''}</div>`;
 }
+
+/** Point an existing card image at another card. */
+export function setCardImage(img: HTMLImageElement, id: string) {
+  if (animeCards() && !painted.has(id)) { img.crossOrigin = 'anonymous'; img.dataset.paint = id; }
+  else delete img.dataset.paint;
+  img.src = cardSrc(id);
+}
+
+document.addEventListener('load', (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.paint) return;
+  const id = img.dataset.paint;
+  delete img.dataset.paint;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 438;
+    paintAnimeCard(canvas.getContext('2d')!, 300, 438, getCard(id), img);
+    const url = canvas.toDataURL('image/webp', 0.9);
+    painted.set(id, url);
+    img.src = url;
+  } catch { /* the art could not be read back (no CORS): leave the bare art */ }
+}, true);
 
 /** Warm the browser cache with these cards' art. */
 export function prefetchCards(ids: Iterable<string>) {

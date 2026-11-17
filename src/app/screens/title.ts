@@ -4,7 +4,7 @@ import { loadRuntime } from '../../ocgcore/runtime';
 import { LOCALES, locale, setLocale, t } from '../../i18n';
 import { loadCardTexts } from '../../i18n/cards';
 import { debugModeEnabled, toggleDebugMode } from '../../ui/debugMode';
-import { cardHtml, cardSrc, esc, go, html, sheet, type Screen } from '../dom';
+import { cardHtml, esc, setCardImage, go, html, sheet, type Screen } from '../dom';
 import { settingsRows, volumeControls } from '../settings';
 
 const DISCORD = 'https://discord.gg/VYfWyXyRuf';
@@ -47,14 +47,7 @@ const changelog = (): [string, string[]][] => [
 ];
 
 /** A subtitle only where it reads in the player's language: a new line without a translation stays out. */
-const sub = (text: string) => (locale() === 'en' || t(text) !== text ? t(text) : '');
 
-/** Desktop menu tiles: the card's square art window (card image is 421x614, art box at 50,110 size 320). */
-const tileArt = (name: string, lit: boolean) => {
-  const card = CARDS.find((c) => c.name === name);
-  const src = card ? cardSrc(card.id) : '';
-  return src ? `<span aria-hidden="true" class="pointer-events-none relative mb-auto hidden size-28 flex-none overflow-hidden border transition duration-300 lg:block ${lit ? 'border-[#1d1505]/40 shadow-[0_6px_18px_#1d150555]' : 'border-brass/40 opacity-70 shadow-[0_6px_18px_#0008] group-hover:opacity-100'}"><img src="${esc(src)}" alt="" class="absolute top-[-34.4%] left-[-15.6%] w-[131.6%] max-w-none transition duration-300 group-hover:scale-105"></span>` : '';
-};
 
 const title: Screen = (root) => {
   const current = LOCALES.find((language) => language.code === locale())!;
@@ -78,9 +71,12 @@ const title: Screen = (root) => {
       </div>
       <h1 class="flex min-h-0 w-full flex-1 items-center justify-center py-[2svh] animate-rise lg:max-h-[38svh] lg:flex-none lg:pb-[5svh]"><img src="/ui/duel-origins-logo.webp" alt="YGO Duel Origins" class="max-h-full w-[min(100%,420px)] object-contain lg:w-[min(100%,560px)] drop-shadow-[0_0_40px_#d8b25e55]"></h1>
       <nav class="grid w-full gap-2.5 lg:grid-cols-4 lg:gap-4" aria-label="${esc(t('Main menu'))}">
-        ${([['Multiplayer', 'online', t('Online Duel'), sub('Play the live lobby or a friend'), 'Dark Magician'], ['Setup', 'solo', t('Solo Duel'), sub('Duel a CPU opponent'), 'Blue-Eyes White Dragon'], ['DeckEditor', 'deck', t('Deck Builder'), sub('Build and edit your decks'), 'Pot of Greed'], ['Watch', 'replay', t('Replays'), sub('Watch two CPU duelists play each other'), 'Time Wizard']] as const)
-          .map(([to, key, label, sub, art], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group relative flex animate-rise items-center gap-4 overflow-hidden border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-64 lg:flex-col lg:items-start lg:gap-4 lg:p-5 ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
-            ${tileArt(art, index === 0)}<span class="relative grid place-items-center lg:hidden">${icon(key, 'size-6')}</span><span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="flex items-center gap-2 font-display text-[15px] tracking-wide lg:text-lg"><span class="max-lg:hidden ${index === 0 ? '' : 'text-brass-txt'}">${icon(key, 'size-5')}</span>${esc(label)}</b>${sub ? `<small class="block truncate text-xs lg:mt-1.5 lg:line-clamp-2 lg:min-h-[2lh] lg:text-[13px] lg:whitespace-normal ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small>` : ''}</span><span class="relative text-xl opacity-60 transition group-hover:translate-x-1 rtl:group-hover:-translate-x-1 lg:absolute lg:top-5 lg:end-5">${icon('next', 'size-5')}</span></button>`).join('')}
+        ${([['Multiplayer', 'online', t('Online Duel'), t('Play the live lobby or a friend')], ['Setup', 'solo', t('Solo Duel'), t('Duel a CPU opponent')], ['DeckEditor', 'deck', t('Deck Builder'), t('Build and edit your decks')], ['Watch', 'replay', t('Replays'), t('Watch two CPU duelists play each other')]] as const)
+          .map(([to, key, label, sub], index) => `<button data-go="${to}" data-click style="animation-delay:${80 + index * 60}ms" class="group relative flex animate-rise items-center gap-4 overflow-hidden border px-5 py-[min(14px,1.6svh)] text-left transition active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow lg:h-60 lg:flex-col lg:items-start lg:gap-4 lg:p-6 ${index === 0 ? 'border-transparent bg-brass text-[#1d1505] shadow-lg shadow-brass/25 hover:bg-brass-lit' : 'border-white/10 bg-panel/80 text-ink backdrop-blur hover:border-brass/50 hover:bg-raised'}">
+            <span aria-hidden="true" class="pointer-events-none absolute -end-10 -bottom-12 hidden rotate-[-14deg] transition duration-500 group-hover:rotate-[-4deg] lg:block ${index === 0 ? 'text-[#1d1505]/10' : 'text-brass/[.07] group-hover:text-brass/[.12]'}">${icon(key, 'size-56')}</span>
+            <span class="relative grid size-10 flex-none rotate-45 place-items-center border lg:mb-auto lg:size-14 ${index === 0 ? 'border-[#1d1505]/40 bg-[#1d1505]/10' : 'border-brass/50 bg-[radial-gradient(#2a2250,#0c0a18)] text-brass-txt shadow-[0_0_24px_#e0b34f26] group-hover:shadow-[0_0_30px_#e0b34f55]'}"><span class="-rotate-45">${icon(key, 'size-5 lg:size-7')}</span></span>
+            <span class="relative min-w-0 flex-1 lg:w-full lg:flex-none"><b class="block font-display text-[15px] tracking-wide lg:text-xl">${esc(label)}</b><small class="block truncate text-xs lg:mt-1.5 lg:line-clamp-2 lg:min-h-[2lh] lg:text-[13px] lg:whitespace-normal ${index === 0 ? 'text-[#1d1505]/75' : 'text-dim'}">${esc(sub)}</small></span>
+            <span class="relative text-xl opacity-60 transition group-hover:translate-x-1 rtl:group-hover:-translate-x-1 lg:absolute lg:top-6 lg:end-6">${icon('next', 'size-5')}</span></button>`).join('')}
         <button data-go="Debug" class="mp-btn" hidden>${esc(t('Debug Duel'))}</button>
       </nav>
       <div class="mt-[min(20px,2svh)] grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:mt-6 lg:flex lg:w-auto lg:justify-center">
@@ -99,7 +95,7 @@ const title: Screen = (root) => {
     spot.style.setProperty('--r', `${Number(spot.dataset.r) + Math.random() * 8 - 4}deg`);
     const id = randomCard(), img = spot.querySelector('img');
     // swap the face in place so it stays in step with the flip; a card whose image failed is rebuilt
-    if (img && id) img.src = cardSrc(id); else spot.querySelector('.card')!.outerHTML = cardHtml(id, 'shadow-2xl shadow-black', true);
+    if (img && id) setCardImage(img, id); else spot.querySelector('.card')!.outerHTML = cardHtml(id, 'shadow-2xl shadow-black', true);
   });
   const debug = root.querySelector<HTMLButtonElement>('[data-go=Debug]')!;
   debug.hidden = !debugModeEnabled();

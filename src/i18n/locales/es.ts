@@ -563,4 +563,9 @@ export const ES: Dictionary = {
   "Next ›": "Siguiente ›",
   "Volume": "Volumen",
   "‹ Previous": "‹ Anterior",
+  "Play the live lobby or a friend": "Juega en el lobby en vivo o contra un amigo",
+  "Duel a CPU opponent": "Enfréntate a un rival CPU",
+  "Build and edit your decks": "Crea y edita tus barajas",
+  "Cards: Official": "Cartas: oficiales",
+  "Cards: Anime": "Cartas: anime",
 };

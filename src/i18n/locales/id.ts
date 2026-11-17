@@ -563,4 +563,9 @@ export const ID: Dictionary = {
   "Next ›": "Berikutnya ›",
   "Volume": "Volume",
   "‹ Previous": "‹ Sebelumnya",
+  "Play the live lobby or a friend": "Main di lobi langsung atau melawan teman",
+  "Duel a CPU opponent": "Berduel melawan lawan CPU",
+  "Build and edit your decks": "Buat dan ubah deck-mu",
+  "Cards: Official": "Kartu: Resmi",
+  "Cards: Anime": "Kartu: Anime",
 };

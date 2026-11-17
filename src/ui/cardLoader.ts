@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { cardImagePasscode } from '../data/cardImages';
 import { BACK, CH, CW, cardKey } from './cardArt';
+import { animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from './animeCard';
+import { getCard } from '../ocgcore/catalog';
 
 // Card faces are fetched only when a screen shows them. Newest requests go first (LIFO), so paging through the
 // deck editor loads the page you are looking at before the ones you skipped past.
-const BASE: string = import.meta.env.VITE_CARD_IMAGE_BASE ?? 'https://wsrv.nl/?url=images.ygoprodeck.com/images/cards/';
 const PARALLEL = 6;
 const inflight = new Map<string, Promise<void>>();
 const waiting: (() => void)[] = [];
@@ -20,6 +21,7 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
   if (textures.exists(key)) return Promise.resolve();
   const pass = cardImagePasscode(id);
   if (!pass) return Promise.resolve();
+  const anime = animeCards();
   let p = inflight.get(key);
   if (!p) {
     p = new Promise<void>((resolve) => {
@@ -45,7 +47,8 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
               if (ctx) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, 0, 0, CW, CH);
+                if (anime) paintAnimeCard(ctx, CW, CH, getCard(id), img);
+                else ctx.drawImage(img, 0, 0, CW, CH);
                 textures.addCanvas(key, canvas);
               }
             }
@@ -54,7 +57,7 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
           } finally { done(); }
         };
         img.onerror = done;
-        img.src = `${BASE}${pass}.jpg`;
+        img.src = `${anime ? CROPPED_BASE : CARD_BASE}${pass}.jpg`;
       });
       next();
     });

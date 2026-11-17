@@ -563,4 +563,9 @@ export const RU: Dictionary = {
   "Next ›": "Далее ›",
   "Volume": "Громкость",
   "‹ Previous": "‹ Назад",
+  "Play the live lobby or a friend": "Играйте в лобби или с другом",
+  "Duel a CPU opponent": "Дуэль с противником ИИ",
+  "Build and edit your decks": "Собирайте и редактируйте колоды",
+  "Cards: Official": "Карты: официальные",
+  "Cards: Anime": "Карты: аниме",
 };

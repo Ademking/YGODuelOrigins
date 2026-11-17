@@ -4,7 +4,7 @@ import { OPPONENTS, type Opponent } from '../data/decks';
 import { CARDS } from '../ocgcore/catalog';
 import { portraitURL } from '../ui/portraits';
 import { t } from '../i18n';
-import { cardSrc, esc, html } from './dom';
+import { artSrc, esc, html } from './dom';
 
 /** Index meaning "pick someone when the duel starts". */
 export const RANDOM = -1;
@@ -24,7 +24,7 @@ function face(duelist: Pick<Opponent, 'id' | 'ace' | 'name'>) {
   if (portrait) return portrait.includes('/hd/') ? `<img src="${portrait}" alt="${esc(duelist.name)}" class="size-full object-cover" draggable="false">`
     : `<img src="${portrait}" alt="${esc(duelist.name)}" class="absolute top-[-6%] left-[-11%] h-auto w-[122%] max-w-none" draggable="false">`;
   const ace = CARDS.find((card) => card.name === duelist.ace);
-  const src = ace ? cardSrc(ace.id) : '';
+  const src = ace ? artSrc(ace.id) : '';
   return src ? `<img src="${esc(src)}" alt="${esc(duelist.name)}" class="size-full object-cover" draggable="false">` : `<span class="font-display text-2xl text-brass-txt">${esc(duelist.name.slice(0, 1))}</span>`;
 }
 
