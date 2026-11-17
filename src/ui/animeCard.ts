@@ -2,6 +2,7 @@
 // ygopro.org card maker (assets/cards/anime), with its level stars and attribute icons, and ATK / DEF in the Yu-Gi-Oh!
 // Matrix font. One canvas painter serves the duel (Phaser textures) and the menus (cached image URLs).
 import type { CardDef } from '../engine/types';
+import { cardImagePasscode } from '../data/cardImages';
 import { cardStat } from './cardStat';
 
 const KEY = 'arcana-duel.card-style';
@@ -14,6 +15,8 @@ export const CROPPED_BASE = CARD_BASE.replace('/cards/', '/cards_cropped/');
 
 const FRAMES = ['Normal', 'Effect', 'Fusion', 'Ritual', 'Spell', 'Trap'] as const;
 const ATTRIBUTES = ['Dark', 'Divine', 'Earth', 'Fire', 'Light', 'Water', 'Wind', 'Spell', 'Trap'] as const;
+/** The Egyptian Gods use whole anime card pictures (assets/cards/anime/gods), not a drawn frame. */
+const GODS = ['10000000', '10000010', '10000020'];
 const STAT_FONT = '"YGO Matrix", "Palatino Linotype", serif';
 
 const images = new Map<string, HTMLImageElement>();
@@ -22,17 +25,18 @@ let ready: Promise<void> | undefined;
 /** Load the frames, icons and the stat font once; painting waits for this. */
 export function animeAssets() {
   ready ??= (async () => {
-    const image = (path: string) => new Promise<void>((resolve) => {
+    const image = (path: string, type = 'png') => new Promise<void>((resolve) => {
       const img = new Image();
       img.onload = () => { images.set(path, img); resolve(); };
       img.onerror = () => resolve();
-      img.src = `/cards/anime/${path}.png`;
+      img.src = `/cards/anime/${path}.${type}`;
     });
     const font = new FontFace('YGO Matrix', 'url(/fonts/matrix-book.ttf)');
     await Promise.all([
       ...FRAMES.map((name) => image(`frame/${name}`)),
       ...ATTRIBUTES.map((name) => image(`attribute/${name}`)),
       image('star'),
+      ...GODS.map((code) => image(`gods/${code}`, 'webp')),
       // FontFaceSet.add is missing from this TypeScript lib
       font.load().then((face) => { (document.fonts as unknown as Set<FontFace>).add(face); }, () => undefined),
     ]);
@@ -60,6 +64,8 @@ function stat(ctx: CanvasRenderingContext2D, text: string, x: number, width: num
 export function paintAnimeCard(ctx: CanvasRenderingContext2D, w: number, h: number, def: CardDef, art: CanvasImageSource & { width: number; height: number } | null) {
   ctx.save();
   ctx.scale(w / 421, h / 614);
+  const god = images.get(`gods/${cardImagePasscode(def.id)}`);
+  if (god) { ctx.drawImage(god, 0, 0, 421, 614); ctx.restore(); return; }
   // the picture sits under the frame's open window (12, 12, 397 × 437)
   // an <img>'s width is its size on screen; the picture's own size is naturalWidth
   const iw = art instanceof HTMLImageElement ? art.naturalWidth : art?.width ?? 0;

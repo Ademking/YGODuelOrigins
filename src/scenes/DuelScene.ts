@@ -2090,10 +2090,12 @@ export class DuelScene extends Phaser.Scene {
     ];
     // a spectator has no chains to answer and nothing to surrender
     const items = this.init0.watch ? all.filter((_, index) => index !== 2 && index !== 7) : all;
-    layer.add(panel(this, CX - 190, 145, 380, 94 + items.length * 48));
-    layer.add(htxt(this, CX, 175, t('Menu'), 24).setOrigin(0.5));
+    // centred on the visible screen, whatever its height
+    const height = 94 + items.length * 48, top = viewOf(this).cy - height / 2;
+    layer.add(panel(this, CX - 190, top, 380, height));
+    layer.add(htxt(this, CX, top + 30, t('Menu'), 24).setOrigin(0.5));
     items.forEach(([l, f, name], i) => {
-      const b = button(this, CX, 225 + i * 48, 320, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') });
+      const b = button(this, CX, top + 80 + i * 48, 320, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') });
       // the icon on the left; a label too long to clear it shrinks and moves right
       if (this.textures.exists(`icon_${name}`)) b.add(this.add.image(-136, 0, `icon_${name}`).setDisplaySize(20, 20));
       const label = b.list.find((child): child is Phaser.GameObjects.Text => child instanceof Phaser.GameObjects.Text);
