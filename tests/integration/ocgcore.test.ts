@@ -418,3 +418,29 @@ test('Destiny Mirage checking cards milled from the Deck does not stop the duel'
   assert.ok(activated);
   assert.ok(log.some(line => line.includes('Pot of Greed')), log.join('\n'));
 });
+
+test('CPU answers a deck-top sort (Big Eye) without OCGCore rejecting it', { timeout: 10000 }, async () => {
+  const { OcgDuel, SURRENDER } = await import('../../src/ocgcore/duel');
+  const id = (name: string) => CARDS.find(card => card.name === name)!.id;
+  const core = await createCore({ sync: true });
+  const deck = { main: Array(20).fill(id('Big Eye')), extra: [] };
+  const rejected: string[] = [];
+  const played: string[] = [];
+  const duel = new OcgDuel([deck, deck], ['You', 'CPU'], async prompt => {
+    if (prompt.t === 'main') {
+      const book = prompt.actions.find(action => action.a === 'act' && !played.includes(action.card.def.name)
+        && (action.card.def.name === (played.length ? 'Book of Taiyou' : 'Book of Moon')));
+      if (book && book.a === 'act') { played.push(book.card.def.name); return book; }
+      return SURRENDER;
+    }
+    if (prompt.t === 'select') return prompt.cards.filter(card => card.def.name === 'Big Eye').slice(0, Math.max(1, prompt.min));
+    if (prompt.t === 'chain') return null;
+    return SURRENDER;
+  }, () => {}, 8000, 0, 0);
+  duel.onRejected = info => { if (info.prompt.startsWith('SORT')) rejected.push(info.prompt); };
+  await duel.run(core, readBundle(), {
+    hand: [id('Book of Moon'), id('Book of Taiyou')], monsters: [], opponentMonsters: [id('Big Eye')], traps: [], extra: [],
+  }, 0);
+  assert.deepEqual(played, ['Book of Moon', 'Book of Taiyou']);
+  assert.deepEqual(rejected, []);
+});

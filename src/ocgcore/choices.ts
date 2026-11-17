@@ -143,7 +143,7 @@ export function decision(message: OcgMessage, name: (code: number) => string, de
       result.title = t('Choose the order');
       result.selection = { labels: message.cards.map(c => name(c.code)), ordered: true,
         valid: order => order.length === message.cards.length,
-        response: order => ({ type: R.SORT_CARD, order: message.cards.map((_, index) => order.indexOf(index)) }) };
+        response: order => sortResponse(message.cards.map((_, index) => order.indexOf(index))) };
       break;
     case M.ANNOUNCE_NUMBER:
       result.title = t('Declare a number');
@@ -205,4 +205,14 @@ export function cpuChoice(prompt: Decision): OcgResponse {
   const choice = [...prompt.choices].sort((a, b) => b.score - a.score)[0];
   if (choice) return choice.response;
   throw new Error(`The CPU could not answer: ${prompt.title}.`);
+}
+
+/** ocgcore-wasm 0.1.6 writes a SORT_CARD answer as [length, ...order], but the core reads only the order bytes, so the
+ *  length byte lands in slot 0, is out of range, and every explicit order is rejected (Sentry ADEM-KOUKI-7/8). The
+ *  SELECT_PLACE writer emits plain bytes, so the order goes through it, padded to whole triples; the core ignores the padding. */
+export function sortResponse(order: number[]): OcgResponse {
+  // ponytail: wire-format workaround; switch back to { type: R.SORT_CARD, order } once ocgcore-wasm drops the length byte.
+  const places = [];
+  for (let i = 0; i < order.length; i += 3) places.push({ player: order[i], location: order[i + 1] ?? 0, sequence: order[i + 2] ?? 0 });
+  return { type: R.SELECT_PLACE, places } as OcgResponse;
 }
