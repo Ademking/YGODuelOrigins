@@ -2,7 +2,7 @@
 import { cardImagePasscode } from '../data/cardImages';
 import { t } from '../i18n';
 import { sfx } from '../ui/sfx';
-import { animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from '../ui/animeCard';
+import { animeAssets, animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from '../ui/animeCard';
 import { getCard } from '../ocgcore/catalog';
 
 export const esc = (value: unknown) => String(value).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
@@ -133,7 +133,7 @@ const SIZED = CARD_BASE.includes('wsrv.nl') ? '&w=320&output=webp' : '';
 /** A card's frameless artwork (square), or '' for cards without one. */
 export function artSrc(id: string) {
   const pass = cardImagePasscode(id);
-  return pass ? `${CROPPED_BASE}${pass}.jpg${SIZED}` : '';
+  return pass ? `${CROPPED_BASE}${pass}.jpg${SIZED.replace('w=320', 'w=420')}` : '';
 }
 
 /** Anime-style faces, painted once per card and kept as image URLs. */
@@ -166,15 +166,17 @@ document.addEventListener('load', (event) => {
   if (!(img instanceof HTMLImageElement) || !img.dataset.paint) return;
   const id = img.dataset.paint;
   delete img.dataset.paint;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 438;
-    paintAnimeCard(canvas.getContext('2d')!, 300, 438, getCard(id), img);
-    const url = canvas.toDataURL('image/webp', 0.9);
-    painted.set(id, url);
-    img.src = url;
-  } catch { /* the art could not be read back (no CORS): leave the bare art */ }
+  void animeAssets().then(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 438;
+      paintAnimeCard(canvas.getContext('2d')!, 300, 438, getCard(id), img);
+      const url = canvas.toDataURL('image/webp', 0.9);
+      painted.set(id, url);
+      img.src = url;
+    } catch { /* the art could not be read back (no CORS): leave the bare art */ }
+  });
 }, true);
 
 /** Warm the browser cache with these cards' art. */

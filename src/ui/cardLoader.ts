@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { cardImagePasscode } from '../data/cardImages';
 import { BACK, CH, CW, cardKey } from './cardArt';
-import { animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from './animeCard';
+import { animeAssets, animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from './animeCard';
 import { getCard } from '../ocgcore/catalog';
 
 // Card faces are fetched only when a screen shows them. Newest requests go first (LIFO), so paging through the
@@ -37,7 +37,8 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
           next();
         };
         const timeout = setTimeout(() => { done(); img.removeAttribute('src'); }, 8000);
-        img.onload = () => {
+        img.onload = async () => {
+          if (anime) await animeAssets();
           try {
             if (!textures.exists(key)) {
               const canvas = document.createElement('canvas');
