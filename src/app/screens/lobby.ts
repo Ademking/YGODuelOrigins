@@ -67,15 +67,15 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         </section>
       </div>
       </div>
-      <dialog class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
+      <dialog autofocus class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
         <h2>${h('Enter the lobby')}</h2>
         <p>${h('This is how other duelists will see you.')}</p>
         ${LICENSE('name-art', `<input class="w-full rounded-none border-0 border-b border-brass/50 bg-transparent px-0 pt-1 pb-2 font-display text-base text-brass-txt outline-none placeholder:text-[#6b5f45] focus:border-glow sm:text-lg" id="mp-name" maxlength="16" placeholder="${h('Your name')}" autocomplete="nickname" aria-label="${h('Your name')}"><div id="mp-deck"></div>`)}
         <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
         <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary"><span>${h('Enter lobby')}</span></button></div>
       </form></dialog>
-      <dialog class="mp-modal" id="mp-room-modal"></dialog>
-      <dialog class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
+      <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
+      <dialog autofocus class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
         <h2>${h('Choose your avatar')}</h2>
         <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
         <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
@@ -323,7 +323,6 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       };
       status(t('Online'));
       renderRoster(); renderChat(q('messages'), lobby.chat);
-      composer.input.focus();
       if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
     q<HTMLFormElement>('name-form').onsubmit = e => {
@@ -351,7 +350,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     codeInput.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('join').click(); };
     if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else {
       nameModal.showModal();
-      name.focus(); name.setSelectionRange(name.value.length, name.value.length);
+
     }
     return () => {
       alive = false; root.remove();

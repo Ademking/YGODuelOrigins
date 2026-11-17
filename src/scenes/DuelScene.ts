@@ -1021,10 +1021,8 @@ export class DuelScene extends Phaser.Scene {
     const first = this.children.length;
     const sidebarBackground = this.add.graphics();
     for (const s of [opp(this.me), this.me]) this.buildPlate(s);
-    this.cardPanel = new CardPanel(this, x + 8, 88, 268, 362, 238, w - 16, true);
-    const buttonWidth = (w - 22) / 2;
-    button(this, x + 8 + buttonWidth / 2, 620, buttonWidth, 28, t('Menu'), () => this.showMenu(), { size: 12 });
-    button(this, x + w - 8 - buttonWidth / 2, 620, buttonWidth, 28, t('Log'), () => this.toggleLogs(), { size: 12 });
+    // the card text runs down to your plate; Menu and Log live behind the hamburger in the top-right corner
+    this.cardPanel = new CardPanel(this, x + 8, 88, 268, 362, 270, w - 16, true);
     const sidebar = this.add.container(0, 0, this.children.list.slice(first));
     const resize = () => {
       this.sidePanelX = 640 - this.scale.baseSize.width / (2 * this.cameras.main.zoom) - x;
@@ -1034,7 +1032,10 @@ export class DuelScene extends Phaser.Scene {
       sidebarBackground.clear().fillStyle(0x090814, 0.95).fillRect(x, top, w, height)
         .lineStyle(1, COL.line, 1).lineBetween(x + w, top, x + w, top + height);
       this.cardPanel.setOffsetX(this.sidePanelX);
+      const view = viewOf(this);
+      menuButton.setPosition(view.cx + view.width / 2 - 34, view.cy - view.height / 2 + 30);
     };
+    const menuButton = this.hamburger(0, 0, 44, 40).setDepth(400);
     resize();
     this.scale.on('resize', resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', resize));
@@ -1054,10 +1055,9 @@ export class DuelScene extends Phaser.Scene {
       const y = s === this.me ? PORTRAIT.myPlateY : PORTRAIT.oppPlateY;
       this.plateBox[s] = this.add.container(x, y, this.children.list.slice(first)).setScale(ps).setDepth(400);
     }
-    // Menu and Log beside your plate
-    const bx = left + plateW + 14, bw = right - bx, bh = (plateH - 10) / 2, my = PORTRAIT.myPlateY;
-    button(this, bx + bw / 2, my + bh / 2, bw, bh, t('Menu'), () => this.showMenu(), { size: 22 }).setDepth(400);
-    button(this, bx + bw / 2, my + plateH - bh / 2, bw, bh, t('Log'), () => this.toggleLogs(), { size: 22 }).setDepth(400);
+    // the hamburger (menu and log) beside your plate
+    const bx = left + plateW + 14, bw = right - bx;
+    this.hamburger(bx + bw / 2, PORTRAIT.myPlateY + plateH / 2, bw, plateH).setDepth(400);
     // card details: the preview beside the description, drawn in a scaled container
     const k = PORTRAIT.panelScale, w = (right - left) / k, h = this.panelH / k;
     const previewW = Math.round(Math.min((h - 26) * CW / CH + 26, w * 0.3));
@@ -1066,6 +1066,16 @@ export class DuelScene extends Phaser.Scene {
     if (window.matchMedia('(pointer: coarse)').matches) this.cardPanel.setHint(t('Tap a card to see its details.'));
     this.add.container(left, PORTRAIT.panelTop, this.children.list.slice(first)).setScale(k).setDepth(400);
     this.cardPanel.setTransform(left, PORTRAIT.panelTop, k);
+  }
+
+  /** The ☰ button: opens the menu, which also holds the duel log. */
+  private hamburger(x: number, y: number, w: number, h: number) {
+    const b = button(this, x, y, w, h, '', () => this.showMenu());
+    const bar = Math.min(w, h) * 0.46, thick = Math.max(2, Math.round(Math.min(w, h) * 0.07));
+    const lines = this.add.graphics().fillStyle(COL.gold, 1);
+    for (const row of [-1, 0, 1]) lines.fillRect(-bar / 2, row * bar * 0.34 - thick / 2, bar, thick);
+    b.add(lines);
+    return b;
   }
 
   /** One player's LP plate at the sidebar's coordinates (portrait wraps it in a scaled container). */
@@ -2025,6 +2035,7 @@ export class DuelScene extends Phaser.Scene {
     this.enlarge(layer, 340, CX, 145, 0, PORTRAIT.top + 60);
     const all: [string, () => void][] = [
       [t('Resume'), () => this.closeMenu()],
+      [t('Log'), () => { this.closeMenu(); this.toggleLogs(); }],
       [t(this.chainMode === 'auto' ? 'Chain prompts: Smart' : 'Chain prompts: Always'), () => {
         this.chainMode = this.chainMode === 'auto' ? 'always' : 'auto';
         try { localStorage.setItem('arcana-duel.chain', this.chainMode); } catch { /* ignore */ }
@@ -2052,7 +2063,7 @@ export class DuelScene extends Phaser.Scene {
       [t('Quit to Home'), () => { this.closeMenu(); this.surrender(true); void go('Title'); }],
     ];
     // a spectator has no chains to answer and nothing to surrender
-    const items = this.init0.watch ? all.filter((_, index) => index !== 1 && index !== 6) : all;
+    const items = this.init0.watch ? all.filter((_, index) => index !== 2 && index !== 7) : all;
     layer.add(panel(this, CX - 170, 145, 340, 94 + items.length * 48));
     layer.add(htxt(this, CX, 175, t('Menu'), 24).setOrigin(0.5));
     items.forEach(([l, f], i) => layer.add(button(this, CX, 225 + i * 48, 270, 40, l, f, { size: 15, danger: l === t('Surrender') || l === t('Quit to Home') })));

@@ -130,7 +130,7 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
       const b = element('button', '', 'aspect-square cursor-pointer overflow-hidden rounded-lg border border-transparent bg-field p-0 hover:border-brass ' + RING); b.type = 'button'; b.title = alt;
       const img = element('img', '', 'size-full object-cover'); img.src = src; img.alt = alt; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
       b.append(img);
-      b.onclick = () => { close(); send(message); input.focus(); };
+      b.onclick = () => { close(); send(message); };
       return b;
     };
     let last = 0;
@@ -170,7 +170,7 @@ export function chatComposer(send: (text: string) => void, placeholder: string) 
     search.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
     draw();
     pop.replaceChildren(...(KLIPY_KEY ? [search] : []), tabs, note, grid, element('div', KLIPY_KEY ? t('Powered by KLIPY') : t('GIFs via GIPHY'), 'mt-2 text-right text-xs text-faint'));
-    if (KLIPY_KEY) queueMicrotask(() => search.focus());
+
   };
   const toggle = (next: 'emoji' | 'gif') => {
     if (mode === next) { close(); return; }
@@ -241,7 +241,7 @@ export function picker(options: PickOption[], initial: string, caption: string) 
   const open = (yes: boolean) => {
     if (yes) (button.closest('dialog') ?? button.closest('.mp-root') ?? document.body).append(pop);
     pop.hidden = !yes; button.setAttribute('aria-expanded', String(yes)); wrap.classList.toggle('open', yes);
-    if (yes) { place(); search.value = ''; active = Math.max(0, options.findIndex(o => o.value === value)); draw(); search.focus(); }
+    if (yes) { place(); search.value = ''; active = Math.max(0, options.findIndex(o => o.value === value)); draw(); }
   };
   const choose = (v: string) => { value = v; sync(); open(false); button.focus(); };
   button.onclick = () => open(pop.hidden);
@@ -310,7 +310,7 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
     drawer.hidden = what !== 'chat'; emotes.hidden = what !== 'emote';
     chatButton.setAttribute('aria-expanded', String(what === 'chat')); emoteButton.setAttribute('aria-expanded', String(what === 'emote'));
     chatButton.classList.toggle('on', what === 'chat'); emoteButton.classList.toggle('on', what === 'emote');
-    if (what === 'chat') { unread = 0; badge.hidden = true; messages.scrollTop = messages.scrollHeight; input.focus(); }
+    if (what === 'chat') { unread = 0; badge.hidden = true; messages.scrollTop = messages.scrollHeight; }
     else if (what === 'emote') (emotes.firstElementChild as HTMLElement | null)?.focus();
     else focus(false);
   };

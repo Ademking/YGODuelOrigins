@@ -52,11 +52,14 @@
   /* square corners everywhere; .round opts back in (coins) */
   *, *::before, *::after, ::backdrop { border-radius: 0 !important; }
   .round { border-radius: 50% !important; }
+  /* grid and flex children may shrink below their text width, so long labels truncate instead of widening the page */
+  .grid > *, .flex > * { min-width: 0; }
 }
 
 @layer components {
   /* the table: flat violet-black, a little lighter where the light falls from above */
-  .app-bg { background: linear-gradient(180deg, #1a1330 0%, var(--color-void) 55%) fixed, var(--color-void); }
+  /* menus sit on the animated smoke (app/backdrop); without WebGL the body colour shows */
+  .app-bg { background: transparent; }
   /* buttons are hardware: a lit top edge and a hard shadow that presses away */
   .mp-btn {
     @apply inline-flex h-11 cursor-pointer items-center justify-center gap-2 border border-white/12 px-5 font-semibold
@@ -99,6 +102,7 @@
   .mp-scroll { @apply min-h-0 flex-1 overflow-auto overscroll-contain; }
   .mp-modal { @apply m-auto w-[min(520px,calc(100vw-24px))] max-w-none overflow-visible border-0 bg-transparent p-0 text-ink backdrop:bg-[#05030b]/85; }
   .mp-modal[open] { @apply animate-pop; }
+  .mp-modal:focus { outline: none; }
   .mp-sheet {
     @apply block max-h-[calc(100svh-24px)] overflow-y-auto border border-brass/35 bg-panel p-5 sm:p-7;
     box-shadow: inset 0 1px 0 #ffffff12, 0 24px 60px #000000aa;
@@ -172,3 +176,21 @@ input.ad-input { font: 16px Tektur, Cairo, Arial, sans-serif; background: #0a091
 .ad-volume::-moz-range-thumb { width: 14px; height: 14px; border: 2px solid #fff1c9; border-radius: 4px; background: #d8b25e; }
 input.ad-input::placeholder { color: #9a93ae; }
 input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
+
+/* title screen: a card pops in face-down, flips to a random face, drifts up and fades (screens/title re-deals it) */
+.title-card { position: absolute; translate: -50% -50%; opacity: 0; animation: title-card var(--ms) linear infinite; }
+.title-card .card > img { animation: title-face var(--ms) linear infinite; animation-delay: inherit; }
+@keyframes title-card {
+  0% { opacity: 0; transform: rotate(var(--r)) scale(.55); }
+  6% { opacity: .65; transform: translateY(-1px) rotate(var(--r)) scale(1.04); }
+  12% { transform: translateY(-2px) rotate(var(--r)) scale(1); }
+  20% { transform: translateY(-3px) rotate(var(--r)) scale(.02, 1); }
+  30% { transform: translateY(-4.5px) rotate(var(--r)) scale(1); }
+  85% { opacity: .65; transform: translateY(-13px) rotate(calc(var(--r) + 3deg)) scale(1); }
+  100% { opacity: 0; transform: translateY(-15px) rotate(var(--r)) scale(1); }
+}
+@keyframes title-face { 0%, 19.9% { opacity: 0; } 20%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .title-card, .title-card .card > img { animation: none !important; }
+  .title-card { opacity: .65; transform: rotate(var(--r)); }
+}

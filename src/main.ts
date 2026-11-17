@@ -1,10 +1,12 @@
 import './app/app.css';
 import { go } from './app/dom';
+import { mountBackdrop } from './app/backdrop';
 import { loadCardTexts } from './i18n/cards';
 import { reloadForUpdate } from './staleBuild';
 import { initMonitoring } from './monitoring';
 
 initMonitoring();
+mountBackdrop();
 
 // Vite reports a code file from an older deploy that is gone: reload once to pick up the current one.
 window.addEventListener('vite:preloadError', (event) => { if (reloadForUpdate()) event.preventDefault(); });

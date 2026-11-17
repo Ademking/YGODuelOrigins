@@ -61,7 +61,7 @@ document.addEventListener('error', (event) => {
 /** A modal sheet; resolves with the typed text (input), true (ok), false (cancel) or null (dismissed). */
 export function modal(o: { title: string; text?: string; input?: string; ok: string; cancel?: string; danger?: boolean }): Promise<string | boolean | null> {
   return new Promise((resolve) => {
-    const dialog = html<HTMLDialogElement>(`<dialog class="mp-modal"><form method="dialog" class="mp-sheet">
+    const dialog = html<HTMLDialogElement>(`<dialog autofocus class="mp-modal"><form method="dialog" class="mp-sheet">
       <h2 class="!whitespace-normal">${esc(o.title)}</h2>
       ${o.text ? `<p>${esc(o.text)}</p>` : '<div class="h-4"></div>'}
       ${o.input !== undefined ? `<input class="mp-field mb-5" maxlength="40" value="${esc(o.input)}">` : ''}
@@ -89,7 +89,7 @@ export function modal(o: { title: string; text?: string; input?: string; ok: str
 /** Pick one entry from a list; resolves with its index, or null when dismissed. */
 export function chooseFromList(title: string, options: readonly string[], selected: number): Promise<number | null> {
   return new Promise((resolve) => {
-    const dialog = html<HTMLDialogElement>(`<dialog class="mp-modal"><div class="mp-sheet">
+    const dialog = html<HTMLDialogElement>(`<dialog autofocus class="mp-modal"><div class="mp-sheet">
       <h2>${esc(title)}</h2>
       <div class="mp-scroll mt-4 flex max-h-[60svh] flex-col gap-1.5">${options.map((option, index) =>
         `<button data-i="${index}" class="mp-btn !justify-start text-left ${index === selected ? 'on' : ''}">${esc(option)}</button>`).join('')}</div>
@@ -110,7 +110,7 @@ export function chooseFromList(title: string, options: readonly string[], select
 
 /** An info sheet that closes on its button, Escape or a click outside. Returns the dialog so callers can add to it. */
 export function sheet(title: string, body: string, width = 'w-[min(640px,calc(100vw-24px))]') {
-  const dialog = html<HTMLDialogElement>(`<dialog class="mp-modal ${width}"><div class="mp-sheet">
+  const dialog = html<HTMLDialogElement>(`<dialog autofocus class="mp-modal ${width}"><div class="mp-sheet">
     <div class="flex items-start gap-3"><h2 class="flex-1">${esc(title)}</h2>
     <button class="mp-icon !size-9 text-base" data-close aria-label="${esc(t('Close'))}">✕</button></div>
     <div class="mt-4">${body}</div></div></dialog>`);
