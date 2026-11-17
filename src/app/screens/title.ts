@@ -23,6 +23,12 @@ const about = (): [string, string][] => [
 
 const changelog = (): [string, string[]][] => [
   [t('Version {v}', { v: __APP_VERSION__ }), [
+    t('A new look for every menu, on phones and desktops alike.'),
+    t('Anime card style: turn it on in Settings to see cards drawn like the show.'),
+    t('Sharper close-ups for every CPU duelist.'),
+    t('Background music: pick, pause or mute songs with the music button in the corner.'),
+  ]],
+  [t('Version {v}', { v: '1.4.0' }), [
     t('The game speaks your language: Brazilian Portuguese, French, Spanish, German, Italian, Russian, Arabic and Indonesian. Pick one with the flag button on the title screen.'),
     t("Card names and text are translated too: Konami's official text in French, German, Italian, Portuguese and Spanish, and the Arab Duelists community's in Arabic."),
   ]],

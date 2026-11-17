@@ -571,4 +571,8 @@ export const ID: Dictionary = {
   "Music": "Musik",
   "Play music": "Putar musik",
   "Pause music": "Jeda musik",
+  "A new look for every menu, on phones and desktops alike.": "Tampilan baru untuk semua menu, di ponsel maupun desktop.",
+  "Anime card style: turn it on in Settings to see cards drawn like the show.": "Gaya kartu anime: aktifkan di Pengaturan untuk melihat kartu seperti di serinya.",
+  "Sharper close-ups for every CPU duelist.": "Potret lebih tajam untuk semua duelist CPU.",
+  "Background music: pick, pause or mute songs with the music button in the corner.": "Musik latar: pilih, jeda, atau bisukan lagu dengan tombol musik di pojok.",
 };

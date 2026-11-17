@@ -571,4 +571,8 @@ export const RU: Dictionary = {
   "Music": "Музыка",
   "Play music": "Включить музыку",
   "Pause music": "Приостановить музыку",
+  "A new look for every menu, on phones and desktops alike.": "Новый вид всех меню на телефоне и компьютере.",
+  "Anime card style: turn it on in Settings to see cards drawn like the show.": "Аниме-стиль карт: включите в настройках, чтобы карты выглядели как в сериале.",
+  "Sharper close-ups for every CPU duelist.": "Более чёткие портреты всех дуэлянтов ИИ.",
+  "Background music: pick, pause or mute songs with the music button in the corner.": "Фоновая музыка: выбирайте, ставьте на паузу или выключайте песни кнопкой музыки в углу.",
 };

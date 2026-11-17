@@ -571,4 +571,8 @@ export const AR: Dictionary = {
   "Music": "الموسيقى",
   "Play music": "تشغيل الموسيقى",
   "Pause music": "إيقاف الموسيقى مؤقتًا",
+  "A new look for every menu, on phones and desktops alike.": "مظهر جديد لكل القوائم، على الهاتف والحاسوب.",
+  "Anime card style: turn it on in Settings to see cards drawn like the show.": "أسلوب بطاقات الأنمي: فعّله من الإعدادات لترى البطاقات كما في المسلسل.",
+  "Sharper close-ups for every CPU duelist.": "صور مقرّبة أوضح لكل خصوم الحاسوب.",
+  "Background music: pick, pause or mute songs with the music button in the corner.": "موسيقى في الخلفية: اختر الأغاني أو أوقفها أو اكتمها بزر الموسيقى في الزاوية.",
 };

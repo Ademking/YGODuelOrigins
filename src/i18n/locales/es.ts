@@ -571,4 +571,8 @@ export const ES: Dictionary = {
   "Music": "Música",
   "Play music": "Reproducir música",
   "Pause music": "Pausar música",
+  "A new look for every menu, on phones and desktops alike.": "Un nuevo aspecto para todos los menús, en móvil y en escritorio.",
+  "Anime card style: turn it on in Settings to see cards drawn like the show.": "Estilo de cartas anime: actívalo en Ajustes para ver las cartas como en la serie.",
+  "Sharper close-ups for every CPU duelist.": "Retratos más nítidos para todos los duelistas CPU.",
+  "Background music: pick, pause or mute songs with the music button in the corner.": "Música de fondo: elige, pausa o silencia canciones con el botón de música de la esquina.",
 };

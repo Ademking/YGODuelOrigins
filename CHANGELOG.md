@@ -1,13 +1,34 @@
 # Changelog
 
-## Unreleased
+## 1.4.1 — 2026-11-17
 
-### Error reporting
+A redrawn game: every menu in a new look, an anime card style, sharper duelist portraits and background music.
 
-- Deployed builds report errors to Sentry, including any duel that stops on an error, with the turn, phase, decks and last log lines. Local development and the tests send nothing.
+### New look
+
+- Every menu screen is rebuilt for phones and desktops alike, with nothing that scrolls the whole page: the title screen, Duel Setup, Replays, the Deck Builder and the online lobby.
+- The title screen is a single column of buttons under the logo, in the original gold and dark colours, over an animated smoke backdrop with drifting cards.
+- Duel Setup on desktop shows the CPU roster on the left and your deck, Life Points and Begin Duel on the right. Random flicks through greyed faces under a question mark.
+- In a duel the menu button sits bottom-left and its menu opens in the middle of the screen. The sidebar has no gold edge and the card preview no frame.
+- On a phone held upright, card details open in a sheet, and the hand and Life Point plates are larger.
+- The loading animation shows on every loading screen.
+
+### Anime card style
+
+- Settings has "Cards: Anime": cards are drawn like the show, with the frameless artwork in an anime frame, level stars, attribute icon and ATK / DEF in the Yu-Gi-Oh! font. Slifer, Obelisk and Ra use their anime card pictures, and the anime card back is used everywhere.
+
+### Duelists
+
+- Every CPU duelist has a sharp, face-centred close-up, cut from full-size transparent pictures. Custom decks play as a robot.
+
+### Music
+
+- Eight Yu-Gi-Oh! songs play in the background. The music button in the corner picks a song, pauses, skips or mutes, and the choice is remembered. The music dips while the game plays its own win, lose, Egyptian God, Exodia and fusion music.
 
 ### Fixes
 
+- Fusion materials spiral into each other again before a Fusion Summon.
+- Rock-paper-scissors is translated, Arabic card details stay inside the duel sidebar, and arrows point the right way in Arabic.
 - If the duel engine rejects an answer, the duel no longer ends with "OCGCore rejected the selection": the question is asked again, and after that a legal answer is chosen. Each rejection is reported so its cause can be fixed.
 - Destiny Mirage no longer stops the duel when cards are sent from the Deck to the Graveyard.
 - Decks with Red-Eyes Darkness Metal Dragon can duel again: its card script was missing, and the duel stopped before the first turn.
@@ -17,6 +38,10 @@
 - Declaring a number (Card Trooper and other cards that ask for one) no longer ends the duel with "OCGCore rejected the selection", and the declared number is the one the effect uses. Numbers are listed from lowest to highest.
 - The CPU no longer activates a second copy of a Continuous card it already has face-up (two Toon Defense in a row).
 - "Chain prompts: Smart" asks far less often. It stops you when a card answers something specific, when the opponent's card is on the chain, and once each for the opponent's summon, attack, Battle Phase and End Phase. It no longer stops at every phase start, on your own chain links, or in every Damage Step window. "Chain prompts: Always" still shows every window.
+
+### Error reporting
+
+- Deployed builds report errors to Sentry, including any duel that stops on an error, with the turn, phase, decks and last log lines. Local development and the tests send nothing.
 
 ## 1.4.0 — 2026-11-16
 
