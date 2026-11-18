@@ -23,6 +23,10 @@ const about = (): [string, string][] => [
 
 const changelog = (): [string, string[]][] => [
   [t('Version {v}', { v: __APP_VERSION__ }), [
+    t('Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.'),
+    t('Fixes for crashes on older phones and browsers, and in the Deck Builder.'),
+  ]],
+  [t('Version {v}', { v: '1.4.1' }), [
     t('A new look for every menu, on phones and desktops alike.'),
     t('Anime card style: turn it on in Settings to see cards drawn like the show.'),
     t('Sharper close-ups for every CPU duelist.'),

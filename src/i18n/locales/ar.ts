@@ -583,4 +583,6 @@ export const AR: Dictionary = {
   "Exodia the Forbidden One": "إكزوديا المحرَّم",
   "Back to lobby": "العودة إلى الردهة",
   "Home": "الرئيسية",
+  "Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.": "المبارزات عبر الإنترنت تتصل على شبكات أكثر: عندما يُحظر الاتصال المباشر، تمر المبارزة عبر خادم وسيط.",
+  "Fixes for crashes on older phones and browsers, and in the Deck Builder.": "إصلاحات لأعطال على الهواتف والمتصفحات القديمة، وفي محرر المجموعات.",
 };
