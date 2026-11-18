@@ -63,7 +63,7 @@ export class PrivateRoom {
   constructor(public code: string, private hello: Hello, roomFactory: typeof joinRoom = joinRoom, relay: RTCIceServer[] = []) {
     this.room = roomFactory({ ...config, ...(relay.length ? { turnConfig: relay } : {}), maxUsers: 2, password: code }, 'duel-' + code);
     this.action = this.room.makeAction('duel');
-    this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e))); });
+    this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e), false, true)); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail(t('Your opponent disconnected.')); });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
@@ -199,10 +199,10 @@ export class PrivateRoom {
     await this.send({ type: 'chat', text });
     this.addChat(this.hello.name, text, true);
   }
-  fail(reason: string, surrendered = false) {
+  fail(reason: string, surrendered = false, bug = false) {
     if (this.closed) return;
     this.error = reason;
-    this.network?.abort(reason);
+    this.network?.abort(reason, bug);
     this.onChange();
     this.onEnd(reason, surrendered);
   }

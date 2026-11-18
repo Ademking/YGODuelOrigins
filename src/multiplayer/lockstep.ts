@@ -1,6 +1,8 @@
 import type { OcgMessage, OcgResponse } from 'ocgcore-wasm';
 import { fingerprint } from './protocol';
 import { t } from '../i18n';
+/** Error name for an online duel that ended normally (disconnect, timeout, surrender): not a bug to report. */
+export const DUEL_ENDED = 'DuelEnded';
 
 export type DecisionPacket = { seq: number; prompt: string; response: OcgResponse | null };
 export interface DuelNetwork {
@@ -39,15 +41,19 @@ export class Lockstep implements DuelNetwork {
     if (this.failure) return;
     if (!packet || !Number.isSafeInteger(packet.seq) || packet.seq < 0 || typeof packet.prompt !== 'string'
       || packet.prompt.length > 16 || (packet.response !== null && (typeof packet.response !== 'object' || !Number.isInteger(packet.response?.type)))) {
-      this.abort(t('Invalid duel message.')); return;
+      this.abort(t('Invalid duel message.'), true); return;
     }
     if (packet.seq < this.seq) return; // retransmitted decision already applied
-    if (packet.seq > this.seq + 64 || this.queued.size >= 64) { this.abort(t('Duel synchronization failed.')); return; }
+    if (packet.seq > this.seq + 64 || this.queued.size >= 64) { this.abort(t('Duel synchronization failed.'), true); return; }
     if (this.waiter?.seq === packet.seq) { this.waiter.resolve(packet); this.waiter = undefined; }
     else if (!this.queued.has(packet.seq)) this.queued.set(packet.seq, packet);
   }
-  abort(reason: string) {
-    this.failure ??= new Error(reason);
+  /** Stop the duel. `bug` marks a failure worth reporting; a disconnect, timeout or surrender is a normal end. */
+  abort(reason: string, bug = false) {
+    if (!this.failure) {
+      this.failure = new Error(reason);
+      if (!bug) this.failure.name = DUEL_ENDED;
+    }
     this.waiter?.reject(this.failure);
     this.waiter = undefined;
     this.queued.clear();
@@ -73,7 +79,7 @@ export class Lockstep implements DuelNetwork {
       const wait = Math.min(this.timeout, this.clock.remaining(1) + 30000);
       timer = setTimeout(() => { this.abort(t('Opponent did not respond. Return to the lobby and reconnect.')); }, wait);
     }).finally(() => { if (timer) clearTimeout(timer); this.clock.stop(); });
-    if (packet.prompt !== prompt) { this.abort(t('The duel went out of sync. Both players must use the same game version.')); throw this.failure; }
+    if (packet.prompt !== prompt) { this.abort(t('The duel went out of sync. Both players must use the same game version.'), true); throw this.failure; }
     this.queued.delete(seq);
     this.seq++;
     return packet.response ?? undefined;

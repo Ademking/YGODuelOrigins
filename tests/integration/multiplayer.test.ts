@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import createCore, { OcgMessageType as M, OcgResponseType as R } from 'ocgcore-wasm';
 import { OcgDuel, SURRENDER } from '../../src/ocgcore/duel';
 import { CARDS } from '../../src/ocgcore/catalog';
-import { Lockstep, DuelClock, type DecisionPacket } from '../../src/multiplayer/lockstep';
+import { Lockstep, DuelClock, DUEL_ENDED, type DecisionPacket, type DuelNetwork } from '../../src/multiplayer/lockstep';
 import { cleanName, cleanChat, validDeck, encode, decode, parseCode, newCode, fingerprint } from '../../src/multiplayer/protocol';
 import { OPPONENTS } from '../../src/data/decks';
 import type { Prompt, UIEvent } from '../../src/engine/duel';
@@ -191,4 +191,15 @@ test('lobby profiles only accept an avatar number and a two-letter country', asy
   for (const bad of ['tn', 'TUN', 'T', '../', null]) assert.equal(cleanCountry(bad), undefined, String(bad));
   assert.equal(avatarURL('12'), 'https://ygopro.online/assets/profile/Avatars/12.jpg');
   assert.equal(flagURL('TN'), 'https://flagsapi.com/TN/flat/64.png');
+});
+
+test('a disconnect or surrender ends the duel without counting as a bug; a sync failure is still one', async () => {
+  const seed: DuelNetwork['seed'] = ['1', '2', '3', '4'];
+  const ended = new Lockstep(seed, async () => {});
+  ended.abort('Your opponent disconnected.');
+  const broken = new Lockstep(seed, async () => {});
+  broken.abort('Duel synchronization failed.', true);
+  const failureOf = (network: Lockstep) => network.exchange({} as never, false, async () => undefined).catch((error: Error) => error);
+  assert.equal((await failureOf(ended) as Error).name, DUEL_ENDED);
+  assert.equal((await failureOf(broken) as Error).name, 'Error');
 });
