@@ -11,8 +11,8 @@ export function initMonitoring() {
     release: `duel-origins@${__APP_VERSION__}`,
     environment: location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'local' : 'production',
     // A tab left open across a deploy fails to load old code files; the page reloads itself, so it is not a bug.
-    // Browsers too old for the engine (no WebAssembly exceptions or DecompressionStream) are told so on screen.
-    beforeSend: (event, hint) => (isStaleBuild(hint.originalException) || /CompileError|DecompressionStream|too old to run duels/.test(String(hint.originalException)) ? null : event),
+    // Browsers too old for the engine (no WebAssembly exceptions) are told so on screen.
+    beforeSend: (event, hint) => (isStaleBuild(hint.originalException) || /CompileError|too old to run duels/.test(String(hint.originalException)) ? null : event),
   });
 }
 
