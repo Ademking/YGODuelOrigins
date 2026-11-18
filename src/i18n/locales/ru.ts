@@ -575,4 +575,6 @@ export const RU: Dictionary = {
   "Anime card style: turn it on in Settings to see cards drawn like the show.": "Аниме-стиль карт: включите в настройках, чтобы карты выглядели как в сериале.",
   "Sharper close-ups for every CPU duelist.": "Более чёткие портреты всех дуэлянтов ИИ.",
   "Background music: pick, pause or mute songs with the music button in the corner.": "Фоновая музыка: выбирайте, ставьте на паузу или выключайте песни кнопкой музыки в углу.",
+  "{card} cannot be used in duels.": "{card} нельзя использовать в дуэлях.",
+  "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "Этот браузер слишком старый для дуэлей. Обновите его или играйте в свежем Chrome, Firefox, Edge или Safari.",
 };

@@ -17,6 +17,11 @@ const specials: CardDef[] = [
 ];
 
 export const CARDS: CardDef[] = [...SOURCE_CARDS, ...specials];
+/**
+ * Video-game-only cards with no Project Ignis data: the duel engine cannot play them, so the Deck Builder hides them
+ * and a deck holding one is not legal. tests/engine/decks.test.ts keeps this list in step with the engine data.
+ */
+export const NO_DUEL_DATA = new Set(['ygo_106959', 'ygo_107374', 'ygo_107375', 'ygo_106533', 'ygo_105929', 'ygo_106534', 'ygo_106958', 'ygo_105925']);
 export const CARD_MAP: Record<string, CardDef> = Object.fromEntries(CARDS.map(card => [card.id, card]));
 export function getCard(id: string): CardDef {
   const card = CARD_MAP[id];

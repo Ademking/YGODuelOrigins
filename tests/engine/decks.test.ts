@@ -101,3 +101,15 @@ test('premade reset leaves legacy saved decks intact and saves subsequent edits'
     else Reflect.deleteProperty(globalThis, 'localStorage');
   }
 });
+
+test('exactly the cards without duel-engine data are kept out of decks', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { gunzipSync } = await import('node:zlib');
+  const { CARDS, NO_DUEL_DATA } = await import('../../src/ocgcore/catalog');
+  const { cardCatalog } = await import('../../src/ocgcore/data');
+  const catalog = cardCatalog(JSON.parse(gunzipSync(readFileSync('assets/ocgcore/duel.json.gz')).toString('utf8')));
+  const missing = CARDS.filter((card) => { try { catalog.codeFor(card.id); return false; } catch { return true; } }).map((card) => card.id);
+  assert.deepEqual(new Set(missing), NO_DUEL_DATA);
+  const deck = { ...STARTERS['Seto Kaiba'], main: [...STARTERS['Seto Kaiba'].main.slice(1), 'ygo_106959'] };
+  assert.ok(validateDeck(deck, { enforceBanlist: false }).some((error) => error.includes('cannot be used in duels')));
+});

@@ -38,8 +38,10 @@ let navigation = 0;
 /** Show another screen. Screens are separate chunks, so the title loads without the duel or the deck editor. */
 export async function go(name: ScreenName, data?: unknown) {
   const id = ++navigation;
-  const screen = (await SCREENS[name]()).default as Screen<unknown>;
-  if (id !== navigation) return;
+  // undefined when the screen's file is from an older deploy: the page is already reloading (main.ts)
+  const loaded = await SCREENS[name]() as { default: Screen<unknown> } | undefined;
+  if (!loaded || id !== navigation) return;
+  const screen = loaded.default;
   try { leave?.(); } catch (error) { console.error(error); }
   leave = undefined;
   document.querySelectorAll('body > dialog, body > .overlay').forEach((node) => node.remove());

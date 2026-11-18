@@ -1,4 +1,4 @@
-import { CARDS, copyLimit, getCard, isExtraDeckCard } from '../../ocgcore/catalog';
+import { CARDS, copyLimit, getCard, isExtraDeckCard, NO_DUEL_DATA } from '../../ocgcore/catalog';
 import { loadDecks, saveDecks, selectedDeck, setSelectedDeck, validateDeck } from '../../data/decks';
 import type { DeckList } from '../../engine/duel';
 import type { Attr, CardDef, Race } from '../../engine/types';
@@ -89,6 +89,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
         </footer>
       </section>
     </div></div>`;
+  // listeners go on the screen's own element: #app is shared by every screen and outlives this one
+  const screen = root.firstElementChild as HTMLElement;
   const q = <T extends HTMLElement = HTMLElement>(selector: string) => $<T>(root, selector);
   const info = cardInfo(t('Hover over a card to see its details.'), 'stack');
   info.el.classList.add('h-full');
@@ -135,6 +137,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   const poolCards = (): CardDef[] => {
     const level = LEVELS[filter.level];
     const list = CARDS.filter((c) => {
+      if (NO_DUEL_DATA.has(c.id)) return false;
       if (filter.kind !== 'all' && c.kind !== filter.kind) return false;
       if (filter.mtype && (c.kind !== 'monster' || c.mtype !== MTYPES[filter.mtype].toLowerCase())) return false;
       if (filter.attr && c.attr !== ATTRS[filter.attr]) return false;
@@ -209,7 +212,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     turn(Math.sign(event.deltaY));
   }, { passive: false });
   let swipeX = 0, swiped = false;
-  root.addEventListener('pointerdown', (event) => { swipeX = event.clientX; swiped = false; }, true);
+  screen.addEventListener('pointerdown', (event) => { swipeX = event.clientX; swiped = false; }, true);
   poolBox.addEventListener('pointerup', (event) => {
     const dx = event.clientX - swipeX;
     if (event.pointerType !== 'mouse' && Math.abs(dx) > 50) { swiped = true; turn(dx < 0 ? 1 : -1); }
@@ -246,25 +249,25 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
 
   // cards: hover shows details; click adds (pool) or removes (deck); right-click on the pool removes a copy
   const cardOf = (event: Event) => (event.target as HTMLElement).closest<HTMLElement>('[data-id]');
-  root.addEventListener('pointerover', (event) => { const card = cardOf(event); if (card && event.pointerType === 'mouse') info.show(getCard(card.dataset.id!)); });
+  screen.addEventListener('pointerover', (event) => { const card = cardOf(event); if (card && event.pointerType === 'mouse') info.show(getCard(card.dataset.id!)); });
   // touch: a long press shows a card's details instead of adding or removing it
   let pressTimer = 0, pressed = false;
-  root.addEventListener('pointerdown', (event) => {
+  screen.addEventListener('pointerdown', (event) => {
     const card = cardOf(event);
     pressed = false;
     clearTimeout(pressTimer);
     if (card && event.pointerType !== 'mouse') pressTimer = window.setTimeout(() => { pressed = true; showCardSheet(getCard(card.dataset.id!)); }, 450);
   });
-  root.addEventListener('pointerup', () => clearTimeout(pressTimer));
-  root.addEventListener('pointercancel', () => clearTimeout(pressTimer));
-  root.addEventListener('pointermove', (event) => { if (Math.abs(event.clientX - swipeX) > 12) clearTimeout(pressTimer); });
-  root.addEventListener('click', (event) => {
+  screen.addEventListener('pointerup', () => clearTimeout(pressTimer));
+  screen.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+  screen.addEventListener('pointermove', (event) => { if (Math.abs(event.clientX - swipeX) > 12) clearTimeout(pressTimer); });
+  screen.addEventListener('click', (event) => {
     const card = cardOf(event);
     if (!card || pressed || swiped) return;
     info.show(getCard(card.dataset.id!));
     if (card.dataset.from === 'pool') add(card.dataset.id!); else remove(card.dataset.id!);
   });
-  root.addEventListener('contextmenu', (event) => {
+  screen.addEventListener('contextmenu', (event) => {
     const card = cardOf(event);
     if (!card) return;
     event.preventDefault();
@@ -272,7 +275,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     if (card.dataset.from === 'pool' && !event.shiftKey) remove(card.dataset.id!); else add(card.dataset.id!);
   });
   // drag from the list onto the deck to add; from the deck onto the list to remove
-  root.addEventListener('dragstart', (event) => {
+  screen.addEventListener('dragstart', (event) => {
     const card = cardOf(event);
     if (!card || !event.dataTransfer) return;
     event.dataTransfer.setData('text/plain', `${card.dataset.from}:${card.dataset.id}`);

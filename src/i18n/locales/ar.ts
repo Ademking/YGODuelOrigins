@@ -575,4 +575,6 @@ export const AR: Dictionary = {
   "Anime card style: turn it on in Settings to see cards drawn like the show.": "أسلوب بطاقات الأنمي: فعّله من الإعدادات لترى البطاقات كما في المسلسل.",
   "Sharper close-ups for every CPU duelist.": "صور مقرّبة أوضح لكل خصوم الحاسوب.",
   "Background music: pick, pause or mute songs with the music button in the corner.": "موسيقى في الخلفية: اختر الأغاني أو أوقفها أو اكتمها بزر الموسيقى في الزاوية.",
+  "{card} cannot be used in duels.": "لا يمكن استخدام {card} في المبارزات.",
+  "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "هذا المتصفح قديم جداً لتشغيل المبارزات. حدّثه، أو العب في إصدار حديث من Chrome أو Firefox أو Edge أو Safari.",
 };

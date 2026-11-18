@@ -3,6 +3,12 @@ import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
 import type { Bundle } from './data';
 import { isStaleBuild, reloadForUpdate } from '../staleBuild';
 import { timeoutSignal } from '../timeoutSignal';
+import { t } from '../i18n';
+
+/** This browser is too old for the duel engine; not a bug to report. */
+export class OldBrowserError extends Error {
+  constructor() { super(t('This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.')); }
+}
 
 const loadCore = () => createCore({ sync: true, locateFile: () => wasmUrl });
 let runtime: Promise<[Awaited<ReturnType<typeof loadCore>>, Bundle]> | undefined;
@@ -55,6 +61,8 @@ export function loadRuntime() {
       report(0);
       // the page is from an older deploy: reload to get the current engine files
       if (isStaleBuild(error) && reloadForUpdate()) return new Promise<never>(() => {});
+      // the engine needs WebAssembly exceptions (Chrome 95, Safari 15.2) and the data needs DecompressionStream (Safari 16.4)
+      if (/CompileError|DecompressionStream/.test(String(error))) throw new OldBrowserError();
       throw error;
     });
   return runtime;

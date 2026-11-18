@@ -37,7 +37,12 @@ function play(sound: Sound) {
   audio.currentTime = 0;
   audio.volume = soundVolume(sound);
   const started = audio;
-  void audio.play().then(() => { if (JINGLES.has(sound)) for (const listener of jingleListeners) listener(started); }, () => undefined);
+  const jingle = () => { if (JINGLES.has(sound)) for (const listener of jingleListeners) listener(started); };
+  // old browsers return nothing from play() and may throw instead of rejecting
+  try {
+    const playing = audio.play() as Promise<void> | undefined;
+    if (playing) playing.then(jingle, () => undefined); else jingle();
+  } catch { /* the audio device is unavailable */ }
 }
 
 function stop(sound: Sound) {
