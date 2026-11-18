@@ -1,8 +1,9 @@
-// Cloudflare deploy: the built game in dist/ served as static files (no Worker code).
+// Cloudflare deploy: the built game in dist/ served as static files, plus worker/index.js for the /turn relay logins.
 // `previews` (empty) lets branch builds make a preview copy with `npx wrangler preview`.
 {
   "name": "ygoduelorigins",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist" },
+  "main": "worker/index.js",
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
   "previews": {}
 }

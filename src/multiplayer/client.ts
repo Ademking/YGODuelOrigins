@@ -12,16 +12,21 @@ export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
 /** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>] };
+const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768 };
+let relay: Promise<RTCIceServer[]> | undefined, relayAt = 0;
 /**
- * Optional TURN relay for networks that block direct WebRTC (set at build time, e.g. a free Metered or Cloudflare TURN):
- * VITE_TURN_URLS="turn:a.example:80,turns:a.example:443?transport=tcp", VITE_TURN_USERNAME, VITE_TURN_CREDENTIAL.
+ * Short-lived TURN relay logins from the site's /turn endpoint (worker/index.js, Cloudflare TURN), for networks that
+ * block direct WebRTC. Empty in `npm run dev` or when the endpoint is down: duels then try direct connections only.
+ * The logins last 24 hours; a tab open longer than 12 fetches fresh ones.
  */
-const turnUrls = String(import.meta.env?.VITE_TURN_URLS ?? '').split(',').map(u => u.trim()).filter(u => /^turns?:/.test(u));
-export const turnConfigured = turnUrls.length > 0;
-const turnConfig = turnConfigured
-  ? [{ urls: turnUrls, username: String(import.meta.env?.VITE_TURN_USERNAME ?? ''), credential: String(import.meta.env?.VITE_TURN_CREDENTIAL ?? '') }]
-  : undefined;
-const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, ...(turnConfig ? { turnConfig } : {}) };
+export function relayServers() {
+  if (Date.now() - relayAt > 12 * 3600_000) { relay = undefined; relayAt = Date.now(); }
+  relay ??= fetch('/turn', { signal: timeoutSignal(5000) })
+    .then(response => (response.ok ? response.json() : []))
+    .then((servers: unknown) => (Array.isArray(servers) ? servers as RTCIceServer[] : []))
+    .catch(() => { relay = undefined; return []; });
+  return relay;
+}
 /** Plain-language text for Trystero room errors. */
 function roomErrorText(error: { code?: string; message: string }, who: string) {
   switch (error.code) {
@@ -55,22 +60,22 @@ export class PrivateRoom {
   private receivedChat = 0;
   private connectionTimer: ReturnType<typeof setTimeout>;
   private handshakeTimer?: ReturnType<typeof setTimeout>;
-  constructor(public code: string, private hello: Hello, roomFactory: typeof joinRoom = joinRoom) {
-    this.room = roomFactory({ ...config, maxUsers: 2, password: code }, 'duel-' + code);
+  constructor(public code: string, private hello: Hello, roomFactory: typeof joinRoom = joinRoom, relay: RTCIceServer[] = []) {
+    this.room = roomFactory({ ...config, ...(relay.length ? { turnConfig: relay } : {}), maxUsers: 2, password: code }, 'duel-' + code);
     this.action = this.room.makeAction('duel');
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
     this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail(t('Your opponent disconnected.')); });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
-      if (!this.opponent) { this.error = turnConfigured ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
+      if (!this.opponent) { this.error = relay.length ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
-    const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: timeoutSignal(15000) });
+    const [response, relay] = await Promise.all([fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: timeoutSignal(15000) }), relayServers()]);
     if (!response.ok) throw new Error(t('Could not verify the duel engine version. Reload and try again.'));
     const revision = (await response.text()).trim();
-    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look });
+    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look }, joinRoom, relay);
   }
   get isHost() { return this.hello.host; }
   get isReady() { return this.ready; }
