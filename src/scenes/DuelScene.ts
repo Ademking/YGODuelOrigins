@@ -464,22 +464,24 @@ export class DuelScene extends Phaser.Scene {
         this.tweens.killTweensOf(moving);
         phaseTabs.forEach((tab) => { if (tab.active) tab.setVisible(true); });
       });
+      // portrait: the picker is only scaled up to fit the screen width, so its text is drawn larger to stay readable
+      const big = this.portrait ? 1.4 : 1;
       const label = (x: number, y: number, text: string, size: number, color: string) => {
-        const t = this.add.text(x, y, text, { fontFamily: FONT_H, fontSize: `${size}px`, color, fontStyle: 'bold' }).setOrigin(0.5);
+        const t = this.add.text(x, y, text, { fontFamily: FONT_H, fontSize: `${Math.round(size * big)}px`, color, fontStyle: 'bold' }).setOrigin(0.5);
         layer.add(t);
         return t;
       };
       const icon = (choice: RpsChoice) => `rps_${choice.toLowerCase()}`;
 
       if (!player || !opponent) {
-        label(CX, CY - 150, t('ROCK  PAPER  SCISSORS'), this.portrait ? 19 : 22, '#fff6e0').setLetterSpacing(this.portrait ? 1 : 2);
-        label(CX, CY - 116, t('Choose your hand to decide who goes first'), 11, COL.dim);
+        label(CX, CY - 150, t('ROCK  PAPER  SCISSORS'), this.portrait ? 17 : 22, '#fff6e0').setLetterSpacing(this.portrait ? 1 : 2);
+        label(CX, CY - 112, t('Choose your hand to decide who goes first'), 11, COL.dim);
         RPS_CHOICES.forEach((choice, index) => {
           const item = this.add.container(CX + (index - 1) * gap, CY + 16);
           const halo = this.add.graphics().lineStyle(2, COL.gold, 1).strokeCircle(0, 0, SIZE / 2 + 9).setAlpha(0);
           const image = this.add.image(0, 0, icon(choice)).setDisplaySize(SIZE, SIZE);
           const base = image.scale;
-          const name = this.add.text(0, SIZE / 2 + 30, t(choice).toUpperCase(), { fontFamily: FONT_H, fontSize: '12px', color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
+          const name = this.add.text(0, SIZE / 2 + 30, t(choice).toUpperCase(), { fontFamily: FONT_H, fontSize: `${Math.round(12 * big)}px`, color: COL.text, fontStyle: 'bold' }).setOrigin(0.5);
           item.add([halo, image, name]).setSize(SIZE + 40, SIZE + 90).setInteractive({ useHandCursor: true });
           layer.add(item);
           moving.push(item, image, halo);
@@ -512,8 +514,8 @@ export class DuelScene extends Phaser.Scene {
       };
       const mine = hand(CX - dx, t('YOU'), false), theirs = hand(CX + dx, t('OPPONENT'), true);
       const versus = label(CX, y, 'VS', 18, COL.goldTxt);
-      const headline = label(CX, CY - 150, '', 30, '#fff6e0').setAlpha(0).setLetterSpacing(3);
-      const detail = label(CX, CY - 112, '', 11, COL.dim).setAlpha(0);
+      const headline = label(CX, CY - (this.portrait ? 178 : 150), '', this.portrait ? 26 : 30, '#fff6e0').setAlpha(0).setLetterSpacing(3);
+      const detail = label(CX, CY - (this.portrait ? 136 : 112), '', 11, COL.dim).setAlpha(0);
       const base = mine.image.scale;
       const reveal = () => {
         if (!layer.active || this.dead) return;
@@ -546,7 +548,7 @@ export class DuelScene extends Phaser.Scene {
         }
         if (result === 'win') {
           options.forEach((option, index) => {
-            const action = button(this, CX + (index - 0.5) * 200, CY + 176, 184, 40, option, () => this.choose(index), { size: 12, primary: index === 0 });
+            const action = button(this, CX + (index - 0.5) * 200, CY + 176, 184, this.portrait ? 48 : 40, option, () => this.choose(index), { size: this.portrait ? 16 : 12, primary: index === 0 });
             layer.add(action);
             if (!reduced) { action.setAlpha(0); this.tweens.add({ targets: action, alpha: 1, duration: 200, delay: 450 }); }
           });
@@ -2967,15 +2969,27 @@ export class DuelScene extends Phaser.Scene {
     if (winner === -1) sfx.lose(); else if (win) sfx.win(); else sfx.lose();
     const crashed = winner === -1 && reason.startsWith('Engine error');
     const head = crashed ? t('ABORTED') : winner === -1 ? t('DRAW') : watching ? t('{player} wins', { player: this.duel.name(winner) }).toUpperCase() : t(win ? 'VICTORY' : 'DEFEAT');
+    const portrait = this.portrait;
+    const online = this.init0.multiplayer?.session;
     const layer = this.add.container(0, 0).setDepth(1000);
-    layer.add(this.playfieldBlocker(0x06050d, 0.74));
-    // portrait: drawn larger; the title and text are kept narrower to fit
-    const narrow = this.portrait ? 500 : 700;
-    this.enlarge(layer, this.init0.multiplayer ? 740 : 520, CX, 370, 360);
+    layer.add(this.playfieldBlocker(0x06050d, portrait ? 0.86 : 0.74));
+    // portrait: a narrow column (the buttons stacked) so the whole screen can be drawn much larger
+    const narrow = portrait ? 380 : 700;
+    // the actions: [label, onClick, primary]
+    const actions: [string, () => void, boolean][] = online
+      ? [[t('Rematch'), () => void online.requestRematch(), true],
+        [t('Back to lobby'), () => void go('Multiplayer', { rejoin: true }), false],
+        [t('Home'), () => void go('Title'), false]]
+      : [[t('Rematch'), () => this.scene.restart(this.init0), true], [t('Home'), () => void go('Title'), false]];
+    const rowY = (index: number) => portrait ? (online ? 466 : 446) + index * 62 : 470; // online: room for the rematch note
+    const logY = portrait ? rowY(actions.length - 1) + 64 : 528;
+    if (portrait) this.enlarge(layer, 400, CX, (212 + logY + 20) / 2, logY + 20 - 212 + 40, viewOf(this).cy);
+    else this.enlarge(layer, this.init0.multiplayer ? 740 : 520, CX, 370, 360);
     const accent = win ? COL.gold : winner === -1 ? COL.glow : COL.red;
     const rules = this.add.graphics();
+    const lower = portrait ? 384 : 392;
     for (const [x, a0, a1] of [[CX - 380, 0, 1], [CX, 1, 0]] as const) {
-      rules.fillGradientStyle(accent, accent, accent, accent, a0, a1, a0, a1).fillRect(x, 212, 380, 1.5).fillRect(x, 392, 380, 1.5);
+      rules.fillGradientStyle(accent, accent, accent, accent, a0, a1, a0, a1).fillRect(x, 212, 380, 1.5).fillRect(x, lower, 380, 1.5);
     }
     layer.add(rules);
     const title = this.add.text(CX, 282, head, { fontFamily: FONT_H, fontSize: '84px', fontStyle: 'bold', color: '#fff6e0' })
@@ -2984,26 +2998,28 @@ export class DuelScene extends Phaser.Scene {
     title.setScale(scale * 1.25).setAlpha(0);
     this.tweens.add({ targets: title, scale, alpha: 1, duration: 420, ease: 'Cubic.out' });
     layer.add(title);
-    const detail = this.add.text(CX, 360, reason, { fontFamily: FONT_B, fontSize: '15px', color: COL.text, align: 'center', wordWrap: { width: narrow - 20 } }).setOrigin(0.5);
-    detail.setScale(Math.min(1, 44 / detail.height));
+    const detail = this.add.text(CX, portrait ? 352 : 360, reason, { fontFamily: FONT_B, fontSize: portrait ? '17px' : '15px', color: COL.text, align: 'center', wordWrap: { width: narrow - 20 } }).setOrigin(0.5);
+    detail.setScale(Math.min(1, (portrait ? 52 : 44) / detail.height));
     layer.add(detail);
-    const online = this.init0.multiplayer?.session;
+    const size = portrait ? 18 : 16;
+    const made = actions.map(([text, onClick, primary], index) => {
+      const x = portrait ? CX : actions.length === 3 ? CX + (index - 1) * 250 : CX + (index - 0.5) * 256;
+      const width = portrait ? 340 : actions.length === 3 ? 230 : 240;
+      const made = button(this, x, rowY(index), width, portrait ? 52 : 50, text, onClick, { size, primary });
+      layer.add(made);
+      return made;
+    });
     if (online) {
-      const rematch = button(this, CX - 250, 470, 230, 50, t('Rematch'), () => void online.requestRematch(), { size: 16, primary: true });
-      const state = this.add.text(CX, 418, '', { fontFamily: FONT_B, fontSize: '13px', color: COL.goldTxt }).setOrigin(0.5);
+      const rematch = made[0];
+      const state = this.add.text(CX, portrait ? 414 : 418, '', { fontFamily: FONT_B, fontSize: portrait ? '15px' : '13px', color: COL.goldTxt, align: 'center', wordWrap: { width: narrow } }).setOrigin(0.5);
       this.updateRematch = () => {
         const { mine, theirs, open } = online.rematchState;
         rematch.setEnabled(open && !mine).setLabel(t(mine ? 'Waiting…' : theirs ? 'Accept Rematch' : 'Rematch'));
         state.setText(!open ? t('Rematch unavailable: the room is closed.') : mine ? t('Waiting for {player}…', { player: this.init0.opp.name }) : theirs ? t('{player} wants a rematch!', { player: this.init0.opp.name }) : '');
       };
       this.updateRematch();
-      layer.add([rematch, state,
-        button(this, CX, 470, 230, 50, t('Back to lobby'), () => void go('Multiplayer', { rejoin: true }), { size: 16 }),
-        button(this, CX + 250, 470, 230, 50, t('Home'), () => void go('Title'), { size: 16 })]);
-    } else {
-      layer.add(button(this, CX - 128, 470, 240, 50, t('Rematch'), () => this.scene.restart(this.init0), { size: 16, primary: true }));
-      layer.add(button(this, CX + 128, 470, 240, 50, t('Home'), () => void go('Title'), { size: 16 }));
+      layer.add(state);
     }
-    layer.add(button(this, CX, 528, 132, 30, t('View Log'), () => this.toggleLogs(), { size: 11 }));
+    layer.add(button(this, CX, logY, portrait ? 180 : 132, portrait ? 38 : 30, t('View Log'), () => this.toggleLogs(), { size: portrait ? 14 : 11 }));
   }
 }

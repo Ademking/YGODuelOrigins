@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- On phones held upright, the Victory, Defeat and Draw screen is drawn about twice as large, with its buttons stacked, and Rock, Paper, Scissors has larger text and buttons.
+- The loading spinner shown while the game starts is round again instead of a square.
+
 ## 1.4.2 — 2026-11-18
 
 Online duels connect on more networks, and fixes for crashes reported from players' devices.

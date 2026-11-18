@@ -52,6 +52,8 @@
   /* square corners everywhere; .round opts back in (coins) */
   *, *::before, *::after, ::backdrop { border-radius: 0 !important; }
   .round { border-radius: 50% !important; }
+  /* the loading spinner index.html draws before the first screen */
+  #app:empty::after { border-radius: 50% !important; }
   /* grid and flex children may shrink below their text width, so long labels truncate instead of widening the page */
   .grid > *, .flex > * { min-width: 0; }
 }
