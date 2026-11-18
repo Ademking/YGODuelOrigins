@@ -577,4 +577,10 @@ export const FR: Dictionary = {
   "Background music: pick, pause or mute songs with the music button in the corner.": "Musique de fond : choisissez, mettez en pause ou coupez les morceaux avec le bouton musique dans le coin.",
   "{card} cannot be used in duels.": "{card} ne peut pas être utilisée en duel.",
   "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "Ce navigateur est trop ancien pour les duels. Mettez-le à jour ou jouez dans un Chrome, Firefox, Edge ou Safari récent.",
+  "Duel complete": "Duel terminé",
+  "Draw": "Égalité",
+  "A player surrendered": "Un joueur a abandonné",
+  "Exodia the Forbidden One": "Exodia le Maudit",
+  "Back to lobby": "Retour au salon",
+  "Home": "Accueil",
 };

@@ -2298,7 +2298,7 @@ export class DuelScene extends Phaser.Scene {
         await wait(this, 400);
         if (e.reason === 'Exodia the Forbidden One' && e.winner !== -1) await this.exodiaFx(e.winner);
         if (this.dead) return;
-        this.showEnd(e.winner, e.reason);
+        this.showEnd(e.winner, t(e.reason));
         return;
     }
   }
@@ -2998,11 +2998,11 @@ export class DuelScene extends Phaser.Scene {
       };
       this.updateRematch();
       layer.add([rematch, state,
-        button(this, CX, 470, 230, 50, 'Back to lobby', () => void go('Multiplayer', { rejoin: true }), { size: 16 }),
-        button(this, CX + 250, 470, 230, 50, 'Home', () => void go('Title'), { size: 16 })]);
+        button(this, CX, 470, 230, 50, t('Back to lobby'), () => void go('Multiplayer', { rejoin: true }), { size: 16 }),
+        button(this, CX + 250, 470, 230, 50, t('Home'), () => void go('Title'), { size: 16 })]);
     } else {
       layer.add(button(this, CX - 128, 470, 240, 50, t('Rematch'), () => this.scene.restart(this.init0), { size: 16, primary: true }));
-      layer.add(button(this, CX + 128, 470, 240, 50, 'Home', () => void go('Title'), { size: 16 }));
+      layer.add(button(this, CX + 128, 470, 240, 50, t('Home'), () => void go('Title'), { size: 16 }));
     }
     layer.add(button(this, CX, 528, 132, 30, t('View Log'), () => this.toggleLogs(), { size: 11 }));
   }

@@ -577,4 +577,10 @@ export const AR: Dictionary = {
   "Background music: pick, pause or mute songs with the music button in the corner.": "موسيقى في الخلفية: اختر الأغاني أو أوقفها أو اكتمها بزر الموسيقى في الزاوية.",
   "{card} cannot be used in duels.": "لا يمكن استخدام {card} في المبارزات.",
   "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "هذا المتصفح قديم جداً لتشغيل المبارزات. حدّثه، أو العب في إصدار حديث من Chrome أو Firefox أو Edge أو Safari.",
+  "Duel complete": "انتهت المبارزة",
+  "Draw": "تعادل",
+  "A player surrendered": "استسلم أحد اللاعبين",
+  "Exodia the Forbidden One": "إكزوديا المحرَّم",
+  "Back to lobby": "العودة إلى الردهة",
+  "Home": "الرئيسية",
 };

@@ -22,5 +22,7 @@ export const DYNAMIC_KEYS: string[] = [
   // duel emotes
   'Hello!', 'Nice play!', 'Hmm…', 'Wow!', 'Oops!', 'On fire!', 'Good game!',
   // CPU duelists' titles and deck styles
+  // how a duel ended (OCGCore end event)
+  'Duel complete', 'Draw', 'A player surrendered', 'Exodia the Forbidden One',
   ...new Set(OPPONENTS.flatMap((opponent) => [opponent.title, opponent.style]).filter(Boolean)),
 ];
