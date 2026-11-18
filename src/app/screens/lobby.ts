@@ -104,7 +104,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const name = q<HTMLInputElement>('name'), decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
     try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
-    const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck, { enforceBanlist: false }).length)
+    // online duels follow the banlist (data/banlist.ts): decks that break it are fixed in the Deck Builder first
+    const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: t('{n} cards', { n: deck.main.length }) })), selectedDeck(), t('Deck'));
     q('deck').replaceWith(select.el);
     let seed = savedSeed(), country: string | undefined;

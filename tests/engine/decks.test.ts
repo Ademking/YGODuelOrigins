@@ -113,3 +113,24 @@ test('exactly the cards without duel-engine data are kept out of decks', async (
   const deck = { ...STARTERS['Seto Kaiba'], main: [...STARTERS['Seto Kaiba'].main.slice(1), 'ygo_106959'] };
   assert.ok(validateDeck(deck, { enforceBanlist: false }).some((error) => error.includes('cannot be used in duels')));
 });
+
+test('an untouched starter from before the banlist is replaced with the legal one; an edited one is kept', () => {
+  const old = PREVIOUS_PREMADE.filter(opponent => opponent.name === 'Yugi Muto').at(-1)!;
+  assert.ok(validateDeck(old.deck).length, 'the old Yugi deck broke the banlist');
+  const edited = { main: [...old.deck.main.slice(1), old.deck.main[0], old.deck.main[0]].slice(0, 41), extra: old.deck.extra };
+  const values = new Map<string, string>([
+    ['arcana-duel.ygo.decks.premade-v2', JSON.stringify({ 'Yugi Muto': old.deck, 'Seto Kaiba': edited })],
+    ['arcana-duel.ygo.starters-seen.premade-v2', JSON.stringify(Object.keys(STARTERS))],
+  ]);
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } } });
+  try {
+    const decks = loadDecks();
+    assert.deepEqual(decks['Yugi Muto'], STARTERS['Yugi Muto']);
+    assert.deepEqual(validateDeck(decks['Yugi Muto']), []);
+    assert.deepEqual(decks['Seto Kaiba'], edited, "a player's own changes are never overwritten");
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
+});

@@ -15,6 +15,20 @@ const LEVELS = ['Any', '1-4', '5-6', '7+'];
 const MTYPES = ['Any', 'Normal', 'Effect', 'Ritual', 'Fusion'];
 const SORTS = ['Name', 'ATK', 'DEF', 'Level', 'Type'];
 const KIND_ORDER = { monster: 0, spell: 1, trap: 2 };
+/**
+ * The banlist mark on a card's top-right corner, as on the cards: a red no-entry sign for Forbidden, a yellow 1 or 2
+ * for Limited and Semi-Limited. Nothing for cards allowed at 3.
+ */
+function limitBadge(limit: number) {
+  if (limit >= 3) return '';
+  const label = t(limit === 0 ? 'Forbidden' : limit === 1 ? 'Limited' : 'Semi-Limited');
+  const mark = limit === 0
+    ? '<circle cx="12" cy="12" r="6.6" fill="none" stroke="#e8242f" stroke-width="2.6"/><path d="M7.4 7.4 16.6 16.6" stroke="#e8242f" stroke-width="2.6"/>'
+    : `<text x="12" y="16.9" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="14.5" font-weight="900" fill="#ffd42a">${limit}</text>`;
+  return `<span class="pointer-events-none absolute -top-[3%] -right-[5%] z-10 w-[34%] min-w-3.5 max-w-8 drop-shadow-[0_1px_2px_#000c]" role="img" aria-label="${esc(label)}" title="${esc(label)}">`
+    + `<svg viewBox="0 0 24 24" class="block w-full"><circle cx="12" cy="12" r="11" fill="#0b0b0f" stroke="#ffd42a" stroke-width="1.4"/>${mark}</svg></span>`;
+}
+
 const RATIO = 86 / 59; // card height / width
 /** Columns and card width that fit `n` cards into a w x h box with the largest cards. */
 function fit(n: number, w: number, h: number, gap: number) {
@@ -112,7 +126,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     flashTimer = window.setTimeout(refreshStatus, 1600);
   };
   const tile = (id: string, from: 'pool' | 'main' | 'extra') =>
-    `<button class="group relative block w-full touch-manipulation text-left" data-id="${id}" data-from="${from}" draggable="true" title="${esc(cardName(getCard(id)))}">${cardHtml(id, 'transition duration-150 group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-brass/70')}${from === 'pool' ? '<span data-badge class="absolute right-0.5 bottom-0.5 bg-void/90 px-1 py-px font-display text-[10px] font-bold"></span>' : ''}</button>`;
+    `<button class="group relative block w-full touch-manipulation text-left" data-id="${id}" data-from="${from}" draggable="true" title="${esc(cardName(getCard(id)))}">${cardHtml(id, 'transition duration-150 group-hover:-translate-y-0.5 group-hover:ring-1 group-hover:ring-brass/70')}${limitBadge(copyLimit(getCard(id)))}${from === 'pool' ? '<span data-badge class="absolute right-0.5 bottom-0.5 bg-void/90 px-1 py-px font-display text-[10px] font-bold"></span>' : ''}</button>`;
 
   const renderDeck = () => {
     const main = sorted(deck.main), extra = sorted(deck.extra);

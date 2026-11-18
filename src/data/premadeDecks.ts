@@ -1,6 +1,6 @@
 import type { Difficulty } from '../engine/ai';
 import type { DeckList } from '../engine/duel';
-import { CARDS } from '../ocgcore/catalog';
+import { CARDS, copyLimit } from '../ocgcore/catalog';
 
 interface Recipe {
   id: string;
@@ -321,6 +321,7 @@ const recipes: Recipe[] = [
 ];
 
 const byName = new Map(CARDS.map(card => [card.name, card]));
+const byId = new Map(CARDS.map(card => [card.id, card]));
 const additions: Record<string, Record<string, number>> = {
   yugi: { 'Dark Magic Curtain': 1, 'Dark Magic Ritual': 1, 'Magician of Black Chaos': 1, 'Diffusion Wave-Motion': 1, 'Multiply': 1, 'Mystical Space Typhoon': 1 },
   kaiba: { 'Burst Stream of Destruction': 2, 'Kaibaman': 2, 'Kaiser Sea Horse': 2, 'Soul Exchange': 1 },
@@ -357,7 +358,8 @@ const previousKeith = {
       'Metalmorph': 2, 'Time Machine': 2, 'Sakuretsu Armor': 3, 'Mirror Force': 1,
     };
 
-export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia' || recipe.id === 'keith').map(({ main, extra, ...opponent }) => ({
+/** Earlier versions of the starters, before the latest additions and revisions. */
+const OLDER_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.id === 'exodia' || recipe.id === 'keith').map(({ main, extra, ...opponent }) => ({
   ...opponent,
   art: '*',
   deck: { main: expand(opponent.id === 'keith' ? previousKeith : main), extra: expand(extra ?? {}) } satisfies DeckList,
@@ -367,8 +369,59 @@ export const PREVIOUS_PREMADE = recipes.filter(recipe => recipe.id in additions 
   deck: { main: [...expand(main), ...expand(additions[opponent.id] ?? {})], extra: expand(extra ?? {}) } satisfies DeckList,
 })));
 
-export const PREMADE = recipes.map(({ main, extra, ...opponent }) => ({
-  ...opponent,
-  art: '*',
-  deck: { main: [...expand(main), ...expand(additions[opponent.id] ?? {}), ...expand(revisions[opponent.id]?.main ?? {})], extra: [...expand(extra ?? {}), ...expand(revisions[opponent.id]?.extra ?? {})] } satisfies DeckList,
-}));
+/**
+ * The recipes predate the banlist (data/banlist.ts). Each copy over a card's limit becomes the first of these similar
+ * cards that still has room under its own limit (then FALLBACKS), so every starter is legal online.
+ */
+const SUBSTITUTES: Record<string, string[]> = {
+  'Monster Reborn': ['Premature Burial', 'Dust Tornado'],
+  'Mystical Space Typhoon': ['Dust Tornado'],
+  "Harpie's Feather Duster": ['Heavy Storm', 'Dust Tornado'],
+  'Witch of the Black Forest': ['Sangan', 'Mystic Tomato'],
+  'Sangan': ['Mystic Tomato'],
+  'Upstart Goblin': ['Jar of Greed'],
+  'Swords of Revealing Light': ['Messenger of Peace', 'Negate Attack'],
+  'Marauding Captain': ['Command Knight'],
+  'D.D. Warrior Lady': ['D.D. Assailant', 'Blade Knight'],
+  'Exiled Force': ['Blade Knight', 'D.D. Assailant'],
+  'Vampire Lord': ['Vampire Lady'],
+  'Dark Scorpion - Chick the Yellow': ['Dark Scorpion - Gorg the Strong', 'Dark Scorpion - Meanae the Thorn'],
+  'Jinzo': ['Jinzo #7'],
+  'Reflect Bounder': ['Big Shield Gardna', 'Spirit Reaper'],
+};
+export function legalize(ids: string[]): string[] {
+  const limit = (id: string) => copyLimit(byId.get(id)!);
+  // the copies each card keeps come first, so a substitute never pushes a card the deck already holds over its limit
+  const count = new Map<string, number>();
+  for (const id of ids) count.set(id, Math.min(limit(id), (count.get(id) ?? 0) + 1));
+  const room = (id: string) => (count.get(id) ?? 0) < limit(id);
+  const kept = new Map<string, number>();
+  return ids.map((id) => {
+    kept.set(id, (kept.get(id) ?? 0) + 1);
+    if (kept.get(id)! <= limit(id)) return id;
+    const options = [...(SUBSTITUTES[byId.get(id)!.name] ?? []), ...FALLBACKS].map((name) => byName.get(name)?.id).filter((x): x is string => !!x);
+    const pick = options.find(room);
+    if (!pick) throw new Error(`No legal substitute for ${byId.get(id)!.name}`);
+    count.set(pick, (count.get(pick) ?? 0) + 1);
+    return pick;
+  });
+}
+/** When none of a card's own substitutes has room: plain, always-useful cards. */
+const FALLBACKS = ['Dust Tornado', 'Giant Trunade', 'Negate Attack', 'Magical Mallet'];
+
+const recipeDeck = ({ id, main, extra }: Recipe): DeckList => ({
+  main: [...expand(main), ...expand(additions[id] ?? {}), ...expand(revisions[id]?.main ?? {})],
+  extra: [...expand(extra ?? {}), ...expand(revisions[id]?.extra ?? {})],
+});
+
+export const PREMADE = recipes.map((recipe) => {
+  const { main, extra, ...opponent } = recipe;
+  const deck = recipeDeck(recipe);
+  return { ...opponent, art: '*', deck: { main: legalize(deck.main), extra: legalize(deck.extra) } satisfies DeckList };
+});
+/** Starters as they were before the banlist applied: unedited saved copies of these are brought up to date. */
+const PRE_BANLIST = recipes.map(({ main, extra, ...opponent }, index) => ({ ...opponent, art: '*', deck: recipeDeck(recipes[index]) }))
+  .filter((opponent, index) => JSON.stringify(opponent.deck) !== JSON.stringify(PREMADE[index].deck));
+
+/** Every earlier version of a starter: a saved copy still equal to one is replaced with the current starter (decks.ts). */
+export const PREVIOUS_PREMADE = [...OLDER_PREMADE, ...PRE_BANLIST];
