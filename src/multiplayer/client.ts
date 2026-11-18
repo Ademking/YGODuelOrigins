@@ -119,7 +119,9 @@ export class PrivateRoom {
       if (this.started || (this.peer && this.peer !== peer)) return;
       if (m.protocol !== PROTOCOL || m.revision !== this.hello.revision) throw new Error(t('Different game versions. Both players should reload the same deployment.'));
       if (typeof m.host !== 'boolean' || m.host === this.hello.host) throw new Error(t('This room already has a host. Join using their code.'));
-      if (!cleanName(m.name) || !validDeck(m.deck) || typeof m.ready !== 'boolean') throw new Error(t('Opponent sent invalid deck or profile data.'));
+      if (!cleanName(m.name) || !validDeck(m.deck, false) || typeof m.ready !== 'boolean') throw new Error(t('Opponent sent invalid deck or profile data.'));
+      // an opponent on an older build can still bring a deck that breaks the banlist
+      if (!validDeck(m.deck)) throw new Error(t("Your opponent's deck breaks the banlist, so it can't be used online."));
       const firstHello = !this.peer;
       this.peer = peer;
       this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country) } as Hello;

@@ -8,12 +8,13 @@ export const cleanName = (value: unknown) => typeof value === 'string'
   ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 16) : '';
 export const cleanChat = (value: unknown) => typeof value === 'string'
   ? value.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, 350) : '';
-export function validDeck(value: unknown): value is DeckList {
+/** A well-formed, legal deck; `banlist` false checks everything but the banlist (to tell the two failures apart). */
+export function validDeck(value: unknown, banlist = true): value is DeckList {
   if (!value || typeof value !== 'object') return false;
   const d = value as DeckList;
   return Array.isArray(d.main) && Array.isArray(d.extra) && d.main.length <= 60 && d.extra.length <= 15
     && [...d.main, ...d.extra].every(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARD_MAP, id))
-    && !validateDeck(d, { enforceBanlist: false }).length;
+    && !validateDeck(d, { enforceBanlist: banlist }).length; // online duels follow the banlist
 }
 export function newCode() {
   return Array.from(crypto.getRandomValues(new Uint8Array(12)), n => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n % 32]).join('');

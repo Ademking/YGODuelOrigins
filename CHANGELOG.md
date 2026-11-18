@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Banlist
+
+- Online duels follow the GOAT (April 2005) Forbidden & Limited list. Decks that break it don't appear in the online deck picker, and an opponent's deck that breaks it is refused with a clear message. Solo duels against the CPU are unchanged.
+- The Deck Builder marks every Forbidden, Limited and Semi-Limited card with a badge in its top-right corner: a red no-entry sign, a yellow 1 or a yellow 2.
+- The starter decks follow the banlist: extra or banned copies became similar legal cards (Monster Reborn → Premature Burial, a second Mystical Space Typhoon → Dust Tornado, and so on). Starter decks you never edited are updated; decks you changed are left as they are.
+
 ### Fixes
 
 - On phones held upright, the Victory, Defeat and Draw screen is drawn about twice as large, with its buttons stacked, and Rock, Paper, Scissors has larger text and buttons.
