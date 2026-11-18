@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Phones
+
+- The deck list in the online lobby scrolls: touching a deck to scroll no longer picks it. It opens across the top of the screen, so the keyboard never covers the search field.
+- A card's details sheet scrolls when you swipe on its text.
+- Attacks, card destruction and the other duel animations play on phones. Phones used to start on "Effects: Reduced"; now only very low-end devices do, and the menu still switches it.
+
+
 ### Deck import and export
 
 - The Deck Builder imports and exports decks in the formats other simulators use: **ydke:// deck codes** (EDOPro, YGOProDeck) and **.ydk files** (YGOPro, EDOPro). Alternate artworks import as the card they show, and cards this game doesn't have are left out with a note.
