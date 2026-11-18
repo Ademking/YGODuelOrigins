@@ -10,13 +10,14 @@ const MAX_MESSAGE = 65536; // a duel's connection offers are a few kB each, and 
 const MAX_SUBS = 16;
 const RATE_WINDOW_MS = 10_000, RATE_MAX = 150; // per connection: lobby heartbeats are every 25 s, signaling comes in bursts
 
-/** Does a Nostr filter match the event? Supports what the lobby asks for: ids, authors, kinds, #tags, since, until. */
+/**
+ * Does a Nostr filter match the event? Checks ids, authors, kinds and #tags. `since` and `until` are ignored: every
+ * event here is live, and they come from the device clock, so a phone a minute fast would otherwise get nothing.
+ */
 export function matches(filter, event) {
   if (filter.ids && !filter.ids.includes(event.id)) return false;
   if (filter.authors && !filter.authors.includes(event.pubkey)) return false;
   if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
-  if (typeof filter.since === 'number' && event.created_at < filter.since) return false;
-  if (typeof filter.until === 'number' && event.created_at > filter.until) return false;
   for (const [key, values] of Object.entries(filter)) {
     if (key[0] !== '#' || !Array.isArray(values)) continue;
     const name = key.slice(1);

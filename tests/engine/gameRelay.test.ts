@@ -28,12 +28,12 @@ test('the relay takes lobby and duel signaling events only', () => {
   assert.equal(isGameEvent(lobbyEvent({ sig: undefined })), false);
 });
 
-test('filters match on kinds, tags and time', () => {
+test('filters match on kinds and tags, whatever the time', () => {
   const event = lobbyEvent();
   assert.equal(matches({ kinds: [25050], '#t': ['duelorigins-lobby-v1'], since: 990 }, event), true);
   assert.equal(matches({ kinds: [25051] }, event), false);
   assert.equal(matches({ '#t': ['other'] }, event), false);
-  assert.equal(matches({ since: 1001 }, event), false);
+  assert.equal(matches({ since: 1001, until: 10 }, event), true, 'times come from device clocks, which can be off');
   assert.equal(matches({ '#x': ['topic'] }, event), false);
 });
 

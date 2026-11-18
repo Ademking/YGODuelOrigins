@@ -12,6 +12,7 @@
 - The lobby and duel connections also go through the game's own server, so networks that block the public lobby servers can see other duelists and duel them.
 - The lobby shows how many of its servers it reached. When it reaches none, it says your network may be blocking them, instead of an empty lobby that says "Online".
 - A lobby server that stopped accepting messages was removed.
+- The lobby works on phones whose clock is wrong. A clock even a few seconds fast used to show an empty lobby while saying "Online": the lobby now uses the server's time.
 
 ## 1.4.2 — 2026-11-18
 

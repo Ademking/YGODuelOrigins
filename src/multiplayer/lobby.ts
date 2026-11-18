@@ -9,6 +9,7 @@ import { cleanName, cleanChat } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import { t } from '../i18n';
 import { GAME_RELAY, type RelayStatus } from './relays';
+import { serverNow, syncClock } from './clock';
 
 export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
 export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
@@ -23,7 +24,8 @@ export const LOBBY_KIND = 25050;
 export const LOBBY_TAG = 'duelorigins-lobby-v1';
 const HEARTBEAT_MS = 25000, EXPIRE_MS = 70000, MAX_AGE_S = 120, MAX_PEERS = 1000;
 const CODE = /^[A-HJ-NP-Z2-9]{12}$/;
-const now = () => Math.floor(Date.now() / 1000);
+/** Seconds on the server's clock: the device's own clock may be minutes off (clock.ts). */
+const now = () => Math.floor(serverNow() / 1000);
 
 /** What the lobby needs from the relays; tests swap in an in-memory bus. */
 export interface LobbyTransport {
@@ -41,7 +43,9 @@ export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
       if (!results.some(r => r.status === 'fulfilled')) throw new Error('No relay accepted the event.');
     },
     subscribe(onEvent) {
-      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG], since: now() - 10 }, { onevent: onEvent });
+      // no `since`: lobby events are ephemeral, so relays only ever send live ones, and a since from a clock that runs
+      // fast made them send nothing at all
+      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG] }, { onevent: onEvent });
       return () => sub.close();
     },
     close() { pool.close(relays); },
@@ -64,6 +68,8 @@ export class Lobby {
   private busy = false;
   private lastChat = 0;
   private closed = false;
+  /** Events thrown away as too old or too new: many with nobody in the lobby points at a clock problem. */
+  stale = 0;
   private unsubscribe: () => void;
   private timers: ReturnType<typeof setInterval>[] = [];
   onChange = () => {};
@@ -74,7 +80,8 @@ export class Lobby {
   constructor(public name: string, private look: Look, private transport: LobbyTransport = nostrTransport()) {
     this.id = getPublicKey(this.secret);
     this.unsubscribe = transport.subscribe(event => this.receive(event));
-    void this.announce(true);
+    // the first announcement waits (briefly) for the server's time, so it is not sent with a wrong timestamp
+    void Promise.race([syncClock(), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => this.announce(true));
     this.timers.push(setInterval(() => void this.announce(), HEARTBEAT_MS), setInterval(() => this.expire(), 10000));
   }
   get avatar() { return this.look.avatar; }
@@ -143,7 +150,8 @@ export class Lobby {
   /** Everything from the relays is untrusted: check signature, tag, age, size and shape before use. */
   receive(event: Event) {
     if (this.closed || event.pubkey === this.id || event.kind !== LOBBY_KIND || event.content.length > 4096) return;
-    if (!event.tags.some(t => t[0] === 't' && t[1] === LOBBY_TAG) || Math.abs(now() - event.created_at) > MAX_AGE_S) return;
+    if (!event.tags.some(t => t[0] === 't' && t[1] === LOBBY_TAG)) return;
+    if (Math.abs(now() - event.created_at) > MAX_AGE_S) { this.stale++; return; }
     if (!verifyEvent(event)) return;
     let m: Record<string, unknown>;
     try { m = JSON.parse(event.content); } catch { return; }

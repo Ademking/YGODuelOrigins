@@ -74,3 +74,18 @@ export function reportLobbyUnreachable(status: { connected: number; total: numbe
     Sentry.captureMessage('Lobby could not reach any relay');
   });
 }
+
+/**
+ * Report a device clock far from the server's, or lobby events thrown away for their timestamps. The lobby corrects
+ * for the clock (multiplayer/clock.ts); this shows how often and how far clocks are off.
+ */
+export function reportLobbyClock(info: { offsetSeconds: number; staleEvents: number; players: number }) {
+  if (!import.meta.env.PROD) return;
+  Sentry.withScope((scope) => {
+    scope.setLevel('warning');
+    scope.setTag('area', 'lobby');
+    scope.setFingerprint(['lobby-clock']);
+    scope.setContext('lobby clock', info);
+    Sentry.captureMessage(`Lobby: device clock off by ${info.offsetSeconds} s`);
+  });
+}
