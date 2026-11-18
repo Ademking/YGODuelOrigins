@@ -7,6 +7,12 @@
 - On phones held upright, the Victory, Defeat and Draw screen is drawn about twice as large, with its buttons stacked, and Rock, Paper, Scissors has larger text and buttons.
 - The loading spinner shown while the game starts is round again instead of a square.
 
+### Online
+
+- The lobby and duel connections also go through the game's own server, so networks that block the public lobby servers can see other duelists and duel them.
+- The lobby shows how many of its servers it reached. When it reaches none, it says your network may be blocking them, instead of an empty lobby that says "Online".
+- A lobby server that stopped accepting messages was removed.
+
 ## 1.4.2 — 2026-11-18
 
 Online duels connect on more networks, and fixes for crashes reported from players' devices.

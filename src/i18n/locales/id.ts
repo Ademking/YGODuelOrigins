@@ -314,6 +314,8 @@ export const ID: Dictionary = {
   "OPPONENT": "LAWAN",
   "Ocean Duelist": "Duelist Samudra",
   "On fire!": "Lagi panas!",
+  "{n}/{total} servers": "{n}/{total} server",
+  "Can't reach the lobby servers. Your network may be blocking them: try mobile data, another Wi-Fi or a VPN.": "Server lobi tidak dapat dijangkau. Jaringanmu mungkin memblokirnya: coba data seluler, Wi-Fi lain, atau VPN.",
   "Online": "Online",
   "Online Duel": "Duel Online",
   "Online opponent": "Lawan online",

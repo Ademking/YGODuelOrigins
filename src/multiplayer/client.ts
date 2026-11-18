@@ -1,4 +1,6 @@
-import { joinRoom, type Room } from 'trystero';
+import { defaultRelayUrls, joinRoom, type Room } from 'trystero';
+import { getRelays } from '@trystero-p2p/core';
+import { GAME_RELAY } from './relays';
 import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
@@ -12,7 +14,12 @@ export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
 /** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>] };
-const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768 };
+/**
+ * Signaling relays: the game's own relay, plus the same five public relays Trystero picks by default for this app id
+ * (so players on an older build still meet on them).
+ */
+const ROOM_RELAYS = [GAME_RELAY, ...getRelays({ appId: APP_ID }, defaultRelayUrls, 5, true)];
+const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, relayConfig: { urls: ROOM_RELAYS } };
 let relay: Promise<RTCIceServer[]> | undefined, relayAt = 0;
 /**
  * Short-lived TURN relay logins from the site's /turn endpoint (worker/index.js, Cloudflare TURN), for networks that

@@ -8,6 +8,7 @@ import { sfx } from '../../ui/sfx';
 import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
+import { reportLobbyUnreachable } from '../../monitoring';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -26,6 +27,8 @@ const LICENSE = (artId: string, body: string) => `<div class="relative grid grid
 const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
 const CHALLENGE_MS = 30000;
+/** With no lobby relay connected for this long, the lobby says the network may be blocking them. */
+const UNREACHABLE_MS = 15000;
 
 const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) => {
   {
@@ -39,7 +42,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <button class="mp-btn small sm:h-11 sm:px-4 sm:text-sm" id="mp-back" aria-label="${h('Back')}">${icon('arrowLeft')}<span class="hidden sm:inline">${h('Back')}</span></button>
         <h1 class="min-w-0 flex-1 truncate font-display text-base text-brass-txt sm:text-2xl">${h('Online Duel')}</h1>
         <button class="mp-btn small" id="mp-reconnect" hidden><span>${h('Reconnect')}</span></button>
-        <p class="order-last flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-dim [overflow-wrap:anywhere] before:size-2 before:flex-none before:rounded-full before:bg-ok before:shadow-[0_0_8px_var(--color-ok)] sm:order-none sm:w-auto sm:max-w-[45%]" id="mp-status" role="status">${h(t('Connecting…'))}</p>
+        <p class="order-last flex w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-dim [overflow-wrap:anywhere] before:size-2 before:flex-none before:rounded-full before:bg-ok before:shadow-[0_0_8px_var(--color-ok)] data-[offline]:before:bg-bad data-[offline]:before:shadow-[0_0_8px_var(--color-bad)] sm:order-none sm:w-auto sm:max-w-[45%]" id="mp-status-bar"><span id="mp-status" role="status">${h(t('Connecting…'))}</span><span id="mp-servers" class="ml-auto flex-none pl-2 text-faint"></span></p>
       </header>
       <div class="grid flex-none grid-cols-3 gap-1.5 lg:hidden" role="tablist">
         <button class="mp-btn small on !h-auto !flex-col !gap-1 !whitespace-normal !py-1.5 text-center !text-[11px] leading-tight" role="tab" data-pane="0">${icon('online', 'size-4')}<span>${h('Play a friend')}</span></button>
@@ -170,6 +173,31 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     let challengeBar: HTMLElement | undefined;
     let outgoingInvite = false;
     const status = (message: string) => { if (alive) q('status').textContent = message; };
+    /**
+     * The lobby says "Online" as soon as it starts; this shows whether its relays really answer. When none has after
+     * UNREACHABLE_MS, the network is probably blocking them: say so, and report it once (with the browser and device).
+     */
+    let relayTimer: ReturnType<typeof setInterval> | undefined, unreachable = false, reported = false;
+    const watchRelays = (current: Lobby) => {
+      clearInterval(relayTimer);
+      const started = Date.now();
+      unreachable = false;
+      const check = () => {
+        const state = current.relayStatus();
+        if (!alive || lobby !== current || !state) return;
+        q('servers').textContent = t('{n}/{total} servers', { n: state.connected, total: state.total });
+        const down = !state.connected && Date.now() - started > UNREACHABLE_MS;
+        q('status-bar').toggleAttribute('data-offline', down);
+        if (down && !unreachable) {
+          status(t("Can't reach the lobby servers. Your network may be blocking them: try mobile data, another Wi-Fi or a VPN."));
+          q('reconnect').hidden = false;
+          if (!reported) { reported = true; reportLobbyUnreachable(state); }
+        } else if (!down && unreachable && !session) status(t('Online'));
+        unreachable = down;
+      };
+      check();
+      relayTimer = setInterval(check, 2000);
+    };
     const error = (e: unknown) => status(e instanceof Error ? e.message : t('Connection failed.'));
     const copy = async (value: string, button: HTMLButtonElement, label: string) => {
       const span = button.firstElementChild!;
@@ -349,6 +377,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         notice(`${who} declined your challenge.`);
       };
       status(t('Online'));
+      watchRelays(lobby);
       renderRoster(); renderChat(q('messages'), lobby.chat);
       if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
@@ -380,6 +409,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
 
     }
     return () => {
+      clearInterval(relayTimer);
       alive = false; root.remove();
       if (!transferred) { lobby?.close(); void session?.leave(); }
     };

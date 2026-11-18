@@ -314,6 +314,8 @@ export const AR: Dictionary = {
   "OPPONENT": "الخصم",
   "Ocean Duelist": "مبارز المحيط",
   "On fire!": "مشتعل!",
+  "{n}/{total} servers": "{n}/{total} خوادم",
+  "Can't reach the lobby servers. Your network may be blocking them: try mobile data, another Wi-Fi or a VPN.": "تعذّر الوصول إلى خوادم الردهة. قد تكون شبكتك تحجبها: جرّب بيانات الجوال أو شبكة Wi-Fi أخرى أو VPN.",
   "Online": "متصل",
   "Online Duel": "مبارزة عبر الإنترنت",
   "Online opponent": "خصم عبر الإنترنت",

@@ -35,3 +35,4 @@ game-data/
 
 # Generated Project Ignis data for the OCGCore browser runtime
 /assets/ocgcore/
+.wrangler/

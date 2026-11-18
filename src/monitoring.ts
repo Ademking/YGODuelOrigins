@@ -58,3 +58,19 @@ export function reportRejectedAnswer(
     Sentry.captureMessage(`OCGCore rejected a ${info.human ? 'player' : 'CPU'} answer to ${info.prompt}`);
   });
 }
+
+/**
+ * Report a lobby that reached none of its relays: the player sees an empty lobby and nothing else would show it. The
+ * device and browser come with every event; the relay states say whether anything answered at all.
+ */
+export function reportLobbyUnreachable(status: { connected: number; total: number; relays: Record<string, boolean> }) {
+  if (!import.meta.env.PROD) return;
+  Sentry.withScope((scope) => {
+    scope.setLevel('warning');
+    scope.setTag('area', 'lobby');
+    scope.setTag('online', String(navigator.onLine));
+    scope.setFingerprint(['lobby-relays-unreachable']);
+    scope.setContext('lobby relays', { ...status.relays, connected: status.connected, total: status.total });
+    Sentry.captureMessage('Lobby could not reach any relay');
+  });
+}
