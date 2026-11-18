@@ -1,0 +1,6 @@
+// Cloudflare deploy: the built game in dist/ served as static files (no Worker code).
+{
+  "name": "ygoduelorigins",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist" }
+}
