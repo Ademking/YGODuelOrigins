@@ -8,7 +8,8 @@ import { sfx } from '../../ui/sfx';
 import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
-import { reportLobbyUnreachable } from '../../monitoring';
+import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
+import { clockOffset } from '../../multiplayer/clock';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -177,7 +178,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
      * The lobby says "Online" as soon as it starts; this shows whether its relays really answer. When none has after
      * UNREACHABLE_MS, the network is probably blocking them: say so, and report it once (with the browser and device).
      */
-    let relayTimer: ReturnType<typeof setInterval> | undefined, unreachable = false, reported = false;
+    let relayTimer: ReturnType<typeof setInterval> | undefined, unreachable = false, reported = false, clockReported = false;
     const watchRelays = (current: Lobby) => {
       clearInterval(relayTimer);
       const started = Date.now();
@@ -194,6 +195,12 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
           if (!reported) { reported = true; reportLobbyUnreachable(state); }
         } else if (!down && unreachable && !session) status(t('Online'));
         unreachable = down;
+        // a clock far off, or players thrown away for their timestamps: tell Sentry once, to confirm the cause
+        const offsetSeconds = Math.round(clockOffset() / 1000);
+        if (!clockReported && (Math.abs(offsetSeconds) > 30 || (current.stale >= 3 && Date.now() - started > 30000))) {
+          clockReported = true;
+          reportLobbyClock({ offsetSeconds, staleEvents: current.stale, players: current.peers.size });
+        }
       };
       check();
       relayTimer = setInterval(check, 2000);
