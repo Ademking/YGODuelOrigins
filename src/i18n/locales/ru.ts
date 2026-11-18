@@ -314,6 +314,8 @@ export const RU: Dictionary = {
   "OPPONENT": "СОПЕРНИК",
   "Ocean Duelist": "Дуэлянт Океана",
   "On fire!": "В ударе!",
+  "{n}/{total} servers": "Серверов: {n}/{total}",
+  "Can't reach the lobby servers. Your network may be blocking them: try mobile data, another Wi-Fi or a VPN.": "Не удаётся связаться с серверами лобби. Возможно, ваша сеть их блокирует: попробуйте мобильный интернет, другую сеть Wi-Fi или VPN.",
   "Online": "В сети",
   "Online Duel": "Сетевая дуэль",
   "Online opponent": "Сетевой соперник",

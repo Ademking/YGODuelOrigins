@@ -8,12 +8,16 @@ import * as nip44 from 'nostr-tools/nip44';
 import { cleanName, cleanChat } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import { t } from '../i18n';
+import { GAME_RELAY, type RelayStatus } from './relays';
 
 export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
 export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
 
-/** Relays tested to accept and fan out ephemeral events from fresh keys. Events go to all of them and are de-duplicated. */
-export const LOBBY_RELAYS = ['wss://relay.primal.net', 'wss://relay.nostr.net', 'wss://relay.snort.social', 'wss://offchain.pub', 'wss://nostr.oxtr.dev'];
+/**
+ * The game's own relay, then public relays tested to accept and fan out ephemeral events from fresh keys. Events go to
+ * all of them and are de-duplicated. (nostr.oxtr.dev was dropped: it refused every event, its disk was full.)
+ */
+export const LOBBY_RELAYS = [GAME_RELAY, 'wss://relay.primal.net', 'wss://relay.nostr.net', 'wss://relay.snort.social', 'wss://offchain.pub'];
 /** Ephemeral kind (20000-29999): relays forward these to subscribers and do not store them. */
 export const LOBBY_KIND = 25050;
 export const LOBBY_TAG = 'duelorigins-lobby-v1';
@@ -26,6 +30,8 @@ export interface LobbyTransport {
   publish(event: Event): Promise<void>;
   subscribe(onEvent: (event: Event) => void): () => void;
   close(): void;
+  /** Which relays are connected; transports without real relays leave it out. */
+  status?(): RelayStatus;
 }
 export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
   const pool = new SimplePool({ enableReconnect: true });
@@ -39,6 +45,11 @@ export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
       return () => sub.close();
     },
     close() { pool.close(relays); },
+    status() {
+      const known = pool.listConnectionStatus();
+      const status = Object.fromEntries(relays.map((url) => [url, known.get(url) ?? known.get(url + '/') ?? false]));
+      return { connected: Object.values(status).filter(Boolean).length, total: relays.length, relays: status };
+    },
   };
 }
 
@@ -67,6 +78,8 @@ export class Lobby {
     this.timers.push(setInterval(() => void this.announce(), HEARTBEAT_MS), setInterval(() => this.expire(), 10000));
   }
   get avatar() { return this.look.avatar; }
+  /** How many lobby relays are connected, or null when the transport cannot tell. */
+  relayStatus(): RelayStatus | null { return this.transport.status?.() ?? null; }
   setBusy(busy: boolean) { this.busy = busy; void this.announce(); }
   /** Change avatar or country and tell everyone. */
   setLook(look: Partial<Look>) { this.look = { ...this.look, ...look }; void this.announce(); }
