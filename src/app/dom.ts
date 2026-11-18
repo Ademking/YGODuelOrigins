@@ -72,14 +72,15 @@ document.addEventListener('error', (event) => {
 
 // ---------------------------------------------------------------- dialogs
 /** A modal sheet; resolves with the typed text (input), true (ok), false (cancel) or null (dismissed). */
-export function modal(o: { title: string; text?: string; input?: string; ok: string; cancel?: string; danger?: boolean }): Promise<string | boolean | null> {
+/** `cancel: false` makes a notice with only the OK button. */
+export function modal(o: { title: string; text?: string; input?: string; ok: string; cancel?: string | false; danger?: boolean }): Promise<string | boolean | null> {
   return new Promise((resolve) => {
     const dialog = html<HTMLDialogElement>(`<dialog autofocus class="mp-modal"><form method="dialog" class="mp-sheet">
       <h2 class="!whitespace-normal">${esc(o.title)}</h2>
       ${o.text ? `<p>${esc(o.text)}</p>` : '<div class="h-4"></div>'}
       ${o.input !== undefined ? `<input class="mp-field mb-5" maxlength="40" value="${esc(o.input)}">` : ''}
       <div class="flex flex-wrap justify-end gap-2">
-        <button type="button" value="cancel" class="mp-btn">${esc(o.cancel ?? t('Cancel'))}</button>
+        ${o.cancel === false ? '' : `<button type="button" value="cancel" class="mp-btn">${esc(o.cancel ?? t('Cancel'))}</button>`}
         <button class="mp-btn ${o.danger ? 'danger' : 'primary'}">${esc(o.ok)}</button>
       </div></form></dialog>`);
     const input = dialog.querySelector('input');
@@ -91,7 +92,8 @@ export function modal(o: { title: string; text?: string; input?: string; ok: str
         result = value;
       } else result = true;
     };
-    dialog.querySelector<HTMLButtonElement>('button[value=cancel]')!.onclick = () => { result = false; dialog.close(); };
+    const cancel = dialog.querySelector<HTMLButtonElement>('button[value=cancel]');
+    if (cancel) cancel.onclick = () => { result = false; dialog.close(); };
     dialog.addEventListener('close', () => { dialog.remove(); resolve(result); });
     document.body.append(dialog);
     dialog.showModal();

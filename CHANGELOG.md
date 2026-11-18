@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Deck import and export
+
+- The Deck Builder imports and exports decks in the formats other simulators use: **ydke:// deck codes** (EDOPro, YGOProDeck) and **.ydk files** (YGOPro, EDOPro). Alternate artworks import as the card they show, and cards this game doesn't have are left out with a note.
+- **Share links:** "Copy share link" makes a duelorigins.online link that opens the Deck Builder and offers to import the deck.
+
+### Fixes (Sentry)
+
+- If the duel engine fails to download, it is tried again; then the page reloads once if it was from an older version, or says to check your connection.
+- The lobby no longer downloads a backlog of old messages from some lobby servers when it opens.
+
 ### Banlist
 
 - Online duels follow the GOAT (April 2005) Forbidden & Limited list. Decks that break it don't appear in the online deck picker, and an opponent's deck that breaks it is refused with a clear message. Solo duels against the CPU are unchanged.

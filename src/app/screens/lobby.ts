@@ -213,7 +213,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const copy = async (value: string, button: HTMLButtonElement, label: string) => {
       const span = button.firstElementChild!;
       try { await navigator.clipboard.writeText(value); span.textContent = t('Copied ✓'); }
-      catch { prompt('Copy this:', value); return; }
+      catch { prompt(t('Copy this:'), value); return; }
       setTimeout(() => { span.textContent = label; }, 1500);
     };
     const leaveRoom = () => {
