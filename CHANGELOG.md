@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.2 — 2026-11-18
+
+Online duels connect on more networks, and fixes for crashes reported from players' devices.
+
+### Online
+
+- Online duels now connect on mobile data and strict networks that used to stop them with "One of your networks is blocking direct connections": the connection goes through a Cloudflare relay when a direct one is blocked.
+- The chat and emote buttons sit in the bottom-right corner beside the music button, and tapping them, the music button or their panels no longer selects the cards underneath.
+- The end of a duel is translated: the result line, "Back to lobby" and "Home".
+
+### Fixes
+
+- Leaving the Deck Builder no longer leaves it listening on the next screen, which stopped the online lobby with "Unknown card".
+- Opening a screen right after an update no longer fails: the page reloads once to the new version.
+- Eight video-game-only cards the duel engine cannot play (Armament of the Lethal Lords and others) are hidden in the Deck Builder, and a deck holding one is not legal, instead of the duel stopping before it starts.
+- Duels work on iPhones before iOS 16.4, which could not read the card data.
+- Older browsers no longer stop on missing features (structuredClone, Promise.withResolvers) or when sound effects start.
+- Arabic text no longer crashes a duel with "Maximum call stack size exceeded".
+- Browsers too old for the duel engine are told to update instead of failing.
+
 ## 1.4.1 — 2026-11-17
 
 A redrawn game: every menu in a new look, an anime card style, sharper duelist portraits and background music.

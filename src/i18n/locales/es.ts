@@ -583,4 +583,6 @@ export const ES: Dictionary = {
   "Exodia the Forbidden One": "Exodia el Prohibido",
   "Back to lobby": "Volver a la sala",
   "Home": "Inicio",
+  "Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.": "Los duelos en línea conectan en más redes: si se bloquea la conexión directa, el duelo pasa por un relé.",
+  "Fixes for crashes on older phones and browsers, and in the Deck Builder.": "Correcciones de fallos en móviles y navegadores antiguos, y en el editor de mazos.",
 };
