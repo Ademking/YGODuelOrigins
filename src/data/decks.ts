@@ -1,6 +1,6 @@
 import type { DeckList } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
-import { CARD_MAP, copyLimit, getCard, isExtraDeckCard } from '../ocgcore/catalog';
+import { CARD_MAP, copyLimit, getCard, isExtraDeckCard, NO_DUEL_DATA } from '../ocgcore/catalog';
 import { PREMADE, PREVIOUS_PREMADE } from './premadeDecks';
 import { t } from '../i18n';
 import { cardName } from '../i18n/cards';
@@ -29,6 +29,7 @@ export function validateDeck(d: DeckList, opts: { enforceBanlist?: boolean } = {
   const counts: Record<string, number> = {};
   for (const id of [...d.main, ...d.extra]) {
     if (!CARD_MAP[id]) { errs.push(t('Unknown card "{id}".', { id })); continue; }
+    if (NO_DUEL_DATA.has(id)) errs.push(t('{card} cannot be used in duels.', { card: cardName(getCard(id)) }));
     counts[id] = (counts[id] ?? 0) + 1;
   }
   for (const id of d.main) if (CARD_MAP[id] && isExtraDeckCard(getCard(id))) errs.push(t('{card} belongs in the Fusion Deck.', { card: cardName(getCard(id)) }));

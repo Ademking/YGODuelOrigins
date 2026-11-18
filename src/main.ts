@@ -1,3 +1,4 @@
+import './polyfills';
 import './app/app.css';
 import { go } from './app/dom';
 import { mountBackdrop } from './app/backdrop';

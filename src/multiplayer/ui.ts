@@ -1,5 +1,6 @@
 import type { ChatLine, PrivateRoom } from './client';
 import { t } from '../i18n';
+import { shieldFromCanvas } from '../app/dom';
 import { avatarFor, avatarURL, flagURL } from './profile';
 import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';
 import { timeoutSignal } from '../timeoutSignal';
@@ -273,9 +274,9 @@ const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden=
 
 export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}) {
   const shell = element('div', '', 'mp-scope contents');
-  const rail = element('nav', '', 'fixed top-1/2 right-3.5 z-[110] flex -translate-y-1/2 flex-col gap-2 tall:top-[calc(env(safe-area-inset-top)+12px)] tall:right-auto tall:left-[calc(env(safe-area-inset-left)+12px)] tall:translate-y-0 tall:flex-row tall:gap-2.5'); rail.setAttribute('aria-label', t('Duel chat and emotes'));
+  const rail = element('nav', '', 'fixed right-[64px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-[110] flex gap-2'); rail.setAttribute('aria-label', t('Duel chat and emotes'));
   const railButton = (svg: string, label: string) => {
-    const b = element('button', '', 'relative grid size-12 cursor-pointer place-items-center rounded-2xl border border-white/10 bg-panel/95 shadow-lg shadow-black/50 transition hover:border-brass hover:text-brass-txt [&.on]:border-brass [&.on]:text-brass-txt ' + RING); b.type = 'button'; b.title = label;
+    const b = element('button', '', 'mp-icon relative'); b.type = 'button'; b.title = label;
     b.setAttribute('aria-label', label); b.setAttribute('aria-expanded', 'false'); b.innerHTML = svg;
     return b;
   };
@@ -283,7 +284,7 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   const badge = element('span', '', 'absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-brass px-1.5 text-xs leading-none font-semibold text-[#1d1505]'); badge.hidden = true; chatButton.append(badge);
   rail.append(chatButton, emoteButton);
 
-  const emotes = element('div', '', POP + ' fixed top-1/2 right-[76px] z-[110] flex min-w-[210px] -translate-y-1/2 flex-col p-1.5 tall:top-[calc(env(safe-area-inset-top)+76px)] tall:right-auto tall:left-3 tall:min-w-[min(280px,calc(100vw-24px))] tall:translate-y-0'); emotes.hidden = true; emotes.setAttribute('role', 'menu');
+  const emotes = element('div', '', POP + ' fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-[110] flex w-[min(260px,calc(100vw-24px))] flex-col p-1.5'); emotes.hidden = true; emotes.setAttribute('role', 'menu');
   EMOTES.forEach(([glyph, label], i) => {
     const b = element('button', '', 'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-raised hover:text-brass-txt tall:py-3 tall:text-base ' + RING); b.type = 'button'; b.setAttribute('role', 'menuitem');
     b.append(element('span', glyph, 'w-7 text-center text-xl'), element('span', t(label)));
@@ -291,7 +292,7 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
     emotes.append(b);
   });
 
-  const drawer = element('section', '', POP + ' fixed top-1/2 right-[76px] z-[110] flex h-[min(560px,82vh)] w-[min(380px,calc(100vw-100px))] -translate-y-1/2 flex-col tall:top-[calc(env(safe-area-inset-top)+76px)] tall:right-3 tall:left-3 tall:h-[min(560px,62vh)] tall:w-auto tall:translate-y-0'); drawer.hidden = true; drawer.setAttribute('aria-label', t('Duel chat'));
+  const drawer = element('section', '', POP + ' fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-[110] flex h-[min(520px,calc(100svh-90px))] w-[min(380px,calc(100vw-24px))] flex-col'); drawer.hidden = true; drawer.setAttribute('aria-label', t('Duel chat'));
   const head = element('header', '', 'flex items-center gap-2.5 border-b border-white/[.08] py-2 pr-2 pl-4');
   const close = element('button', '', 'grid size-9 cursor-pointer place-items-center rounded-xl text-dim hover:bg-white/5 hover:text-ink ' + RING); close.type = 'button'; close.innerHTML = CLOSE_ICON; close.setAttribute('aria-label', t('Close chat'));
   head.append(element('h2', session.opponent?.name ? t('Chat with {player}', { player: session.opponent.name }) : t('Chat with your opponent'), 'flex-1 truncate font-display text-[13px] text-brass-txt'), close);
@@ -302,7 +303,7 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   }, t('Say something'));
   form.classList.add('border-t', 'border-white/[.08]');
   drawer.append(head, messages, form);
-  shell.append(rail, emotes, drawer);
+  shell.append(shieldFromCanvas(rail), shieldFromCanvas(emotes), shieldFromCanvas(drawer));
   document.body.append(shell);
 
   let unread = 0;
@@ -317,6 +318,9 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   chatButton.onclick = () => show(drawer.hidden ? 'chat' : null);
   emoteButton.onclick = () => show(emotes.hidden ? 'emote' : null);
   close.onclick = () => { show(null); chatButton.focus(); };
+  // the music list opens in the same corner
+  const musicOpened = (e: Event) => { if (!shell.isConnected) document.removeEventListener('pointerdown', musicOpened); else if ((e.target as Element).closest?.('.music-btn')) show(null); };
+  document.addEventListener('pointerdown', musicOpened);
   shell.addEventListener('focusin', e => { if (drawer.contains(e.target as Node)) focus(true); });
   shell.addEventListener('focusout', e => { if (!drawer.contains(e.relatedTarget as Node)) focus(false); });
   shell.addEventListener('keydown', e => {

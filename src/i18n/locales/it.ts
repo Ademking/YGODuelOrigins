@@ -575,4 +575,12 @@ export const IT: Dictionary = {
   "Anime card style: turn it on in Settings to see cards drawn like the show.": "Stile carte anime: attivalo nelle Impostazioni per vedere le carte come nella serie.",
   "Sharper close-ups for every CPU duelist.": "Ritratti più nitidi per tutti i duellanti CPU.",
   "Background music: pick, pause or mute songs with the music button in the corner.": "Musica di sottofondo: scegli, metti in pausa o silenzia i brani con il pulsante musica nell'angolo.",
+  "{card} cannot be used in duels.": "{card} non può essere usata nei duelli.",
+  "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "Questo browser è troppo vecchio per i duelli. Aggiornalo o gioca su un Chrome, Firefox, Edge o Safari recente.",
+  "Duel complete": "Duello concluso",
+  "Draw": "Pareggio",
+  "A player surrendered": "Un giocatore si è arreso",
+  "Exodia the Forbidden One": "Exodia il Proibito",
+  "Back to lobby": "Torna alla lobby",
+  "Home": "Home",
 };

@@ -575,4 +575,12 @@ export const ID: Dictionary = {
   "Anime card style: turn it on in Settings to see cards drawn like the show.": "Gaya kartu anime: aktifkan di Pengaturan untuk melihat kartu seperti di serinya.",
   "Sharper close-ups for every CPU duelist.": "Potret lebih tajam untuk semua duelist CPU.",
   "Background music: pick, pause or mute songs with the music button in the corner.": "Musik latar: pilih, jeda, atau bisukan lagu dengan tombol musik di pojok.",
+  "{card} cannot be used in duels.": "{card} tidak bisa dipakai dalam duel.",
+  "This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.": "Browser ini terlalu lama untuk menjalankan duel. Perbarui, atau main di Chrome, Firefox, Edge, atau Safari versi terbaru.",
+  "Duel complete": "Duel selesai",
+  "Draw": "Seri",
+  "A player surrendered": "Seorang pemain menyerah",
+  "Exodia the Forbidden One": "Exodia the Forbidden One",
+  "Back to lobby": "Kembali ke lobi",
+  "Home": "Beranda",
 };

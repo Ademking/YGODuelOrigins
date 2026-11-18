@@ -1,8 +1,15 @@
 import createCore from 'ocgcore-wasm';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
 import type { Bundle } from './data';
+import { parseBundle } from './bundle';
 import { isStaleBuild, reloadForUpdate } from '../staleBuild';
 import { timeoutSignal } from '../timeoutSignal';
+import { t } from '../i18n';
+
+/** This browser is too old for the duel engine; not a bug to report. */
+export class OldBrowserError extends Error {
+  constructor() { super(t('This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.')); }
+}
 
 const loadCore = () => createCore({ sync: true, locateFile: () => wasmUrl });
 let runtime: Promise<[Awaited<ReturnType<typeof loadCore>>, Bundle]> | undefined;
@@ -55,18 +62,9 @@ export function loadRuntime() {
       report(0);
       // the page is from an older deploy: reload to get the current engine files
       if (isStaleBuild(error) && reloadForUpdate()) return new Promise<never>(() => {});
+      // the engine needs WebAssembly exceptions (Chrome 95, Safari 15.2)
+      if (/CompileError/.test(String(error))) throw new OldBrowserError();
       throw error;
     });
   return runtime;
-}
-
-/**
- * A server that sends the .gz with `Content-Encoding: gzip` (Vite dev, some CDNs) hands back plain JSON, and gunzipping
- * that again fails as "Failed to fetch". Only gunzip when the gzip magic bytes are still there.
- */
-export async function parseBundle(bytes: ArrayBuffer): Promise<Bundle> {
-  const head = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
-  const zipped = head[0] === 0x1f && head[1] === 0x8b;
-  const body = zipped ? new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')) : bytes;
-  return new Response(body).json() as Promise<Bundle>;
 }

@@ -66,6 +66,7 @@ const rtlLine = (s: string) => {
   return `${lead}\u202b${body}\u202c${trail}`;
 };
 const updateText = Phaser.GameObjects.Text.prototype.updateText;
+const rtlContexts = new WeakSet<CanvasRenderingContext2D>();
 Phaser.GameObjects.Text.prototype.updateText = function (this: Phaser.GameObjects.Text & { rtlLines?: boolean }) {
   // wrapped left-aligned paragraphs (About, What's New, the card panel) sit against the right edge in Arabic
   const style = this.style as Phaser.GameObjects.TextStyle & { wordWrapWidth: number | null };
@@ -73,9 +74,11 @@ Phaser.GameObjects.Text.prototype.updateText = function (this: Phaser.GameObject
     style.fixedWidth = style.wordWrapWidth;
     style.align = 'right';
   }
-  if (isRTL() && !this.rtlLines && this.context) {
+  // Phaser pools text canvases, so a context can come back to a new Text already wrapped: wrap each context once
+  if (isRTL() && !this.rtlLines && this.context && !rtlContexts.has(this.context)) {
     this.rtlLines = true;
     const ctx = this.context;
+    rtlContexts.add(ctx);
     const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
     // the page is dir="rtl" in Arabic and a resized canvas inherits it, which would reorder each line a second time:
     // lines start left to right, and the embedding alone turns the Arabic around

@@ -19,6 +19,15 @@ export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(re
 export const reducedMotionPreferred = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const coarsePointer = () => window.matchMedia('(pointer: coarse)').matches;
 
+/**
+ * Phaser also hears mouse and touch presses on the whole window, so a press on a panel over the duel would land on the
+ * card under it. Presses inside `el` stop here (pointer and click events still reach the page).
+ */
+export function shieldFromCanvas(el: HTMLElement) {
+  for (const type of ['mousedown', 'mouseup', 'touchstart', 'touchend']) el.addEventListener(type, (event) => event.stopPropagation());
+  return el;
+}
+
 // ---------------------------------------------------------------- router
 /** A screen draws into `root` and may return a cleanup run when the player leaves it. */
 export type Screen<T = never> = (root: HTMLElement, data: T) => (() => void) | void;
@@ -38,8 +47,10 @@ let navigation = 0;
 /** Show another screen. Screens are separate chunks, so the title loads without the duel or the deck editor. */
 export async function go(name: ScreenName, data?: unknown) {
   const id = ++navigation;
-  const screen = (await SCREENS[name]()).default as Screen<unknown>;
-  if (id !== navigation) return;
+  // undefined when the screen's file is from an older deploy: the page is already reloading (main.ts)
+  const loaded = await SCREENS[name]() as { default: Screen<unknown> } | undefined;
+  if (!loaded || id !== navigation) return;
+  const screen = loaded.default;
   try { leave?.(); } catch (error) { console.error(error); }
   leave = undefined;
   document.querySelectorAll('body > dialog, body > .overlay').forEach((node) => node.remove());

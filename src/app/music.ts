@@ -2,7 +2,7 @@
 // button that opens the song list, play / pause, previous / next and mute. The choice is remembered.
 import { icon } from './icons';
 import { t } from '../i18n';
-import { esc, html } from './dom';
+import { esc, html, shieldFromCanvas } from './dom';
 import { onJingle } from '../ui/sfx';
 
 const SONGS = [
@@ -135,7 +135,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') op
 /** Put the music button on the page; the music itself starts with the player's first click or key press. */
 export function mountMusic() {
   draw();
-  document.body.append(sheet, button);
+  document.body.append(shieldFromCanvas(sheet), shieldFromCanvas(button));
   const start = () => { if (state.playing) play(); };
   document.addEventListener('pointerdown', start, { once: true, capture: true });
   document.addEventListener('keydown', start, { once: true, capture: true });
