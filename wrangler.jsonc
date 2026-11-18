@@ -1,6 +1,8 @@
 // Cloudflare deploy: the built game in dist/ served as static files (no Worker code).
+// `previews` (empty) lets branch builds make a preview copy with `npx wrangler preview`.
 {
   "name": "ygoduelorigins",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./dist" }
+  "assets": { "directory": "./dist" },
+  "previews": {}
 }
