@@ -11,7 +11,26 @@ export class OldBrowserError extends Error {
   constructor() { super(t('This browser is too old to run duels. Update it, or play in a recent Chrome, Firefox, Edge or Safari.')); }
 }
 
-const loadCore = () => createCore({ sync: true, locateFile: () => wasmUrl });
+/** The engine or its data could not be downloaded (offline, or a dropped connection): not a bug to report. */
+export class DownloadError extends Error {
+  constructor() { super(t("Couldn't download the duel engine. Check your internet connection and try again.")); this.name = 'DownloadError'; }
+}
+
+const WASM_FAILED = /fetching of the wasm failed|Failed to fetch|NetworkError|Load failed|network error/i;
+const createEngine = () => createCore({ sync: true, locateFile: () => wasmUrl });
+/** The engine, downloaded once more after a short pause when the first try fails on the network. */
+async function loadCore(): Promise<Awaited<ReturnType<typeof createEngine>>> {
+  try { return await createEngine(); } catch (error) {
+    if (!WASM_FAILED.test(String(error))) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try { return await createEngine(); } catch (again) {
+      if (!WASM_FAILED.test(String(again))) throw again;
+      // the file is missing when the page is from an older deploy; anything else is the network
+      const status = await fetch(wasmUrl, { method: 'HEAD', cache: 'no-store', signal: timeoutSignal(5000) }).then((r) => r.status, () => 0);
+      throw status === 404 ? new Error('Unable to preload the duel engine from an older deploy') : new DownloadError();
+    }
+  }
+}
 let runtime: Promise<[Awaited<ReturnType<typeof loadCore>>, Bundle]> | undefined;
 let ready = false;
 /** Download progress of the card data, 0 to 1 (the engine itself is small next to it). */
@@ -53,7 +72,7 @@ async function download(response: Response) {
  * Safe to call early and often: the title screen starts it in the background so duels open without waiting.
  */
 export function loadRuntime() {
-  runtime ??= Promise.all([loadCore(), fetch(`${import.meta.env.BASE_URL}ocgcore/duel.json.gz`, { signal: timeoutSignal(90000) }).then(response => {
+  runtime ??= Promise.all([loadCore(), fetch(`${import.meta.env.BASE_URL}ocgcore/duel.json.gz`, { signal: timeoutSignal(90000) }).catch(() => { throw new DownloadError(); }).then(response => {
     if (!response.ok) throw new Error(`Could not load OCGCore card data (HTTP ${response.status}).`);
     return download(response);
   }).then(parseBundle)]).then((result) => { ready = true; report(1); return result; })

@@ -16,7 +16,8 @@ window.addEventListener('vite:preloadError', (event) => { if (reloadForUpdate())
 
 // Card names and text in the player's language load first (English needs nothing); a slow network cannot hold the game.
 Promise.race([loadCardTexts(), new Promise((resolve) => setTimeout(resolve, 6000))])
-  .then(() => go(location.hash.startsWith('#duel=') ? 'Multiplayer' : 'Title'))
+  // invite links (#duel=…) open the lobby, deck share links (#deck=…) the Deck Builder
+  .then(() => location.hash.startsWith('#duel=') ? go('Multiplayer') : location.hash.startsWith('#deck=') ? go('DeckEditor', { importCode: location.hash }) : go('Title'))
   .then(() => document.dispatchEvent(new Event('duel-origins:ready')))
   .catch((error: unknown) => {
     console.error(error);

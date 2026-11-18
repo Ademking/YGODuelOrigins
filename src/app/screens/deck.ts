@@ -5,7 +5,8 @@ import type { Attr, CardDef, Race } from '../../engine/types';
 import { sfx } from '../../ui/sfx';
 import { num, t } from '../../i18n';
 import { cardName, matchesTranslated } from '../../i18n/cards';
-import { $, cardHtml, chooseFromList, coarsePointer, esc, go, html, modal, type Screen } from '../dom';
+import { $, cardHtml, chooseFromList, coarsePointer, esc, go, html, modal, shieldFromCanvas, type Screen } from '../dom';
+import { parseDeck, shareLink, toYdk, toYdke } from '../../data/deckCodes';
 import { cardInfo, showCardSheet } from '../cardInfo';
 import { icon, type IconName } from '../icons';
 
@@ -46,7 +47,46 @@ const sorted = (ids: string[]) => [...ids].sort((a, b) => {
   return KIND_ORDER[ca.kind] - KIND_ORDER[cb.kind] || (cb.lv ?? 0) - (ca.lv ?? 0) || ca.name.localeCompare(cb.name);
 });
 
-const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined> = (root, data = {}) => {
+/** Paste a deck code, link or .ydk text, or pick a .ydk file. Resolves with the text and file name, or null. */
+function askDeckText(): Promise<{ text: string; file?: string } | null> {
+  return new Promise((resolve) => {
+    const dialog = html<HTMLDialogElement>(`<dialog class="mp-modal"><form method="dialog" class="mp-sheet">
+      <h2>${esc(t('Import deck'))}</h2>
+      <p>${esc(t('Paste a deck code (ydke://), a share link or the text of a .ydk file, or choose a .ydk file.'))}</p>
+      <textarea class="mp-field mb-4 !h-28 w-full resize-none !py-2 font-mono text-xs" spellcheck="false" autocomplete="off" aria-label="${esc(t('Import deck'))}"></textarea>
+      <input type="file" accept=".ydk,text/plain" hidden>
+      <div class="flex flex-wrap justify-end gap-2">
+        <button type="button" class="mp-btn mr-auto max-sm:w-full" data-file>${icon('deck', 'size-4')}<span>${esc(t('Choose .ydk file'))}</span></button>
+        <button type="button" value="cancel" class="mp-btn">${esc(t('Cancel'))}</button>
+        <button class="mp-btn primary">${esc(t('Import'))}</button>
+      </div></form></dialog>`);
+    const area = dialog.querySelector('textarea')!, picker = dialog.querySelector<HTMLInputElement>('input[type=file]')!;
+    let result: { text: string; file?: string } | null = null;
+    dialog.querySelector('form')!.onsubmit = (event) => {
+      if (!area.value.trim()) { event.preventDefault(); area.focus(); return; }
+      result = { text: area.value };
+    };
+    dialog.querySelector<HTMLButtonElement>('[data-file]')!.onclick = () => picker.click();
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+      result = { text: (await file.text()).slice(0, 200_000), file: file.name.replace(/\.ydk$/i, '') };
+      dialog.close();
+    };
+    dialog.querySelector<HTMLButtonElement>('button[value=cancel]')!.onclick = () => { result = null; dialog.close(); };
+    dialog.addEventListener('close', () => { dialog.remove(); resolve(result); });
+    document.body.append(shieldFromCanvas(dialog));
+    dialog.showModal();
+    area.focus();
+  });
+}
+
+/** Copy text, or show it to copy by hand where the browser refuses. */
+async function copyText(text: string) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { prompt(t('Copy this:'), text); return false; }
+}
+
+const deckEditor: Screen<{ createNew?: boolean; returnTo?: string; importCode?: string } | undefined> = (root, data = {}) => {
   const decks = loadDecks();
   let name = Object.keys(decks).includes(selectedDeck()) ? selectedDeck() : Object.keys(decks)[0];
   let deck: DeckList = structuredClone(decks[name]);
@@ -72,7 +112,7 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
         <button class="flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 px-1 font-display text-sm text-brass-txt hover:bg-white/5 sm:text-base" data-act="pick"><span class="truncate" data-name></span>${icon('down', 'size-4 text-dim')}</button>
         <button class="grid h-full w-9 flex-none place-items-center text-dim hover:text-brass-lit" data-act="next" aria-label="${esc(t('Next'))}">${icon('next', 'size-4')}</button>
       </div>
-      <div class="flex gap-1.5 max-sm:hidden">${iconBtn('new', 'plus', t('New'))}${iconBtn('rename', 'rename', t('Rename'))}${iconBtn('clear', 'clear', t('Clear'))}${iconBtn('delete', 'trash', t('Delete'), 'text-bad hover:!border-hot')}</div>
+      <div class="flex gap-1.5 max-sm:hidden">${iconBtn('new', 'plus', t('New'))}${iconBtn('import', 'import', t('Import deck'))}${iconBtn('export', 'share', t('Export deck'))}${iconBtn('rename', 'rename', t('Rename'))}${iconBtn('clear', 'clear', t('Clear'))}${iconBtn('delete', 'trash', t('Delete'), 'text-bad hover:!border-hot')}</div>
       <button class="mp-icon !size-10 sm:hidden" data-act="more" aria-label="${esc(t('Menu'))}">${icon('more')}</button>
       <button class="mp-btn primary !h-10 !px-3 sm:!px-4" data-act="save">${icon('save', 'size-4')}<span class="max-sm:hidden">${esc(t('Save'))}</span></button>
     </header>
@@ -175,7 +215,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   let pool: CardDef[] = [], page = 0, perPage = 1;
   const badge = (button: HTMLElement) => {
     const id = button.dataset.id!, n = count(id), limit = copyLimit(getCard(id));
-    const el = button.querySelector<HTMLElement>('[data-badge]')!;
+    const el = button.querySelector<HTMLElement>('[data-badge]');
+    if (!el) return; // only Card List tiles carry a count
     // hidden while it would only say 0/3
     el.hidden = !n && limit >= 3;
     el.textContent = `${n}/${limit}`;
@@ -354,6 +395,21 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     showTab('pool');
     flash(t('Deck created. Add cards from the right.'), true);
   };
+  /** Save an imported deck under a name the player picks, and open it. */
+  const importDeck = async (text: string, fileName?: string) => {
+    const imported = parseDeck(text);
+    if (!imported || !imported.deck.main.length && !imported.deck.extra.length) { sfx.deny(); flash(t("That isn't a deck code or a .ydk file.")); return; }
+    const typed = await askName(t('Import deck'), (imported.name ?? fileName ?? t('Imported Deck')).slice(0, 40), false);
+    if (!typed) return;
+    decks[typed] = imported.deck;
+    saveDecks(decks);
+    load(typed);
+    showTab('deck');
+    const n = imported.deck.main.length + imported.deck.extra.length;
+    const missing = imported.missing.length;
+    if (missing) await modal({ title: t('Imported {n} cards.', { n }), text: t('Cards not in this game were left out: {m}.', { m: missing }), ok: t('OK'), cancel: false });
+    else flash(t('Imported {n} cards.', { n }), true);
+  };
   const actions: Record<string, () => unknown> = {
     back: async () => { if (await confirmDiscard()) void go(returnTo); },
     prev: () => cycle(-1),
@@ -366,8 +422,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
     },
     new: newDeck,
     more: async () => {
-      const keys = ['new', 'rename', 'clear', 'delete'];
-      const index = await chooseFromList(t('Menu'), [t('New'), t('Rename'), t('Clear'), t('Delete')], -1);
+      const keys = ['new', 'import', 'export', 'rename', 'clear', 'delete'];
+      const index = await chooseFromList(t('Menu'), [t('New'), t('Import deck'), t('Export deck'), t('Rename'), t('Clear'), t('Delete')], -1);
       if (index !== null) void actions[keys[index]]();
     },
     rename: async () => {
@@ -379,6 +435,24 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
       saveDecks(decks);
       setSelectedDeck(typed);
       refreshStatus();
+    },
+    import: async () => {
+      if (!(await confirmDiscard())) return;
+      const picked = await askDeckText();
+      if (picked) await importDeck(picked.text, picked.file);
+    },
+    export: async () => {
+      // the deck as it is on screen, unsaved changes included
+      const index = await chooseFromList(t('Export deck'), [t('Copy deck code'), t('Copy share link'), t('Download .ydk file')], -1);
+      if (index === 0) { if (await copyText(toYdke(deck))) flash(t('Deck code copied.'), true); }
+      else if (index === 1) { if (await copyText(shareLink(deck))) flash(t('Share link copied.'), true); }
+      else if (index === 2) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([toYdk(deck, name)], { type: 'text/plain' }));
+        link.download = `${name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'deck'}.ydk`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
     },
     clear: () => { deck = { main: [], extra: [] }; touch(); },
     delete: async () => {
@@ -409,6 +483,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   renderDeck();
   renderPool();
   if (data.createNew) void newDeck();
+  // a share link (#deck=…) opens here: offer to import it, and take it out of the address bar
+  if (data.importCode) { history.replaceState(null, '', location.pathname + location.search); void importDeck(data.importCode); }
   return () => { resized.disconnect(); clearTimeout(flashTimer); window.removeEventListener('keydown', keys); window.removeEventListener('beforeunload', unload); };
 };
 export default deckEditor;

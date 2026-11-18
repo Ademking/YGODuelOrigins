@@ -15,9 +15,11 @@ export function initMonitoring() {
     // Browsers too old for the engine (no WebAssembly exceptions) are told so on screen.
     // An online duel that ended normally (disconnect, timeout, surrender) is not a bug.
     beforeSend: (event, hint) => (isStaleBuild(hint.originalException) || (hint.originalException as Error | undefined)?.name === DUEL_ENDED
-      || /CompileError|too old to run duels/.test(String(hint.originalException)) ? null : event),
-    // a harmless browser warning about layout, not an error
-    ignoreErrors: ['ResizeObserver loop'],
+      || /CompileError|too old to run duels/.test(String(hint.originalException))
+      || (hint.originalException as Error | undefined)?.name === 'DownloadError' ? null : event),
+    // not errors in the game: a harmless layout warning, a phone refusing to start sound, the YouTube music player
+    ignoreErrors: ['ResizeObserver loop', /Failed to start the audio device/, /The AudioContext was not allowed to start/],
+    denyUrls: [/youtube\.com\//, /ytimg\.com\//, /www-widgetapi/],
   });
 }
 

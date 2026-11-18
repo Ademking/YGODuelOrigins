@@ -30,7 +30,8 @@ const now = () => Math.floor(serverNow() / 1000);
 /** What the lobby needs from the relays; tests swap in an in-memory bus. */
 export interface LobbyTransport {
   publish(event: Event): Promise<void>;
-  subscribe(onEvent: (event: Event) => void): () => void;
+  /** `since`: seconds on the server's clock; relays send nothing older (some keep a backlog of lobby events). */
+  subscribe(onEvent: (event: Event) => void, since?: number): () => void;
   close(): void;
   /** Which relays are connected; transports without real relays leave it out. */
   status?(): RelayStatus;
@@ -42,10 +43,9 @@ export function nostrTransport(relays = LOBBY_RELAYS): LobbyTransport {
       const results = await Promise.allSettled(pool.publish(relays, event));
       if (!results.some(r => r.status === 'fulfilled')) throw new Error('No relay accepted the event.');
     },
-    subscribe(onEvent) {
-      // no `since`: lobby events are ephemeral, so relays only ever send live ones, and a since from a clock that runs
-      // fast made them send nothing at all
-      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG] }, { onevent: onEvent });
+    subscribe(onEvent, since) {
+      // `since` comes from the server's clock (clock.ts): from the device clock, a phone running fast got nothing
+      const sub = pool.subscribe(relays, { kinds: [LOBBY_KIND], '#t': [LOBBY_TAG], ...(since ? { since } : {}) }, { onevent: onEvent });
       return () => sub.close();
     },
     close() { pool.close(relays); },
@@ -70,7 +70,7 @@ export class Lobby {
   private closed = false;
   /** Events thrown away as too old or too new: many with nobody in the lobby points at a clock problem. */
   stale = 0;
-  private unsubscribe: () => void;
+  private unsubscribe = () => {};
   private timers: ReturnType<typeof setInterval>[] = [];
   onChange = () => {};
   onInvite = (_peer: string, _code: string) => {};
@@ -79,9 +79,12 @@ export class Lobby {
 
   constructor(public name: string, private look: Look, private transport: LobbyTransport = nostrTransport()) {
     this.id = getPublicKey(this.secret);
-    this.unsubscribe = transport.subscribe(event => this.receive(event));
-    // the first announcement waits (briefly) for the server's time, so it is not sent with a wrong timestamp
-    void Promise.race([syncClock(), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => this.announce(true));
+    // listening and the first announcement wait (briefly) for the server's time, so neither uses a wrong clock
+    void Promise.race([syncClock(), new Promise((resolve) => setTimeout(resolve, 3000))]).then(() => {
+      if (this.closed) return;
+      this.unsubscribe = transport.subscribe(event => this.receive(event), now() - 30);
+      void this.announce(true);
+    });
     this.timers.push(setInterval(() => void this.announce(), HEARTBEAT_MS), setInterval(() => this.expire(), 10000));
   }
   get avatar() { return this.look.avatar; }
