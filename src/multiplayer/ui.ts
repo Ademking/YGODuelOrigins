@@ -224,13 +224,23 @@ export function picker(options: PickOption[], initial: string, caption: string) 
       row.setAttribute('role', 'option'); row.setAttribute('aria-selected', String(o.value === value));
       row.append(element('span', o.label, 'flex-1 truncate'));
       if (o.detail) row.append(element('small', o.detail, 'text-xs text-faint'));
-      row.onpointerdown = e => { e.preventDefault(); choose(o.value); };
+      // a tap chooses; touching a row only to scroll the list must not. The mouse keeps the search field focused.
+      row.onpointerdown = e => { if (e.pointerType === 'mouse') e.preventDefault(); };
+      row.onclick = () => choose(o.value);
       return row;
     }));
     if (!shown.length) list.append(element('div', t('No deck matches that name.'), NOTE));
     list.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
   };
   const place = () => {
+    // phones: a sheet across the top of what is visible, so the keyboard (which shrinks the visual viewport) never
+    // covers the search field or the list
+    if (matchMedia('(pointer: coarse)').matches && innerWidth < 640) {
+      const view = visualViewport, top = (view?.offsetTop ?? 0) + 8, height = view?.height ?? innerHeight;
+      Object.assign(pop.style, { left: '8px', width: `${innerWidth - 16}px`, top: `${top}px`, bottom: '' });
+      pop.style.setProperty('--room', `${Math.max(140, height - 96)}px`);
+      return;
+    }
     const r = button.getBoundingClientRect(), width = Math.max(r.width, 340);
     const below = innerHeight - r.bottom, up = below < 320 && r.top > below;
     pop.style.width = `${width}px`;
@@ -239,9 +249,15 @@ export function picker(options: PickOption[], initial: string, caption: string) 
     pop.style.bottom = up ? `${innerHeight - r.top + 6}px` : '';
     pop.style.setProperty('--room', `${Math.max(160, (up ? r.top : below) - 90)}px`);
   };
+  const replace = () => { if (!pop.hidden) place(); };
   const open = (yes: boolean) => {
     if (yes) (button.closest('dialog') ?? button.closest('.mp-root') ?? document.body).append(pop);
     pop.hidden = !yes; button.setAttribute('aria-expanded', String(yes)); wrap.classList.toggle('open', yes);
+    // the keyboard opening or closing resizes the visible area
+    for (const target of [window, visualViewport].filter(Boolean) as EventTarget[]) {
+      if (yes) { target.addEventListener('resize', replace); target.addEventListener('scroll', replace); }
+      else { target.removeEventListener('resize', replace); target.removeEventListener('scroll', replace); }
+    }
     if (yes) { place(); search.value = ''; active = Math.max(0, options.findIndex(o => o.value === value)); draw(); }
   };
   const choose = (v: string) => { value = v; sync(); open(false); button.focus(); };
@@ -254,7 +270,7 @@ export function picker(options: PickOption[], initial: string, caption: string) 
     else if (e.key === 'Escape') { e.preventDefault(); open(false); button.focus(); }
   };
   const outside = (e: PointerEvent) => {
-    if (!wrap.isConnected) { document.removeEventListener('pointerdown', outside); pop.remove(); }
+    if (!wrap.isConnected) { document.removeEventListener('pointerdown', outside); open(false); pop.remove(); }
     else if (!wrap.contains(e.target as Node) && !pop.contains(e.target as Node)) open(false);
   };
   document.addEventListener('pointerdown', outside);

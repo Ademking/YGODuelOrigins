@@ -240,7 +240,10 @@ export class DuelScene extends Phaser.Scene {
     this.dead = this.ended = false;
     this.revealingGod = null;
     this.revealedGods.clear();
-    this.reducedEffects = window.matchMedia('(pointer: coarse)').matches;
+    // full effects by default, phones included (they used to start on Reduced, so attacks showed only a flash);
+    // only very low-end devices start on Reduced. The menu's choice, once made, wins.
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    this.reducedEffects = (nav.deviceMemory ?? 8) <= 2 || (navigator.hardwareConcurrency || 8) <= 2;
     try {
       this.chainMode = (localStorage.getItem('arcana-duel.chain') as 'auto' | 'always') ?? 'auto';
       this.spd = localStorage.getItem('arcana-duel.fast') === '1' ? 0.4 : 1;
