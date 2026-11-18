@@ -175,7 +175,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   let pool: CardDef[] = [], page = 0, perPage = 1;
   const badge = (button: HTMLElement) => {
     const id = button.dataset.id!, n = count(id), limit = copyLimit(getCard(id));
-    const el = button.querySelector<HTMLElement>('[data-badge]')!;
+    const el = button.querySelector<HTMLElement>('[data-badge]');
+    if (!el) return; // only Card List tiles carry a count
     // hidden while it would only say 0/3
     el.hidden = !n && limit >= 3;
     el.textContent = `${n}/${limit}`;

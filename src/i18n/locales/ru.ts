@@ -320,6 +320,7 @@ export const RU: Dictionary = {
   "Limited": "Ограничена",
   "Semi-Limited": "Полуограничена",
   "Your opponent's deck breaks the banlist, so it can't be used online.": "Колода соперника нарушает список запрещённых карт, поэтому её нельзя использовать онлайн.",
+  "Couldn't download the duel engine. Check your internet connection and try again.": "Не удалось загрузить движок дуэлей. Проверьте подключение к интернету и попробуйте снова.",
   "Online": "В сети",
   "Online Duel": "Сетевая дуэль",
   "Online opponent": "Сетевой соперник",

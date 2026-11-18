@@ -320,6 +320,7 @@ export const FR: Dictionary = {
   "Limited": "Limitée",
   "Semi-Limited": "Semi-limitée",
   "Your opponent's deck breaks the banlist, so it can't be used online.": "Le deck de votre adversaire ne respecte pas la liste des cartes interdites : il ne peut pas être utilisé en ligne.",
+  "Couldn't download the duel engine. Check your internet connection and try again.": "Impossible de télécharger le moteur de duel. Vérifiez votre connexion internet et réessayez.",
   "Online": "En ligne",
   "Online Duel": "Duel en ligne",
   "Online opponent": "Adversaire en ligne",

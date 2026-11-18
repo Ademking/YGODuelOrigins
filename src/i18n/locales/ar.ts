@@ -320,6 +320,7 @@ export const AR: Dictionary = {
   "Limited": "محدودة",
   "Semi-Limited": "شبه محدودة",
   "Your opponent's deck breaks the banlist, so it can't be used online.": "مجموعة خصمك تخالف قائمة الحظر، لذا لا يمكن استخدامها عبر الإنترنت.",
+  "Couldn't download the duel engine. Check your internet connection and try again.": "تعذّر تنزيل محرك المبارزة. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
   "Online": "متصل",
   "Online Duel": "مبارزة عبر الإنترنت",
   "Online opponent": "خصم عبر الإنترنت",

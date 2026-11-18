@@ -184,21 +184,24 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       clearInterval(relayTimer);
       const started = Date.now();
       unreachable = false;
+      let everConnected = false;
       const check = () => {
         const state = current.relayStatus();
         if (!alive || lobby !== current || !state) return;
         q('servers').textContent = t('{n}/{total} servers', { n: state.connected, total: state.total });
+        everConnected ||= state.connected > 0;
         const down = !state.connected && Date.now() - started > UNREACHABLE_MS;
         q('status-bar').toggleAttribute('data-offline', down);
         if (down && !unreachable) {
           status(t("Can't reach the lobby servers. Your network may be blocking them: try mobile data, another Wi-Fi or a VPN."));
           q('reconnect').hidden = false;
-          if (!reported) { reported = true; reportLobbyUnreachable(state); }
+          // only a lobby that never reached any relay, seen on screen: a phone in the background drops its sockets
+          if (!reported && !everConnected && document.visibilityState === 'visible') { reported = true; reportLobbyUnreachable(state); }
         } else if (!down && unreachable && !session) status(t('Online'));
         unreachable = down;
-        // a clock far off, or players thrown away for their timestamps: tell Sentry once, to confirm the cause
         const offsetSeconds = Math.round(clockOffset() / 1000);
-        if (!clockReported && (Math.abs(offsetSeconds) > 30 || (current.stale >= 3 && Date.now() - started > 30000))) {
+        // a clock far off, or nobody in the lobby while players' events were thrown away for their timestamps
+        if (!clockReported && (Math.abs(offsetSeconds) > 30 || (current.stale >= 3 && !current.peers.size && everConnected && Date.now() - started > 30000))) {
           clockReported = true;
           reportLobbyClock({ offsetSeconds, staleEvents: current.stale, players: current.peers.size });
         }
