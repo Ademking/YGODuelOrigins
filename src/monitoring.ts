@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/browser';
 import { isStaleBuild } from './staleBuild';
+import { DUEL_ENDED } from './multiplayer/lockstep';
 
 const DSN = 'https://98c14bc0476f457aa7dce8aafffffe8d@o467706.ingest.us.sentry.io/5494530';
 
@@ -12,7 +13,11 @@ export function initMonitoring() {
     environment: location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'local' : 'production',
     // A tab left open across a deploy fails to load old code files; the page reloads itself, so it is not a bug.
     // Browsers too old for the engine (no WebAssembly exceptions) are told so on screen.
-    beforeSend: (event, hint) => (isStaleBuild(hint.originalException) || /CompileError|too old to run duels/.test(String(hint.originalException)) ? null : event),
+    // An online duel that ended normally (disconnect, timeout, surrender) is not a bug.
+    beforeSend: (event, hint) => (isStaleBuild(hint.originalException) || (hint.originalException as Error | undefined)?.name === DUEL_ENDED
+      || /CompileError|too old to run duels/.test(String(hint.originalException)) ? null : event),
+    // a harmless browser warning about layout, not an error
+    ignoreErrors: ['ResizeObserver loop'],
   });
 }
 

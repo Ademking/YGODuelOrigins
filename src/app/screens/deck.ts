@@ -248,7 +248,11 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string } | undefined>
   };
 
   // cards: hover shows details; click adds (pool) or removes (deck); right-click on the pool removes a copy
-  const cardOf = (event: Event) => (event.target as HTMLElement).closest<HTMLElement>('[data-id]');
+  // dragging selected text starts on a text node, which has no closest()
+  const cardOf = (event: Event) => {
+    const target = event.target as Node;
+    return (target instanceof Element ? target : target.parentElement)?.closest<HTMLElement>('[data-id]') ?? null;
+  };
   screen.addEventListener('pointerover', (event) => { const card = cardOf(event); if (card && event.pointerType === 'mouse') info.show(getCard(card.dataset.id!)); });
   // touch: a long press shows a card's details instead of adding or removing it
   let pressTimer = 0, pressed = false;

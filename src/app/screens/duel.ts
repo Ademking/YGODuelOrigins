@@ -22,6 +22,8 @@ const duelScreen: Screen<DuelInit> = (root, init) => {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { mouse: { preventDefaultWheel: false } },
     disableContextMenu: true,
+    // sounds play through src/ui/sfx.ts; Phaser's own audio context only fails to start on some iPhones
+    audio: { noAudio: true },
     callbacks: { preBoot: (g) => g.registry.set('duelInit', init) },
     scene: [BootScene, DuelScene],
   });
