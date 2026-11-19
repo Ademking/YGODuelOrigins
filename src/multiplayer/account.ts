@@ -3,8 +3,10 @@
  * server unreachable, there is no account and online duels simply aren't counted.
  */
 import { timeoutSignal } from '../timeoutSignal';
+import { cleanTeam, type Team } from './profile';
 
-export type Account = { id: string; name: string; wins: number; losses: number; draws: number };
+/** `avatar`: the Discord avatar hash (null: Discord's default picture); `team`: the dorm, null until chosen. */
+export type Account = { id: string; name: string; avatar: string | null; team: Team | null; wins: number; losses: number; draws: number };
 export type Result = 'win' | 'loss' | 'draw';
 /** Account ids are Discord's numeric ids; an opponent's arrives over the duel connection, so it is checked. */
 export const cleanAccount = (value: unknown) => typeof value === 'string' && /^\d{1,20}$/.test(value) ? value : undefined;
@@ -14,7 +16,15 @@ export async function loadAccount(): Promise<Account | null> {
     const response = await fetch('/api/me', { cache: 'no-store', signal: timeoutSignal(6000) });
     if (!response.ok || !response.headers.get('Content-Type')?.includes('json')) return null;
     const a = await response.json() as Account;
-    return cleanAccount(a.id) ? a : null;
+    return cleanAccount(a.id) ? { ...a, team: cleanTeam(a.team) ?? null } : null;
+  } catch { return null; }
+}
+
+/** Pick the player's dorm (once). Returns the dorm the server holds, or null when it could not be saved. */
+export async function chooseTeam(team: Team): Promise<Team | null> {
+  try {
+    const response = await fetch('/api/team', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ team }), signal: timeoutSignal(8000) });
+    return response.ok ? cleanTeam((await response.json() as { team?: unknown }).team) ?? null : null;
   } catch { return null; }
 }
 

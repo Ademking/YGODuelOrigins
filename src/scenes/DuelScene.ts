@@ -19,7 +19,7 @@ import { num, t } from '../i18n';
 import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
-import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
+import { avatarCanvasURL, avatarFor, flagCanvasURL, teamColor, type Team } from '../multiplayer/profile';
 import { reportResult, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
@@ -1153,7 +1153,7 @@ export class DuelScene extends Phaser.Scene {
     const watched = s === this.me ? this.init0.watch : undefined;
     if (people) {
       const index = s === this.me ? 0 : 1, look = people.looks[index];
-      this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country);
+      this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country, look.team);
     } else if (s === this.me && !watched) {
       // your side shows the art of your deck's strongest monster
       const deck = this.init0.deck;
@@ -2199,8 +2199,8 @@ export class DuelScene extends Phaser.Scene {
     if (yes === true && !this.dead) this.surrender();
   }
 
-  /** Online plate portrait: avatar with a flag badge, loaded into textures on first use. */
-  private plateLook(px: number, py: number, avatar: string, country?: string) {
+  /** Online plate portrait: avatar framed in the player's dorm colour, with a flag badge; loaded into textures on first use. */
+  private plateLook(px: number, py: number, avatar: string, country?: string, team?: Team) {
     const show = (key: string, url: string, place: (img: Phaser.GameObjects.Image) => void) => {
       const img = this.add.image(px, py, this.textures.exists(key) ? key : '__DEFAULT');
       if (this.textures.exists(key)) { place(img); return; }
@@ -2211,6 +2211,8 @@ export class DuelScene extends Phaser.Scene {
       this.load.start();
     };
     show(`avatar-${avatar}`, avatarCanvasURL(avatar), img => img.setPosition(px, py).setDisplaySize(48, 48));
+    const ring = teamColor(team);
+    if (ring) this.add.rectangle(px, py, 50, 50).setStrokeStyle(3, Phaser.Display.Color.HexStringToColor(ring).color);
     if (country) show(`flag-${country}`, flagCanvasURL(country), img => img.setPosition(px - 15, py - 19).setDisplaySize(18, 12));
   }
 

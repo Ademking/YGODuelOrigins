@@ -8,7 +8,9 @@
 
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
-const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/;
+const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/, AVATAR = /^(a_)?[0-9a-f]{32}$/;
+/** The three dorms a player picks on first sign-in. */
+export const TEAMS = ['slifer', 'ra', 'obelisk'];
 const enc = new TextEncoder();
 
 const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -57,6 +59,13 @@ export async function report(db, me, { match, opponent, result }, now = Date.now
   return true;
 }
 
+/** Set the player's dorm, once: a later pick is ignored. Returns the dorm the player is in, or null for a bad pick. */
+export async function chooseTeam(db, me, team) {
+  if (!TEAMS.includes(team)) return null;
+  await db.prepare('UPDATE users SET team = ? WHERE id = ? AND team IS NULL').bind(team, me).run();
+  return (await db.prepare('SELECT team FROM users WHERE id = ?').bind(me).first())?.team ?? null;
+}
+
 /** /auth/* and /api/* routes; null for any other path. */
 export async function accounts(request, env, path) {
   const url = new URL(request.url);
@@ -79,23 +88,30 @@ export async function accounts(request, env, path) {
       .then((r) => (r.ok ? r.json() : null), () => null);
     if (!user || !USER.test(String(user.id))) return redirect('/#lobby', setCookie(STATE, '', 0));
     const name = String(user.global_name || user.username || 'Duelist').slice(0, 32);
-    await env.DB.prepare('INSERT INTO users (id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name')
-      .bind(String(user.id), name, Date.now()).run();
+    const avatar = AVATAR.test(String(user.avatar)) ? user.avatar : null;
+    // name and picture follow the Discord profile on every sign-in
+    await env.DB.prepare('INSERT INTO users (id, name, avatar, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, avatar = excluded.avatar')
+      .bind(String(user.id), name, avatar, Date.now()).run();
     return redirect('/#lobby', setCookie(STATE, '', 0), setCookie(SESSION, await signSession(env.SESSION_SECRET, String(user.id)), MONTH_S));
   }
   if (path === '/auth/logout' && request.method === 'POST') {
     return new Response(null, { status: 204, headers: { 'Set-Cookie': setCookie(SESSION, '', 0) } });
   }
-  if (path === '/api/me' || path === '/api/result') {
+  if (path === '/api/me' || path === '/api/result' || path === '/api/team') {
     const me = await readSession(env.SESSION_SECRET, cookie(request, SESSION));
     if (!me) return json({ error: 'signed out' }, 401);
     if (path === '/api/me') {
-      const user = await env.DB.prepare('SELECT id, name, wins, losses, draws FROM users WHERE id = ?').bind(me).first();
+      const user = await env.DB.prepare('SELECT id, name, avatar, team, wins, losses, draws FROM users WHERE id = ?').bind(me).first();
       return user ? json(user) : json({ error: 'signed out' }, 401);
     }
     // a JSON body: a form on another site can't send one with the cookie without the browser asking this site first
     if (request.method !== 'POST' || !request.headers.get('Content-Type')?.startsWith('application/json')) return json({ error: 'bad request' }, 400);
-    const counted = await report(env.DB, me, (await request.json().catch(() => null)) || {});
+    const body = (await request.json().catch(() => null)) || {};
+    if (path === '/api/team') {
+      const team = await chooseTeam(env.DB, me, body.team);
+      return team ? json({ team }) : json({ error: 'bad team' }, 400);
+    }
+    const counted = await report(env.DB, me, body);
     return counted === null ? json({ error: 'bad report' }, 400) : json({ counted });
   }
   return null;

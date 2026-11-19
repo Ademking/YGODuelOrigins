@@ -3,7 +3,7 @@ import { getRelays } from '@trystero-p2p/core';
 import { GAME_RELAY } from './relays';
 import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode, newCode } from './protocol';
-import { cleanCountry, cleanSeed, type Look } from './profile';
+import { cleanCountry, cleanSeed, cleanTeam, type Look, type Team } from './profile';
 import { cleanAccount } from './account';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 import { Spectator, WatchHost, isWatchCode } from './spectate';
@@ -13,7 +13,7 @@ import { t } from '../i18n';
 import { timeoutSignal } from '../timeoutSignal';
 /** The public lobby runs over Nostr (lobby.ts); private rooms and duels below stay peer to peer. */
 export { Lobby, type ChatLine, type PeerProfile } from './lobby';
-type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string; account?: string };
+type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string; team?: Team; account?: string };
 /** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
 export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>]; watchCode?: string;
   /** Both players' Discord account ids, when signed in: the duel's result is reported for stats (account.ts). */
@@ -147,7 +147,7 @@ export class PrivateRoom {
       if (!validDeck(m.deck)) throw new Error(t("Your opponent's deck breaks the banlist, so it can't be used online."));
       const firstHello = !this.peer;
       this.peer = peer;
-      this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), account: cleanAccount(m.account) } as Hello;
+      this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), team: cleanTeam(m.team), account: cleanAccount(m.account) } as Hello;
       this.error = '';
       clearTimeout(this.connectionTimer);
       if (firstHello) await this.send({ ...this.hello, ready: this.ready });
@@ -208,7 +208,7 @@ export class PrivateRoom {
   private start(first: 0 | 1) {
     if (!this.network || !this.opponent || this.started) return;
     this.started = true;
-    const looks: Match['looks'] = [{ avatar: this.hello.avatar, country: this.hello.country }, { avatar: this.opponent.avatar, country: this.opponent.country }];
+    const looks: Match['looks'] = [{ avatar: this.hello.avatar, country: this.hello.country, team: this.hello.team }, { avatar: this.opponent.avatar, country: this.opponent.country, team: this.opponent.team }];
     // the host shows this duel (and each rematch) to spectators
     if (this.isHost && this.watchFactory && this.watchCode) {
       this.watch ??= new WatchHost(this.watchCode, this.watchFactory, { ...config, ...(this.relay.length ? { turnConfig: this.relay } : {}) });
@@ -229,7 +229,7 @@ export class PrivateRoom {
   }
   private addChat(name: string, text: string, self = false) {
     const who = self ? this.hello : this.opponent;
-    const line = { name, text, at: Date.now(), self, avatar: who?.avatar, country: who?.country };
+    const line = { name, text, at: Date.now(), self, avatar: who?.avatar, country: who?.country, team: who?.team };
     // spectators read the chat too: the host's own lines are side 0
     this.watch?.chat(self ? 0 : 1, text);
     this.chat.push(line);

@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 // @ts-expect-error plain JavaScript Worker module
-import { readSession, report, signSession } from '../../worker/accounts.js';
+import { chooseTeam, readSession, report, signSession } from '../../worker/accounts.js';
+import { avatarURL, cleanSeed, cleanTeam } from '../../src/multiplayer/profile';
 
 function d1() {
   const sql = new DatabaseSync(':memory:');
@@ -75,4 +76,22 @@ test('malformed reports are refused', async () => {
     { match: MATCH, opponent: '222', result: 'lose' }, { match: MATCH, opponent: 'abc', result: 'win' }]) {
     assert.equal(await report(db, '111', bad), null, JSON.stringify(bad));
   }
+});
+
+test('a dorm is picked once and kept', async () => {
+  const db = setup();
+  assert.equal(await chooseTeam(db, '111', 'pharaoh'), null, 'not a dorm');
+  assert.equal(await chooseTeam(db, '111', 'ra'), 'ra');
+  assert.equal(await chooseTeam(db, '111', 'obelisk'), 'ra', 'a second pick changes nothing');
+});
+
+test('peers can only send Discord avatars and dorms the game knows', () => {
+  const hash = 'a_' + '0f'.repeat(16);
+  assert.equal(cleanSeed(`discord:80351110224678912:${hash}`), `discord:80351110224678912:${hash}`);
+  assert.equal(avatarURL(`discord:80351110224678912:${hash}`), `https://cdn.discordapp.com/avatars/80351110224678912/${hash}.png?size=128`);
+  assert.match(avatarURL('discord:80351110224678912'), /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/[0-5]\.png$/);
+  for (const bad of ['discord:abc', 'discord:1:../../x', 'discord:1:zz', 'https://evil.example/a.png']) assert.equal(cleanSeed(bad), undefined, bad);
+  assert.equal(cleanSeed('12'), '12', 'older builds still send portrait numbers');
+  assert.equal(cleanTeam('slifer'), 'slifer');
+  assert.equal(cleanTeam('constructor'), undefined);
 });

@@ -182,9 +182,8 @@ test('chat GIF messages only resolve to the GIPHY library or static.klipy.com', 
     'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/a/b.gif', 'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/x.png', `tenor:${path}`, 'hello']) assert.equal(gifSrc(bad), null, bad);
 });
 
-test('lobby profiles only accept an avatar number and a two-letter country', async () => {
-  const { cleanSeed, cleanCountry, avatarURL, avatarFor, flagURL, randomSeed, AVATAR_COUNT } = await import('../../src/multiplayer/profile');
-  for (let i = 0; i < 200; i++) { const n = Number(randomSeed()); assert.ok(n >= 1 && n <= AVATAR_COUNT); }
+test('lobby profiles only accept a known avatar and a two-letter country', async () => {
+  const { cleanSeed, cleanCountry, avatarURL, avatarFor, flagURL, AVATAR_COUNT } = await import('../../src/multiplayer/profile');
   assert.equal(cleanSeed('1'), '1');
   assert.equal(cleanSeed(String(AVATAR_COUNT)), String(AVATAR_COUNT));
   for (const bad of ['', '0', '007', String(AVATAR_COUNT + 1), '12a', '../1', 'ovwm1w9s', 42]) assert.equal(cleanSeed(bad), undefined, String(bad));

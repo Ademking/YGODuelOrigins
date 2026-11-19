@@ -6,12 +6,13 @@ import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
 import { go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../../multiplayer/profile';
+import { avatarFor, avatarURL, discordAvatar, flagURL, lookupCountry, TEAMS, teamColor, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
 import { clockOffset } from '../../multiplayer/clock';
-import { loadAccount, signOut, type Account } from '../../multiplayer/account';
+import { chooseTeam, loadAccount, signOut, type Account } from '../../multiplayer/account';
+import { RETURN_KEY } from '../returnHash';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -27,7 +28,6 @@ const LICENSE = (artId: string, body: string) => `<div class="relative grid grid
     <div class="flex min-w-0 flex-col gap-2.5">${body}</div>
   </div>`;
 
-const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
 const CHALLENGE_MS = 30000;
 /** With no lobby relay connected for this long, the lobby says the network may be blocking them. */
@@ -81,18 +81,15 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       </div>
       <dialog autofocus class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
-        <h2>${h('Enter the lobby')}</h2>
-        <p>${h('This is how other duelists will see you.')}</p>
-        ${LICENSE('name-art', `<input class="w-full rounded-none border-0 border-b border-brass/50 bg-transparent px-0 pt-1 pb-2 font-display text-base text-brass-txt outline-none placeholder:text-[#6b5f45] focus:border-glow sm:text-lg" id="mp-name" maxlength="16" placeholder="${h('Your name')}" autocomplete="nickname" aria-label="${h('Your name')}"><div id="mp-deck"></div>`)}
+        <h2 id="mp-entry-title">${h('Enter the lobby')}</h2>
+        <p id="mp-entry-text">${h('Connecting…')}</p>
+        <div id="mp-entry"></div>
+        <div id="mp-ready" hidden>${LICENSE('name-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-name-show"></b><div id="mp-deck"></div>`)}</div>
         <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
-        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary"><span>${h('Enter lobby')}</span></button></div>
+        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary" id="mp-enter" hidden><span>${h('Enter lobby')}</span></button></div>
       </form></dialog>
       <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
-      <dialog autofocus class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
-        <h2>${h('Choose your avatar')}</h2>
-        <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
-        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
-      </div></dialog>`;
+`;
     app.append(root);
     // phones and tablets: tabs pick the panel on show
     const panes = root.querySelectorAll<HTMLElement>('[data-pane]:not([role])');
@@ -103,83 +100,32 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       };
     });
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
-    const name = q<HTMLInputElement>('name'), decks = loadDecks();
+    const decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
-    try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
     // online duels follow the banlist (data/banlist.ts): decks that break it are fixed in the Deck Builder first
     const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: t('{n} cards', { n: deck.main.length }) })), selectedDeck(), t('Deck'));
     q('deck').replaceWith(select.el);
-    let seed = savedSeed(), country: string | undefined;
-    /** Avatar with an optional flag badge. */
-    const portrait = (avatar: string, flag?: string, label = '', small = false) => {
-      const art = el('div', '', small ? 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]' : 'relative size-full');
+    /** Your Discord picture and dorm, once the account has loaded. */
+    let seed = '', country: string | undefined, team: Team | undefined;
+    /** Avatar framed in its dorm colour, with an optional flag badge. */
+    const portrait = (avatar: string, flag?: string, label = '', small = false, dorm?: Team) => {
+      const art = el('div', '', small ? 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]' : 'relative size-full overflow-hidden rounded-2xl bg-raised');
       const img = el('img', '', small ? 'size-full rounded-xl object-cover' : 'size-full object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
       art.append(img);
+      const ring = teamColor(dorm);
+      if (ring) { if (small) art.style.boxShadow = `0 0 0 2px ${ring}`; else { art.style.border = `4px solid ${ring}`; art.style.boxShadow = `0 0 26px ${ring}88`; } }
       if (flag) { const f = el('img', '', small ? 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow' : 'absolute top-1.5 left-1.5 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
       return art;
     };
-    /** Your portrait on both licenses (popup and lobby), with a button that rolls a new avatar. */
+    /** Your portrait on both licenses (popup and lobby). */
     const renderLooks = () => {
-      for (const id of ['name-art', 'lic-art']) {
-        const shuffle = el('button', '', 'absolute -right-2 -bottom-2 grid size-8 cursor-pointer place-items-center rounded-full border border-[#fff1c9] bg-brass p-0 text-[#1d1505] shadow-lg shadow-black/60 transition hover:scale-110 hover:-rotate-12 hover:bg-brass-lit ' + RING); shuffle.type = 'button';
-        shuffle.title = t('New avatar'); shuffle.setAttribute('aria-label', t('New avatar'));
-        shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
-        shuffle.onclick = () => setAvatar(randomSeed());
-        const choose = el('button', '', 'block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-raised p-0 transition hover:brightness-110 ' + RING); choose.type = 'button';
-        choose.title = t('Choose avatar'); choose.setAttribute('aria-label', t('Choose avatar'));
-        choose.append(portrait(seed, country, t('Your avatar')));
-        choose.onclick = openAvatars;
-        q(id).replaceChildren(choose, shuffle);
-      }
+      for (const id of ['name-art', 'lic-art']) q(id).replaceChildren(...(seed ? [portrait(seed, country, t('Your avatar'), false, team)] : []));
     };
-    const setAvatar = (next: string) => { seed = next; saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
-    const avatarModal = q<HTMLDialogElement>('avatar-modal'), avatarGrid = q('avatar-grid');
-    /** Grid of every avatar; images load lazily as the grid scrolls. */
-    function openAvatars() {
-      if (!avatarGrid.childElementCount) {
-        for (let n = 1; n <= AVATAR_COUNT; n++) {
-          const b = el('button', '', 'aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-transparent bg-raised p-0 hover:border-brass/50 [&.on]:border-brass [&.on]:ring-2 [&.on]:ring-brass/30 ' + RING); b.type = 'button'; b.dataset.id = String(n);
-          b.setAttribute('role', 'option'); b.setAttribute('aria-label', t('Avatar {n}', { n }));
-          const img = el('img', '', 'size-full object-cover'); img.src = avatarURL(String(n)); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
-          b.append(img);
-          b.onclick = () => { setAvatar(String(n)); mark(); };
-          avatarGrid.append(b);
-        }
-      }
-      mark();
-      avatarModal.showModal();
-      avatarGrid.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' });
-      avatarGrid.querySelector<HTMLElement>('.on')?.focus();
-    }
-    const mark = () => {
-      for (const b of Array.from(avatarGrid.children) as HTMLElement[]) {
-        const on = b.dataset.id === seed; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
-      }
-    };
-    q<HTMLButtonElement>('avatar-random').onclick = () => { setAvatar(randomSeed()); mark(); avatarGrid.querySelector('.on')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
-    q<HTMLButtonElement>('avatar-close').onclick = () => avatarModal.close();
-    avatarModal.addEventListener('click', e => { if (e.target === avatarModal) avatarModal.close(); });
-    renderLooks();
     void lookupCountry().then(found => {
       if (!alive || !found) return;
       country = found; renderLooks(); lobby?.setLook({ country });
     });
-    /** Signed in with Discord: online duels count toward your wins, losses and draws (worker/accounts.js). */
-    let account: Account | null = null;
-    const renderAccount = () => {
-      if (account) {
-        const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
-        out.onclick = () => void signOut().then(() => { account = null; renderAccount(); });
-        q('account').replaceChildren(el('span', t('{wins} W · {losses} L · {draws} D', { wins: account.wins, losses: account.losses, draws: account.draws }), 'text-sm font-semibold text-ink tabular-nums'), out);
-      } else {
-        const login = el('a', '', 'mp-btn small !border-discord/60 !bg-[#24265e] no-underline'); login.href = '/auth/discord';
-        login.append(el('span', t('Sign in with Discord')));
-        q('account').replaceChildren(login);
-      }
-    };
-    renderAccount();
-    void loadAccount().then(found => { if (alive) { account = found; renderAccount(); } });
     const composer = chatComposer(text => void lobby?.say(text).catch(error), t('Message the lobby'));
     q('compose').replaceWith(composer.form);
     const codeInput = q<HTMLInputElement>('code');
@@ -240,10 +186,10 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     };
     /** You and your opponent face to face: avatars, flags, names and whether each is ready. */
     const versus = (s: PrivateRoom) => {
-      const side = (who: string, look: { avatar?: string; country?: string } | undefined, state: string, ok: boolean) => {
+      const side = (who: string, look: { avatar?: string; country?: string; team?: Team } | undefined, state: string, ok: boolean) => {
         const box = el('div', '', 'flex min-w-0 flex-col items-center gap-2 text-center');
         const art = el('div', '', `relative size-20 overflow-hidden border-2 bg-raised shadow-xl shadow-black/60 sm:size-24 ${ok ? 'border-ok' : look ? 'border-brass/60' : 'border-white/15 animate-pulse'}`);
-        art.append(look ? portrait(avatarFor(look.avatar, who), look.country, who) : el('span', '?', 'grid size-full place-items-center font-display text-4xl text-faint'));
+        art.append(look ? portrait(avatarFor(look.avatar, who), look.country, who, false, look.team) : el('span', '?', 'grid size-full place-items-center font-display text-4xl text-faint'));
         box.append(art, el('b', who, 'block w-full truncate font-display text-sm text-ink sm:text-base'),
           el('small', state, `inline-flex items-center gap-1.5 text-xs before:size-1.5 before:rounded-full ${ok ? 'text-ok before:bg-ok' : 'text-dim before:bg-brass before:animate-pulse'}`));
         return box;
@@ -252,7 +198,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       const invited = challengeWith ? [...(lobby?.peers.values() ?? [])].find((peer) => peer.name === challengeWith) : undefined;
       const row = el('div', '', 'relative mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border border-white/[.08] bg-[radial-gradient(ellipse_at_center,#2a2250_0%,#120e22_70%)] px-3 py-5');
       row.append(
-        side(lobby?.name ?? 'You', { avatar: seed, country }, s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
+        side(lobby?.name ?? 'You', { avatar: seed, country, team }, s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
         el('b', 'VS', 'font-display text-3xl text-brass-txt italic drop-shadow-[0_0_14px_#e0b34f99] sm:text-4xl'),
         s.opponent ? side(s.opponent.name, s.opponent, s.opponent.ready ? t('Ready ✓') : t('Choosing…'), s.opponent.ready)
           : side(challengeWith ?? t('Waiting…'), invited, challengeWith ? t('Connecting…') : t('No one yet'), false),
@@ -303,7 +249,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!decks[select.value]) { status(t('Build a valid deck in the Deck Editor first.')); return; }
       connecting = true; status(against ? t('Challenging {player}…', { player: against }) : t('Opening private room…'));
       try {
-        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country }, account?.id);
+        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country, team }, account?.id);
         if (!alive) { void room.leave(); return; }
         session = room; challengeWith = against;
         lobby.setBusy(true); select.disabled = true; setSelectedDeck(select.value);
@@ -382,7 +328,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         const who = el('div', '', 'min-w-0');
         who.append(el('b', profile.name, 'block truncate font-semibold'),
           el('small', profile.busy ? (profile.vs ? t('In a duel with {player}', { player: profile.vs }) : t('In a duel')) : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
-        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true), who);
+        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true, profile.team), who);
         if (!profile.busy) {
           const challenge = btn(t('Challenge'), 'small primary');
           challenge.insertAdjacentHTML('afterbegin', icon('solo', 'size-4'));
@@ -415,8 +361,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       }
     };
     const connect = (chosen: string) => {
-      try { localStorage.setItem(NAME_KEY, chosen); } catch {}
-      lobby = new Lobby(chosen, { avatar: seed, country });
+      lobby = new Lobby(chosen, { avatar: seed, country, team });
       q('lic-name').textContent = chosen;
       root.querySelector('#mp-lic-deck')?.replaceWith(select.el);
       q('reconnect').hidden = true;
@@ -451,11 +396,10 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
     q<HTMLFormElement>('name-form').onsubmit = e => {
-      const chosen = cleanName(name.value);
       const err = q('name-err');
-      if (!chosen) { e.preventDefault(); err.textContent = t('Type a name to enter the lobby.'); name.focus(); return; }
+      if (!account?.team) { e.preventDefault(); return; }
       if (!window.RTCPeerConnection || !crypto.subtle) { e.preventDefault(); err.textContent = t('Multiplayer needs a browser with WebRTC over HTTPS.'); return; }
-      try { connect(chosen); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : t('Connection failed.'); }
+      try { connect(cleanName(account.name) || 'Duelist'); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : t('Connection failed.'); }
     };
     q<HTMLButtonElement>('reconnect').onclick = () => {
       if (!lobby || session) return;
@@ -473,10 +417,66 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       void startRoom(code, false);
     };
     codeInput.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('join').click(); };
-    if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else {
-      nameModal.showModal();
-
-    }
+    /**
+     * Online play needs a Discord account (worker/accounts.js): its name and picture are what other duelists see, its
+     * stats count your online duels. On first sign-in the player picks a dorm, for good.
+     */
+    let account: Account | null = null, accountLoading = true;
+    const renderAccount = () => {
+      if (!account) { q('account').replaceChildren(); return; }
+      const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
+      out.onclick = () => void signOut().then(() => go('Title'));
+      q('account').replaceChildren(el('span', t('{wins} W · {losses} L · {draws} D', { wins: account.wins, losses: account.losses, draws: account.draws }), 'text-sm font-semibold text-ink tabular-nums'), out);
+    };
+    const renderEntry = () => {
+      const title = q('entry-title'), text = q('entry-text'), entry = q('entry');
+      const ready = !!account?.team;
+      q('ready').hidden = !ready; q('enter').hidden = !ready;
+      if (accountLoading) { title.textContent = t('Enter the lobby'); text.textContent = t('Connecting…'); entry.replaceChildren(); return; }
+      if (!account) {
+        title.textContent = t('Sign in to duel online');
+        text.textContent = t('Online duels need a Discord account. Other duelists see your Discord name and picture.');
+        const login = el('a', '', 'mp-btn primary mt-4 w-full no-underline'); login.href = '/auth/discord';
+        // an invite link survives the trip to Discord and back (main.ts)
+        login.onclick = () => { if (location.hash.startsWith('#duel=')) try { sessionStorage.setItem(RETURN_KEY, location.hash); } catch {} };
+        login.append(el('span', t('Sign in with Discord')));
+        entry.replaceChildren(login);
+      } else if (!ready) {
+        title.textContent = t('Choose your dorm');
+        text.textContent = t('Pick the dorm you duel for. Your avatar wears its colour, and the choice is for good.');
+        const grid = el('div', '', 'mt-4 grid grid-cols-3 gap-2');
+        for (const [id, dorm] of Object.entries(TEAMS) as [Team, typeof TEAMS[Team]][]) {
+          const pick = el('button', '', 'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 bg-raised px-2 py-4 text-center font-display text-xs text-ink transition hover:brightness-125 disabled:opacity-50 sm:text-sm ' + RING); pick.type = 'button';
+          pick.style.borderColor = dorm.color;
+          const dot = el('span', '', 'size-10 rounded-full'); dot.style.background = dorm.color; dot.style.boxShadow = `0 0 18px ${dorm.color}`;
+          pick.append(dot, el('span', dorm.name));
+          pick.onclick = async () => {
+            grid.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+            const chosen = await chooseTeam(id);
+            if (!alive || !account) return;
+            if (chosen) { account = { ...account, team: chosen }; applyAccount(); }
+            else { q('name-err').textContent = t('Could not save your dorm. Try again.'); renderEntry(); }
+          };
+          grid.append(pick);
+        }
+        entry.replaceChildren(grid);
+      } else {
+        title.textContent = t('Enter the lobby'); text.textContent = t('This is how other duelists will see you.');
+        entry.replaceChildren();
+      }
+    };
+    const applyAccount = () => {
+      if (account) { seed = discordAvatar(account.id, account.avatar); team = account.team ?? undefined; q('name-show').textContent = cleanName(account.name) || 'Duelist'; }
+      renderLooks(); renderAccount(); renderEntry();
+    };
+    nameModal.showModal();
+    renderEntry();
+    void loadAccount().then(found => {
+      if (!alive) return;
+      accountLoading = false; account = found; applyAccount();
+      // back from a duel: straight into the lobby
+      if (data.rejoin && account?.team && !lobby) { nameModal.close(); connect(cleanName(account.name) || 'Duelist'); }
+    });
     return () => {
       clearInterval(relayTimer);
       alive = false; root.remove();

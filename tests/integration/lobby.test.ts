@@ -74,6 +74,6 @@ test('nostr lobby ignores forged, foreign, stale and malformed events', async ()
     assert.equal(a.chat.length, 0);
     a.receive(good);
     // Unknown avatar numbers and bad country codes are dropped, not trusted.
-    assert.deepEqual([...a.peers.values()], [{ name: 'Mai', busy: false, avatar: undefined, country: undefined }]);
+    assert.deepEqual([...a.peers.values()], [{ name: 'Mai', busy: false, avatar: undefined, country: undefined, team: undefined }]);
   } finally { a.close(); }
 });
