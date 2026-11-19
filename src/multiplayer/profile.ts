@@ -10,7 +10,12 @@ export const AVATAR_COUNT = 346;
 export const COUNTRY = /^[A-Z]{2}$/;
 const DISCORD_AVATAR = /^discord:(\d{1,20})(?::((?:a_)?[0-9a-f]{32}))?$/;
 /** The dorms (as in Yu-Gi-Oh! GX): chosen once on first sign-in, worn as the avatar's frame colour. */
-export const TEAMS = { slifer: { name: 'Slifer Red', color: '#e0313c' }, ra: { name: 'Ra Yellow', color: '#f2c12e' }, obelisk: { name: 'Obelisk Blue', color: '#2f6fe4' } } as const;
+/** `light`/`dark`: the frame's gradient ends; `god`: the card whose art stands for the dorm (data/cardImages.ts). */
+export const TEAMS = {
+  slifer: { name: 'Slifer Red', color: '#e0313c', light: '#ff8a8f', dark: '#6e0d14', god: 'god_slifer' },
+  ra: { name: 'Ra Yellow', color: '#f2c12e', light: '#fff1a8', dark: '#7a5406', god: 'god_ra' },
+  obelisk: { name: 'Obelisk Blue', color: '#2f6fe4', light: '#9cc2ff', dark: '#0c2a6b', god: 'god_obelisk' },
+} as const;
 export type Team = keyof typeof TEAMS;
 export const cleanTeam = (value: unknown): Team | undefined => typeof value === 'string' && Object.keys(TEAMS).includes(value) ? value as Team : undefined;
 export const teamColor = (team: Team | undefined) => team ? TEAMS[team].color : undefined;

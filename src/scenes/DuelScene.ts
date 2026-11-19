@@ -19,7 +19,7 @@ import { num, t } from '../i18n';
 import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
-import { avatarCanvasURL, avatarFor, flagCanvasURL, teamColor, type Team } from '../multiplayer/profile';
+import { avatarCanvasURL, avatarFor, flagCanvasURL, TEAMS, type Team } from '../multiplayer/profile';
 import { reportResult, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
@@ -2211,8 +2211,13 @@ export class DuelScene extends Phaser.Scene {
       this.load.start();
     };
     show(`avatar-${avatar}`, avatarCanvasURL(avatar), img => img.setPosition(px, py).setDisplaySize(48, 48));
-    const ring = teamColor(team);
-    if (ring) this.add.rectangle(px, py, 50, 50).setStrokeStyle(3, Phaser.Display.Color.HexStringToColor(ring).color);
+    if (team) {
+      // the dorm frame, as on the lobby license: a dark edge, the dorm colour, a light inner line
+      const hex = (c: string) => Phaser.Display.Color.HexStringToColor(c).color, dorm = TEAMS[team];
+      this.add.rectangle(px, py, 55, 55).setStrokeStyle(2, hex(dorm.dark));
+      this.add.rectangle(px, py, 51, 51).setStrokeStyle(3, hex(dorm.color));
+      this.add.rectangle(px, py, 48, 48).setStrokeStyle(1, hex(dorm.light), 0.9);
+    }
     if (country) show(`flag-${country}`, flagCanvasURL(country), img => img.setPosition(px - 15, py - 19).setDisplaySize(18, 12));
   }
 

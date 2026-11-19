@@ -4,9 +4,9 @@ import { cleanName, newCode, parseCode, inviteURL } from '../../multiplayer/prot
 import { Lobby, PrivateRoom, watchDuel } from '../../multiplayer/client';
 import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
-import { go, type Screen } from '../dom';
+import { artSrc, go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { avatarFor, avatarURL, discordAvatar, flagURL, lookupCountry, TEAMS, teamColor, type Team } from '../../multiplayer/profile';
+import { avatarFor, avatarURL, discordAvatar, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
@@ -23,9 +23,9 @@ const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
 const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
 const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
 /** The Duelist license: your avatar beside your name and deck. The one loud card on the screen. */
-const LICENSE = (artId: string, body: string) => `<div class="relative grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[112px_minmax(0,1fr)] rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
+const LICENSE = (artId: string, body: string, below = '') => `<div class="relative grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[112px_minmax(0,1fr)] rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
     <div class="relative aspect-square" id="mp-${artId}"></div>
-    <div class="flex min-w-0 flex-col gap-2.5">${body}</div>
+    <div class="flex min-w-0 flex-col gap-2.5">${body}</div>${below}
   </div>`;
 
 /** An unanswered challenge cancels itself after this long. */
@@ -54,7 +54,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       <div class="grid min-h-0 flex-1 gap-4 sm:gap-5 max-lg:grid-rows-[minmax(0,1fr)] max-lg:[&>*:not(.on)]:hidden lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
-          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div><div class="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1" id="mp-account"></div>`)}
+          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`, `<div class="col-span-2 flex flex-col gap-1.5 empty:hidden" id="mp-account"></div>`)}
           <section class="mp-panel flex-none">
             <h2>${icon('online', 'size-4 text-brass')}${h('Play a friend')}</h2>
             <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
@@ -110,12 +110,30 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     let seed = '', country: string | undefined, team: Team | undefined;
     /** Avatar framed in its dorm colour, with an optional flag badge. */
     const portrait = (avatar: string, flag?: string, label = '', small = false, dorm?: Team) => {
-      const art = el('div', '', small ? 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]' : 'relative size-full overflow-hidden rounded-2xl bg-raised');
-      const img = el('img', '', small ? 'size-full rounded-xl object-cover' : 'size-full object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
-      art.append(img);
-      const ring = teamColor(dorm);
-      if (ring) { if (small) art.style.boxShadow = `0 0 0 2px ${ring}`; else { art.style.border = `4px solid ${ring}`; art.style.boxShadow = `0 0 26px ${ring}88`; } }
-      if (flag) { const f = el('img', '', small ? 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow' : 'absolute top-1.5 left-1.5 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+      const colors = dorm ? TEAMS[dorm] : undefined;
+      const img = el('img', '', small ? 'size-full rounded-[10px] object-cover' : 'size-full rounded-[13px] object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+      if (small) {
+        const art = el('div', '', 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]');
+        // a thin gradient ring in the dorm's colours
+        if (colors) { art.classList.add('p-[2px]'); art.style.background = `linear-gradient(145deg, ${colors.light}, ${colors.color} 50%, ${colors.dark})`; }
+        art.append(img);
+        if (flag) { const f = el('img', '', 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+        return art;
+      }
+      // the license portrait: a bevelled frame in the dorm's colours, a gold hairline inside, the dorm's name on a tab
+      const art = el('div', '', 'relative size-full rounded-2xl bg-raised');
+      const well = el('div', '', 'relative size-full overflow-hidden rounded-[13px]');
+      well.append(img);
+      if (colors) {
+        art.classList.add('p-[5px]');
+        art.style.background = `linear-gradient(150deg, ${colors.light} 0%, ${colors.color} 38%, ${colors.dark} 100%)`;
+        art.style.boxShadow = `0 0 0 1px ${colors.dark}, 0 10px 30px -8px ${colors.color}aa`;
+        well.style.boxShadow = 'inset 0 0 0 1px #f5d77a99, inset 0 0 18px #0009';
+        const tab = el('span', colors.name, 'absolute -bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border px-2 py-0.5 font-display text-[9px] leading-none tracking-[.12em] uppercase shadow-lg shadow-black/50');
+        tab.style.background = `linear-gradient(180deg, ${colors.color}, ${colors.dark})`; tab.style.borderColor = colors.light; tab.style.color = '#fff';
+        art.append(well, tab);
+      } else art.append(well);
+      if (flag) { const f = el('img', '', 'absolute top-2 left-2 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; well.append(f); }
       return art;
     };
     /** Your portrait on both licenses (popup and lobby). */
@@ -426,7 +444,17 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!account) { q('account').replaceChildren(); return; }
       const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
       out.onclick = () => void signOut().then(() => go('Title'));
-      q('account').replaceChildren(el('span', t('{wins} W · {losses} L · {draws} D', { wins: account.wins, losses: account.losses, draws: account.draws }), 'text-sm font-semibold text-ink tabular-nums'), out);
+      // online record: three tiles, and the win rate once there is a duel to count
+      const tiles = el('div', '', 'grid grid-cols-3 gap-1.5');
+      for (const [count, label, colour] of [[account.wins, t('Wins'), 'text-ok'], [account.losses, t('Losses'), 'text-bad'], [account.draws, t('Draws'), 'text-ink']] as const) {
+        const tile = el('div', '', 'rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-center');
+        tile.append(el('b', String(count), `block font-display text-lg leading-tight tabular-nums ${colour}`), el('small', label, 'block truncate text-[11px] text-dim'));
+        tiles.append(tile);
+      }
+      const played = account.wins + account.losses + account.draws;
+      const foot = el('div', '', 'flex items-center justify-between gap-2 text-xs text-dim');
+      foot.append(el('span', played ? t('{n}% win rate', { n: Math.round(account.wins / played * 100) }) : t('No online duels yet')), out);
+      q('account').replaceChildren(tiles, foot);
     };
     const renderEntry = () => {
       const title = q('entry-title'), text = q('entry-text'), entry = q('entry');
@@ -444,12 +472,20 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       } else if (!ready) {
         title.textContent = t('Choose your dorm');
         text.textContent = t('Pick the dorm you duel for. Your avatar wears its colour, and the choice is for good.');
-        const grid = el('div', '', 'mt-4 grid grid-cols-3 gap-2');
+        // each dorm is shown by its Egyptian God's artwork, framed in the dorm's colours
+        const grid = el('div', '', 'mt-4 grid grid-cols-3 gap-2 sm:gap-3');
         for (const [id, dorm] of Object.entries(TEAMS) as [Team, typeof TEAMS[Team]][]) {
-          const pick = el('button', '', 'flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 bg-raised px-2 py-4 text-center font-display text-xs text-ink transition hover:brightness-125 disabled:opacity-50 sm:text-sm ' + RING); pick.type = 'button';
-          pick.style.borderColor = dorm.color;
-          const dot = el('span', '', 'size-10 rounded-full'); dot.style.background = dorm.color; dot.style.boxShadow = `0 0 18px ${dorm.color}`;
-          pick.append(dot, el('span', dorm.name));
+          const pick = el('button', '', 'group/god relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border-0 p-[3px] text-left transition duration-200 hover:-translate-y-1 disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 ' + RING); pick.type = 'button';
+          pick.style.background = `linear-gradient(150deg, ${dorm.light}, ${dorm.color} 40%, ${dorm.dark})`;
+          pick.onpointerenter = () => { pick.style.boxShadow = `0 12px 34px -6px ${dorm.color}`; };
+          pick.onpointerleave = () => { pick.style.boxShadow = ''; };
+          const well = el('span', '', 'relative block size-full overflow-hidden rounded-[13px] bg-raised');
+          const art = el('img', '', 'size-full object-cover transition duration-300 group-hover/god:scale-105'); art.src = artSrc(dorm.god); art.alt = ''; art.draggable = false; art.referrerPolicy = 'no-referrer';
+          const shade = el('span', '', 'absolute inset-0'); shade.style.background = `linear-gradient(180deg, transparent 45%, ${dorm.dark}f2 100%)`;
+          const label = el('span', dorm.name, 'absolute inset-x-1 bottom-2 text-center font-display text-[11px] leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-sm');
+          well.append(art, shade, label);
+          pick.append(well);
+          pick.setAttribute('aria-label', dorm.name);
           pick.onclick = async () => {
             grid.querySelectorAll('button').forEach((b) => { b.disabled = true; });
             const chosen = await chooseTeam(id);
