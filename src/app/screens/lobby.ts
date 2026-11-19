@@ -19,6 +19,8 @@ const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', 
 
 const RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow';
 const ROW = 'mt-5 flex gap-3 *:flex-1';
+/** A guest's lobby name, kept for next time. */
+const NAME_KEY = 'duel-origins.multiplayer.name';
 const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
 const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
 const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
@@ -117,8 +119,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: t('{n} cards', { n: deck.main.length }) })), selectedDeck(), t('Deck'));
     q('lic-deck').replaceWith(select.el);
-    /** Your Discord picture and dorm, once the account has loaded. */
-    let seed = '', country: string | undefined, team: Team | undefined;
+    /** Your Discord picture and dorm, once the account has loaded; a guest gets a portrait picked from their name. */
+    let seed = '', country: string | undefined, team: Team | undefined, guest = false;
     /** Avatar framed in its dorm colour, with an optional flag badge. */
     const portrait = (avatar: string, flag?: string, label = '', small = false, dorm?: Team) => {
       const colors = dorm ? TEAMS[dorm] : undefined;
@@ -448,7 +450,13 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
      */
     let account: Account | null = null;
     const renderAccount = () => {
-      if (!account) { q('account').replaceChildren(); q('lic-out').replaceChildren(); return; }
+      q('lic-out').replaceChildren();
+      if (!account) {
+        // a guest's duels aren't counted: say so, with the way to change that
+        const login = el('a', t('Sign in with Discord'), 'font-semibold text-[#b9bfff] underline underline-offset-2 hover:text-white ' + RING); login.href = '/auth/discord';
+        q('account').replaceChildren(...(guest ? [el('p', t('Guest duels are not counted and guests are not on the leaderboard.'), 'mb-1 text-xs text-dim'), login] : []));
+        return;
+      }
       const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
       out.onclick = () => void signOut().then(() => go('Title'));
       q('lic-out').replaceChildren(out);
@@ -474,15 +482,25 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const renderEntry = () => {
       const title = q('entry-title'), text = q('entry-text'), entry = q('entry');
       if (!account) {
-        title.textContent = t('Sign in to duel online');
-        text.textContent = t('Online duels need a Discord account. Other duelists see your Discord name and picture.');
+        title.textContent = t('Join the online lobby');
+        text.textContent = t('Sign in with Discord to count your wins and join the leaderboard. Other duelists see your Discord name and picture.');
         // Discord's own blurple and logo, so the button says where it goes
         const login = el('a', '', 'mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#5865f2] font-display text-sm text-white no-underline shadow-lg shadow-[#5865f2]/25 transition hover:bg-[#4752c4] ' + RING); login.href = '/auth/discord';
         login.innerHTML = '<svg viewBox="0 0 24 24" class="size-5 fill-current" aria-hidden="true"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.89-1.52l-.62 1.29a18.3 18.3 0 0 0-5.62 0l-.63-1.29a19.7 19.7 0 0 0-4.88 1.52C.53 9.05-.32 13.58.1 18.06a19.9 19.9 0 0 0 6.02 3.06c.48-.66.9-1.36 1.27-2.1a13 13 0 0 1-2-.97l.48-.37a14.2 14.2 0 0 0 12.26 0l.48.37c-.64.38-1.31.7-2 .97.36.74.79 1.44 1.27 2.1a19.8 19.8 0 0 0 6.02-3.06c.5-5.18-.84-9.68-3.55-13.69ZM8.02 15.33c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42 2.18 1.1 2.16 2.42c0 1.33-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.09-2.15-2.42s.95-2.42 2.15-2.42 2.18 1.1 2.16 2.42c0 1.33-.95 2.42-2.16 2.42Z"/></svg>';
         // an invite link survives the trip to Discord and back (main.ts)
         login.onclick = () => { if (location.hash.startsWith('#duel=')) try { sessionStorage.setItem(RETURN_KEY, location.hash); } catch {} };
         login.append(el('span', t('Sign in with Discord')));
-        entry.replaceChildren(login);
+        // or a guest: just a name, nothing counted
+        const or = el('div', t('or'), 'my-4 flex items-center gap-3 text-xs text-faint before:h-px before:flex-1 before:bg-white/10 after:h-px after:flex-1 after:bg-white/10');
+        const name = el('input', '', 'mp-field min-w-0 flex-1'); name.maxLength = 16; name.placeholder = t('Your name'); name.setAttribute('autocomplete', 'nickname'); name.setAttribute('aria-label', t('Your name'));
+        try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
+        const play = el('button', '', 'mp-btn'); play.type = 'button'; play.append(el('span', t('Play as guest')));
+        const update = () => { play.disabled = !cleanName(name.value); };
+        name.oninput = update; update();
+        play.onclick = () => enterAsGuest(name.value);
+        name.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAsGuest(name.value); } };
+        const row = el('div', '', 'flex gap-2'); row.append(name, play);
+        entry.replaceChildren(login, or, row);
       } else {
         title.textContent = t('Choose your dorm');
         text.textContent = t('Pick the dorm you duel for. Your avatar wears its colour, and the choice is for good.');
@@ -512,12 +530,24 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         entry.replaceChildren(grid);
       }
     };
-    /** Into the lobby as your Discord account; the entry dialog only shows to sign in or pick a dorm. */
-    const enterLobby = () => {
-      if (lobby || !account?.team) return;
+    const join = (name: string) => {
       if (nameModal.open) nameModal.close();
       if (!window.RTCPeerConnection || !crypto.subtle) { status(t('Multiplayer needs a browser with WebRTC over HTTPS.')); return; }
-      try { connect(cleanName(account.name) || 'Duelist'); } catch (x) { lobby = undefined; error(x); }
+      try { connect(name); } catch (x) { lobby = undefined; error(x); }
+    };
+    /** Into the lobby as your Discord account; the entry dialog only shows to sign in (or play as a guest) or pick a dorm. */
+    const enterLobby = () => {
+      if (lobby || !account?.team) return;
+      join(cleanName(account.name) || 'Duelist');
+    };
+    const enterAsGuest = (raw: string) => {
+      const name = cleanName(raw);
+      if (!name || lobby || account) return;
+      try { localStorage.setItem(NAME_KEY, name); } catch {}
+      guest = true; seed = avatarFor(undefined, name); team = undefined;
+      q('lic-name').textContent = name;
+      renderLooks(); renderAccount();
+      join(name);
     };
     const applyAccount = () => {
       if (account) { seed = discordAvatar(account.id, account.avatar); team = account.team ?? undefined; if (!lobby) q('lic-name').textContent = cleanName(account.name) || 'Duelist'; }
@@ -548,6 +578,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     if (account?.team) applyAccount();
     void loadAccount().then(found => {
       if (!alive) return;
+      if (guest) return;
       if (lobby && !found) { void go('Title'); return; } // signed out elsewhere
       account = found; applyAccount();
     });
