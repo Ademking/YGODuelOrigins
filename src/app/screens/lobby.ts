@@ -91,8 +91,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <h2 id="mp-entry-title"></h2>
         <p id="mp-entry-text"></p>
         <div id="mp-entry"></div>
-        <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
-        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button></div>
+        <div class="mt-2.5 text-xs text-bad empty:hidden" id="mp-name-err" role="alert"></div>
+        <div class="mt-4 flex justify-end"><button type="button" class="mp-btn small" id="mp-name-back"><span>${h('Back')}</span></button></div>
       </form></dialog>
       <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
 `;
@@ -471,7 +471,9 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!account) {
         title.textContent = t('Sign in to duel online');
         text.textContent = t('Online duels need a Discord account. Other duelists see your Discord name and picture.');
-        const login = el('a', '', 'mp-btn primary mt-4 w-full no-underline'); login.href = '/auth/discord';
+        // Discord's own blurple and logo, so the button says where it goes
+        const login = el('a', '', 'mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#5865f2] font-display text-sm text-white no-underline shadow-lg shadow-[#5865f2]/25 transition hover:bg-[#4752c4] ' + RING); login.href = '/auth/discord';
+        login.innerHTML = '<svg viewBox="0 0 24 24" class="size-5 fill-current" aria-hidden="true"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.89-1.52l-.62 1.29a18.3 18.3 0 0 0-5.62 0l-.63-1.29a19.7 19.7 0 0 0-4.88 1.52C.53 9.05-.32 13.58.1 18.06a19.9 19.9 0 0 0 6.02 3.06c.48-.66.9-1.36 1.27-2.1a13 13 0 0 1-2-.97l.48-.37a14.2 14.2 0 0 0 12.26 0l.48.37c-.64.38-1.31.7-2 .97.36.74.79 1.44 1.27 2.1a19.8 19.8 0 0 0 6.02-3.06c.5-5.18-.84-9.68-3.55-13.69ZM8.02 15.33c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42 2.18 1.1 2.16 2.42c0 1.33-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.09-2.15-2.42s.95-2.42 2.15-2.42 2.18 1.1 2.16 2.42c0 1.33-.95 2.42-2.16 2.42Z"/></svg>';
         // an invite link survives the trip to Discord and back (main.ts)
         login.onclick = () => { if (location.hash.startsWith('#duel=')) try { sessionStorage.setItem(RETURN_KEY, location.hash); } catch {} };
         login.append(el('span', t('Sign in with Discord')));
