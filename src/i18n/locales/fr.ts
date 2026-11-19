@@ -607,4 +607,7 @@ export const FR: Dictionary = {
   "Home": "Accueil",
   "Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.": "Les duels en ligne se connectent sur plus de réseaux : si la connexion directe est bloquée, le duel passe par un relais.",
   "Fixes for crashes on older phones and browsers, and in the Deck Builder.": "Corrections de plantages sur les anciens téléphones et navigateurs, et dans l'éditeur de deck.",
+  "Import and export decks with deck codes, .ydk files and share links.": "Importez et exportez des decks avec des codes de deck, des fichiers .ydk et des liens de partage.",
+  "Online duels follow the GOAT banlist, and the game plays better on phones.": "Les duels en ligne suivent la banlist GOAT, et le jeu fonctionne mieux sur téléphone.",
+  "Card rulings and bug fixes.": "Corrections de règles de cartes et de bugs.",
 };

@@ -607,4 +607,7 @@ export const RU: Dictionary = {
   "Home": "Главная",
   "Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.": "Онлайн-дуэли подключаются в большем числе сетей: если прямое соединение заблокировано, дуэль идёт через ретранслятор.",
   "Fixes for crashes on older phones and browsers, and in the Deck Builder.": "Исправлены сбои на старых телефонах и браузерах, а также в редакторе колод.",
+  "Import and export decks with deck codes, .ydk files and share links.": "Импорт и экспорт колод: коды колод, файлы .ydk и ссылки для обмена.",
+  "Online duels follow the GOAT banlist, and the game plays better on phones.": "Онлайн-дуэли следуют банлисту GOAT, а на телефонах игра работает лучше.",
+  "Card rulings and bug fixes.": "Исправления правил карт и ошибок.",
 };

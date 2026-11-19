@@ -607,4 +607,7 @@ export const AR: Dictionary = {
   "Home": "الرئيسية",
   "Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.": "المبارزات عبر الإنترنت تتصل على شبكات أكثر: عندما يُحظر الاتصال المباشر، تمر المبارزة عبر خادم وسيط.",
   "Fixes for crashes on older phones and browsers, and in the Deck Builder.": "إصلاحات لأعطال على الهواتف والمتصفحات القديمة، وفي محرر المجموعات.",
+  "Import and export decks with deck codes, .ydk files and share links.": "استورد مجموعاتك وصدّرها برموز المجموعات وملفات ‎.ydk وروابط المشاركة.",
+  "Online duels follow the GOAT banlist, and the game plays better on phones.": "المبارزات عبر الإنترنت تتبع قائمة الحظر GOAT، واللعبة تعمل بشكل أفضل على الهواتف.",
+  "Card rulings and bug fixes.": "إصلاحات في قواعد البطاقات وأخطاء أخرى.",
 };

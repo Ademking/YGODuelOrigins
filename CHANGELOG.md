@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.4.3 — 2026-11-19
+
+Deck import and export, a banlist for online duels, better play on phones, and fixes.
 
 ### Phones
 
@@ -29,6 +31,7 @@
 
 - On phones held upright, the Victory, Defeat and Draw screen is drawn about twice as large, with its buttons stacked, and Rock, Paper, Scissors has larger text and buttons.
 - The loading spinner shown while the game starts is round again instead of a square.
+- Card rulings and Deck Builder fixes.
 
 ### Online
 

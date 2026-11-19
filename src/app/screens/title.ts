@@ -23,6 +23,11 @@ const about = (): [string, string][] => [
 
 const changelog = (): [string, string[]][] => [
   [t('Version {v}', { v: __APP_VERSION__ }), [
+    t('Import and export decks with deck codes, .ydk files and share links.'),
+    t('Online duels follow the GOAT banlist, and the game plays better on phones.'),
+    t('Card rulings and bug fixes.'),
+  ]],
+  [t('Version {v}', { v: '1.4.2' }), [
     t('Online duels connect on more networks: when a direct connection is blocked, the duel goes through a relay.'),
     t('Fixes for crashes on older phones and browsers, and in the Deck Builder.'),
   ]],
