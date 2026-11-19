@@ -92,6 +92,7 @@ let HAND_SCALE = 0.46 * CARD_K;
 let OPP_HAND_SCALE = 0.28 * CARD_K;
 let HAND_SPACING = 92, HAND_ROW = 600;
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
+const hexColor = (css: string) => Phaser.Display.Color.HexStringToColor(css).color;
 const LEFT_W = 214; // width of the HUD column on the left: as wide as the card preview
 type Pos = { x: number; y: number; s: number; k: number; w: number };
 const QUAD_IDX = [0, 1, 2, 0, 2, 3]; // TL,TR,BR + TL,BR,BL
@@ -1138,13 +1139,6 @@ export class DuelScene extends Phaser.Scene {
   /** One player's LP plate at the sidebar's coordinates (portrait wraps it in a scaled container). */
   private buildPlate(s: Side) {
     const y = this.plateY(s);
-    const g = this.add.graphics();
-    g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
-    g.lineStyle(1, COL.line, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
-    // brass edge while it is this player's turn
-    this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
-    // portrait well
-    const px = PLATE.x + 34, py = y + PLATE.h / 2;
     // online duels, played or spectated, show each player's lobby avatar and flag
     const people = this.init0.multiplayer ? { looks: this.init0.multiplayer.looks, names: [this.init0.multiplayer.name, this.init0.multiplayer.opponent] }
       : this.init0.spectate ? { looks: this.init0.spectate.setup.looks, names: this.init0.spectate.setup.names } : undefined;
@@ -1152,6 +1146,17 @@ export class DuelScene extends Phaser.Scene {
     // signed in with Discord: your own plate shows your Discord picture, name, dorm and online record in every duel
     const account = s === this.me && !watched ? signedIn() : null;
     const framed = people || account;
+    const team = people ? people.looks[s === this.me ? 0 : 1].team : account?.team ?? undefined;
+    const dorm = team ? TEAMS[team] : undefined;
+    const g = this.add.graphics();
+    g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
+    // a dorm plate: tinted in the dorm's colour, edged in it, and lit in its light shade on its turn
+    if (dorm) g.fillStyle(hexColor(dorm.color), 0.1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
+    g.lineStyle(1, dorm ? hexColor(dorm.color) : COL.line, dorm ? 0.6 : 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
+    // brass (or dorm) edge while it is this player's turn
+    this.lpPlate[s] = this.add.graphics().lineStyle(1.5, dorm ? hexColor(dorm.light) : COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
+    // portrait well
+    const px = PLATE.x + 34, py = y + PLATE.h / 2;
     if (framed) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
     else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     if (people) {
@@ -1191,13 +1196,17 @@ export class DuelScene extends Phaser.Scene {
       while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
     }
     this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
-    this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
+    this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: dorm?.light ?? COL.goldTxt }).setOrigin(1, 0.5);
     if (account) {
-      // online record beside "LP", coloured like the lobby's tiles: wins · losses · draws
-      let x = PLATE.x + PLATE.w - 27;
-      for (const [text, color] of [[account.draws, COL.text], ['·', COL.dim], [account.losses, '#ff8a9a'], ['·', COL.dim], [account.wins, '#7dffa6']] as const) {
-        x -= this.add.text(x, y + 41, String(text), { fontFamily: FONT_N, fontSize: '11px', fontStyle: 'bold', color }).setOrigin(1, 0.5).width + 2;
+      // online record on a small pill beside "LP", coloured like the lobby's: wins, losses, draws
+      const pill = this.add.graphics();
+      const right = PLATE.x + PLATE.w - 30;
+      let x = right;
+      for (const [text, color] of [[account.draws, COL.text], [account.losses, '#ff8a9a'], [account.wins, '#7dffa6']] as const) {
+        x -= this.add.text(x, y + 39, String(text), { fontFamily: FONT_N, fontSize: '10px', fontStyle: 'bold', color }).setOrigin(1, 0.5).width + 6;
       }
+      pill.fillStyle(0x07060d, 0.75).fillRoundedRect(x - 1, y + 32, right - x + 7, 14, 7)
+        .lineStyle(1, dorm ? hexColor(dorm.color) : COL.line, 0.7).strokeRoundedRect(x - 1, y + 32, right - x + 7, 14, 7);
     }
     this.lpBar[s] = this.add.graphics();
     this.drawLP(s, this.lpShown[s]);
@@ -1209,6 +1218,7 @@ export class DuelScene extends Phaser.Scene {
     const x0 = PLATE.lpX, bw = PLATE.x + PLATE.w - 12 - x0, gap = 2, seg = (bw - gap * 7) / 8;
     const startingLP = this.init0.startingLP ?? 8000;
     const frac = Phaser.Math.Clamp(lp / startingLP, 0, 1);
+    // gold for everyone, dorm or not: Slifer's red would read as the low-life warning
     const col = frac > 0.25 ? COL.gold : COL.red; // red only as a low-life warning, the same for both players
     const g = this.lpBar[s].clear();
     for (let i = 0; i < 8; i++) {
@@ -2224,11 +2234,10 @@ export class DuelScene extends Phaser.Scene {
     };
     show(`avatar-${avatar}`, avatarCanvasURL(avatar), img => img.setPosition(px, py).setDisplaySize(48, 48));
     if (team) {
-      // the dorm frame, as on the lobby license: a dark edge, the dorm colour, a light inner line
-      const hex = (c: string) => Phaser.Display.Color.HexStringToColor(c).color, dorm = TEAMS[team];
-      this.add.rectangle(px, py, 55, 55).setStrokeStyle(2, hex(dorm.dark));
-      this.add.rectangle(px, py, 51, 51).setStrokeStyle(3, hex(dorm.color));
-      this.add.rectangle(px, py, 48, 48).setStrokeStyle(1, hex(dorm.light), 0.9);
+      // the dorm frame: one clean line in the dorm's colour, a soft halo of it outside
+      const dorm = TEAMS[team];
+      this.add.rectangle(px, py, 54, 54).setStrokeStyle(3, hexColor(dorm.color), 0.25);
+      this.add.rectangle(px, py, 50, 50).setStrokeStyle(2, hexColor(dorm.color));
     }
     if (country) show(`flag-${country}`, flagCanvasURL(country), img => img.setPosition(px - 15, py - 19).setDisplaySize(18, 12));
   }
