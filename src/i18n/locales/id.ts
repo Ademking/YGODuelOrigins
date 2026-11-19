@@ -643,4 +643,8 @@ export const ID: Dictionary = {
   "Choose avatar": "Pilih avatar",
   "New avatar": "Avatar baru",
   "Avatar {n}": "Avatar {n}",
+  "Sign in with Discord: your online wins, losses and draws are counted, and the top duelists are on a leaderboard in the lobby.": "Masuk dengan Discord: kemenangan, kekalahan, dan seri online kamu dihitung, dan duelist teratas ada di papan peringkat di lobi.",
+  "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "Pilih asrama, Slifer Red, Ra Yellow, atau Obelisk Blue: warnanya membingkai avatarmu di lobi dan saat duel.",
+  "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "Masuk akan menambahkanmu ke server Discord kami dengan peran asramamu, dan duel yang selesai diposting di sana.",
+  "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "Keluar dari duel online berarti kalah. Tamu tetap bisa duel online; duel mereka tidak dihitung.",
 };

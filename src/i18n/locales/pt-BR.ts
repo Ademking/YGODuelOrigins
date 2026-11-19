@@ -643,4 +643,8 @@ export const PT_BR: Dictionary = {
   "Choose avatar": "Escolher avatar",
   "New avatar": "Novo avatar",
   "Avatar {n}": "Avatar {n}",
+  "Sign in with Discord: your online wins, losses and draws are counted, and the top duelists are on a leaderboard in the lobby.": "Entre com o Discord: suas vitórias, derrotas e empates online são contados, e os melhores duelistas aparecem num ranking no lobby.",
+  "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "Escolha um dormitório, Slifer Red, Ra Yellow ou Obelisk Blue: as cores dele emolduram seu avatar no lobby e nos duelos.",
+  "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "Ao entrar, você é adicionado ao nosso servidor do Discord com o cargo do seu dormitório, e os duelos terminados são publicados lá.",
+  "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "Sair de um duelo online conta como derrota. Convidados ainda podem duelar online; os duelos deles não são contados.",
 };

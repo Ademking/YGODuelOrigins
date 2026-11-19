@@ -643,4 +643,8 @@ export const RU: Dictionary = {
   "Choose avatar": "Выбрать аватар",
   "New avatar": "Новый аватар",
   "Avatar {n}": "Аватар {n}",
+  "Sign in with Discord: your online wins, losses and draws are counted, and the top duelists are on a leaderboard in the lobby.": "Войдите через Discord: ваши онлайн-победы, поражения и ничьи засчитываются, а лучшие дуэлянты попадают в таблицу лидеров в лобби.",
+  "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "Выберите общежитие — Slifer Red, Ra Yellow или Obelisk Blue: его цвета обрамляют ваш аватар в лобби и в дуэлях.",
+  "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "При входе вы попадаете на наш Discord-сервер с ролью своего общежития, а завершённые дуэли публикуются там.",
+  "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "Выход из онлайн-дуэли засчитывается как поражение. Гости по-прежнему могут играть онлайн; их дуэли не засчитываются.",
 };
