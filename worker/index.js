@@ -4,11 +4,17 @@
 // /relay is the game's own Nostr relay (relay.js) for the lobby and duel signaling, for networks that block the
 // public relays. /auth/* and /api/* are Discord sign-in and online stats (accounts.js).
 import { GameRelay } from './relay.js';
-import { accounts } from './accounts.js';
+import { abandoned, accounts } from './accounts.js';
+import { postDuel } from './discord.js';
 
 export { GameRelay };
 
 export default {
+  // every 10 minutes (wrangler.jsonc triggers): duels a player left without a result go to the opponent's claim
+  async scheduled(_event, env, ctx) {
+    if (!env.DB) return;
+    for (const match of await abandoned(env.DB)) ctx.waitUntil(postDuel(env, env.DB, match).catch(() => {}));
+  },
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     if (path === '/relay') return env.RELAY.get(env.RELAY.idFromName('relay')).fetch(request);

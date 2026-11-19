@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS reports (
   at INTEGER NOT NULL,
   PRIMARY KEY (match, user)
 );
+-- Each player's word that an online duel began: a player who then leaves without a result loses it (abandoned()).
+CREATE TABLE IF NOT EXISTS starts (
+  match TEXT NOT NULL,
+  user TEXT NOT NULL,
+  opponent TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (match, user)
+);
 -- Counted duels; the primary key stops a duel from counting twice.
 CREATE TABLE IF NOT EXISTS matches (
   id TEXT PRIMARY KEY,

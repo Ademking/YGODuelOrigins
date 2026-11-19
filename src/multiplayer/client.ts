@@ -67,7 +67,8 @@ export class PrivateRoom {
   onChange = () => {};
   onChat = (_line?: ChatLine) => {};
   onStart = (_match: Match) => {};
-  onEnd = (_reason: string, _surrendered: boolean) => {};
+  /** `won`: the opponent surrendered, ran out of time, left or disconnected. */
+  onEnd = (_reason: string, _won: boolean) => {};
   error = '';
   private room: Room;
   private action;
@@ -97,7 +98,7 @@ export class PrivateRoom {
     this.action = this.room.makeAction('duel');
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e), false, true)); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
-    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) { this.watch?.end(1, 'left'); this.fail(t('Your opponent disconnected.')); } });
+    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) { this.watch?.end(1, 'left'); this.fail(t('Your opponent disconnected.'), true); } });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
       if (!this.opponent) { this.error = relay.length ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
@@ -199,7 +200,7 @@ export class PrivateRoom {
       this.onEnd(reason, true);
     } else if (m.type === 'leave') {
       this.watch?.end(1, m.timeout === true ? 'timeout' : m.surrender === true ? 'surrender' : 'left');
-      this.fail(m.timeout === true ? t('Your opponent ran out of time.') : m.surrender === true ? t('Your opponent surrendered.') : t('Your opponent left the room.'), m.surrender === true);
+      this.fail(m.timeout === true ? t('Your opponent ran out of time.') : m.surrender === true ? t('Your opponent surrendered.') : t('Your opponent left the room.'), true);
     }
   }
   private makeNetwork(seed: DuelNetwork['seed']) {
@@ -243,12 +244,12 @@ export class PrivateRoom {
     await this.send({ type: 'chat', text });
     this.addChat(this.hello.name, text, true);
   }
-  fail(reason: string, surrendered = false, bug = false) {
+  fail(reason: string, won = false, bug = false) {
     if (this.closed) return;
     this.error = reason;
     this.network?.abort(reason, bug);
     this.onChange();
-    this.onEnd(reason, surrendered);
+    this.onEnd(reason, won);
   }
   /** Lose the current duel (surrender or clock) without leaving the room. */
   async forfeit(timeout = false) {

@@ -4,11 +4,14 @@
 // random string). Discord's redirect list needs https://<site>/auth/callback.
 //
 // Duels are peer to peer, so the server never sees one: each player reports its own result, and a duel counts only
-// when both players' reports name each other and agree. One player alone can't add a win, only withhold a result.
+// when both players' reports name each other and agree. A player who started the duel (start()) and then left without
+// a result loses it once the opponent has claimed the win and GRACE_MS has passed (abandoned(), on the cron).
 
 import { canJoin, giveRole, joinServer, postDuel } from './discord.js';
 
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
+/** How long a claimed win waits for the opponent's own report before a player who left loses by default. */
+export const GRACE_MS = 10 * 60_000;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
 const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/, AVATAR = /^(a_)?[0-9a-f]{32}$/;
 /** The three dorms a player picks on first sign-in. */
@@ -51,14 +54,42 @@ export async function report(db, me, { match, opponent, result }, now = Date.now
   const theirs = await db.prepare('SELECT result FROM reports WHERE match = ? AND user = ? AND opponent = ?').bind(match, opponent, me).first();
   if (theirs?.result !== OPPOSITE[result]) return false;
   // the primary key on matches makes sure two reports arriving together count the duel once
+  return count(db, match, me, opponent, result, now);
+}
+
+/** Count a duel once: `result` is from `me`'s side. */
+async function count(db, match, me, opponent, result, now) {
   const winner = result === 'draw' ? null : result === 'win' ? me : opponent;
   const claim = await db.prepare('INSERT OR IGNORE INTO matches (id, a, b, winner, at) VALUES (?, ?, ?, ?, ?)').bind(match, me, opponent, winner, now).run();
   if (!claim.meta.changes) return false;
   const add = (id, r) => db.prepare('UPDATE users SET wins = wins + ?, losses = losses + ?, draws = draws + ? WHERE id = ?')
     .bind(+(r === 'win'), +(r === 'loss'), +(r === 'draw'), id);
-  // ponytail: reports that never get a partner stay in the table; delete by `at` if it ever grows large
   await db.batch([add(me, result), add(opponent, OPPOSITE[result]), db.prepare('DELETE FROM reports WHERE match = ?').bind(match)]);
   return true;
+}
+
+/** A player's word that a duel with `opponent` began. */
+export async function start(db, me, { match, opponent }, now = Date.now()) {
+  if (!MATCH.test(match ?? '') || !USER.test(opponent ?? '') || opponent === me) return false;
+  await db.prepare('INSERT OR IGNORE INTO starts (match, user, opponent, at) VALUES (?, ?, ?, ?)').bind(match, me, opponent, now).run();
+  return true;
+}
+
+/**
+ * Count the wins whose opponent started the duel but never reported, GRACE_MS after the claim: leaving mid-duel
+ * (closing the tab, dropping the connection) loses it. A claim against someone who never started that duel counts
+ * for nothing. Returns the match ids it counted; also clears day-old starts and unpaired reports.
+ */
+export async function abandoned(db, now = Date.now()) {
+  const { results } = await db.prepare(`SELECT r.match, r.user, r.opponent FROM reports r
+    JOIN starts s ON s.match = r.match AND s.user = r.opponent AND s.opponent = r.user
+    WHERE r.result = 'win' AND r.at <= ?
+      AND NOT EXISTS (SELECT 1 FROM reports o WHERE o.match = r.match AND o.user = r.opponent)`).bind(now - GRACE_MS).all();
+  const counted = [];
+  for (const r of results) if (await count(db, r.match, r.user, r.opponent, 'win', now)) counted.push(r.match);
+  const old = now - 86400_000;
+  await db.batch([db.prepare('DELETE FROM starts WHERE at < ?').bind(old), db.prepare('DELETE FROM reports WHERE at < ?').bind(old)]);
+  return counted;
 }
 
 /** Set the player's dorm, once: a later pick is ignored. Returns the dorm the player is in, or null for a bad pick. */
@@ -111,7 +142,7 @@ export async function accounts(request, env, path, ctx) {
   }
   // public, and the same for everyone: browsers may keep it a minute
   if (path === '/api/leaderboard') return Response.json(await leaderboard(env.DB), { headers: { 'Cache-Control': 'public, max-age=60' } });
-  if (path === '/api/me' || path === '/api/result' || path === '/api/team') {
+  if (path === '/api/me' || path === '/api/result' || path === '/api/team' || path === '/api/start') {
     const me = await readSession(env.SESSION_SECRET, cookie(request, SESSION));
     if (!me) return json({ error: 'signed out' }, 401);
     if (path === '/api/me') {
@@ -126,6 +157,7 @@ export async function accounts(request, env, path, ctx) {
       if (team) later(giveRole(env, me, team));
       return team ? json({ team }) : json({ error: 'bad team' }, 400);
     }
+    if (path === '/api/start') return (await start(env.DB, me, body)) ? json({ ok: true }) : json({ error: 'bad start' }, 400);
     const counted = await report(env.DB, me, body);
     if (counted) later(postDuel(env, env.DB, body.match));
     return counted === null ? json({ error: 'bad report' }, 400) : json({ counted });

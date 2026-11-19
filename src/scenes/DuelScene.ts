@@ -20,7 +20,7 @@ import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
 import { avatarCanvasURL, avatarFor, discordAvatar, flagCanvasURL, TEAMS, type Team } from '../multiplayer/profile';
-import { reportResult, signedIn, type Result } from '../multiplayer/account';
+import { reportResult, reportStart, signedIn, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -316,11 +316,14 @@ export class DuelScene extends Phaser.Scene {
       }, (line, [icon, label]) => this.showEmote(line.self ? this.me : opp(this.me), `${icon}  ${label}`));
       session.onChange = () => this.updateRematch?.();
       session.onStart = match => { this.rematching = true; this.scene.restart({ ...this.init0, multiplayer: match }); };
-      session.onEnd = (reason, surrendered) => {
+      // signed in on both sides: the server hears the duel began, so leaving it without a result loses it
+      if (d.multiplayer.account && d.multiplayer.opponentAccount) void reportStart(d.multiplayer.network.seed, d.multiplayer.opponentAccount);
+      // an opponent who surrenders, times out, leaves or disconnects loses
+      session.onEnd = (reason, won) => {
         if (this.dead || this.ended) return;
         duel.stop();
         this.pending?.resolve(SURRENDER);
-        this.showEnd(surrendered ? this.me : -1, reason);
+        this.showEnd(won ? this.me : -1, reason);
       };
       this.events.once('shutdown', () => {
         removeChat(); session.onEnd = () => {};

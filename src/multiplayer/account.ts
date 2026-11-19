@@ -53,6 +53,16 @@ export async function matchId(seed: readonly string[]) {
   return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Tell the server a duel began, so leaving it without a result later counts as a loss. */
+export async function reportStart(seed: readonly string[], opponent: string) {
+  try {
+    await fetch('/api/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: timeoutSignal(8000),
+      body: JSON.stringify({ match: await matchId(seed), opponent }),
+    });
+  } catch { /* offline: leaving this duel can't be held against the opponent */ }
+}
+
 /** Tell the server how a duel ended for you; it counts once your opponent's report agrees. */
 export async function reportResult(seed: readonly string[], opponent: string, result: Result) {
   try {

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 // @ts-expect-error plain JavaScript Worker module
-import { chooseTeam, leaderboard, readSession, report, signSession } from '../../worker/accounts.js';
+import { abandoned, chooseTeam, GRACE_MS, leaderboard, readSession, start, report, signSession } from '../../worker/accounts.js';
 // @ts-expect-error plain JavaScript Worker module
 import { joinServer, postDuel } from '../../worker/discord.js';
 import { avatarURL, cleanSeed, cleanTeam } from '../../src/multiplayer/profile';
@@ -129,4 +129,30 @@ test('the leaderboard ranks by wins, fewer losses first on a tie, and skips play
   const db = setup();
   db.sql.exec("UPDATE users SET wins = 5, losses = 4 WHERE id = '111'; UPDATE users SET wins = 5, losses = 1 WHERE id = '222'");
   assert.deepEqual((await leaderboard(db)).map((u: { id: string }) => u.id), ['222', '111']);
+});
+
+test('a player who started a duel and left without a result loses it after the grace time', async () => {
+  const db = setup();
+  await start(db, '111', { match: MATCH, opponent: '222' }, 0);
+  await start(db, '222', { match: MATCH, opponent: '111' }, 0);
+  await report(db, '111', { match: MATCH, opponent: '222', result: 'win' }, 1000);
+  assert.deepEqual(await abandoned(db, 1000 + GRACE_MS - 1), [], 'still inside the grace time');
+  assert.deepEqual(await abandoned(db, 1000 + GRACE_MS), [MATCH]);
+  assert.deepEqual({ ...user(db, '111') }, { wins: 1, losses: 0, draws: 0 });
+  assert.deepEqual({ ...user(db, '222') }, { wins: 0, losses: 1, draws: 0 });
+  assert.deepEqual(await abandoned(db, 2 * GRACE_MS + 1000), [], 'counted once');
+});
+
+test('a lone win claim counts for nothing unless the opponent started that duel, or when they reported too', async () => {
+  const db = setup();
+  await report(db, '111', { match: MATCH, opponent: '222' , result: 'win' }, 0);
+  await start(db, '333', { match: MATCH, opponent: '111' }, 0);
+  assert.deepEqual(await abandoned(db, GRACE_MS), [], '222 never started it (a third account cannot stand in)');
+  const other = 'c'.repeat(64);
+  await start(db, '222', { match: other, opponent: '111' }, 0);
+  await report(db, '111', { match: other, opponent: '222', result: 'win' }, 0);
+  await report(db, '222', { match: other, opponent: '111', result: 'win' }, 0);
+  assert.deepEqual(await abandoned(db, GRACE_MS), [], 'both claim the win: a dispute, not an abandoned duel');
+  assert.deepEqual({ ...user(db, '111') }, { wins: 0, losses: 0, draws: 0 });
+  assert.equal(await start(db, '111', { match: 'x', opponent: '222' }), false);
 });
