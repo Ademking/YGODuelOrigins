@@ -643,5 +643,4 @@ export const AR: Dictionary = {
   "You can't duel your own account.": "لا يمكنك مبارزة حسابك نفسه.",
   "Target: {card}": "الهدف: {card}",
   "a Set card": "بطاقة مخفية",
-  "You lost the connection.": "فقدت الاتصال.",
 };

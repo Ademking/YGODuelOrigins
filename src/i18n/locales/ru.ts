@@ -643,5 +643,4 @@ export const RU: Dictionary = {
   "You can't duel your own account.": "Нельзя играть против своего же аккаунта.",
   "Target: {card}": "Цель: {card}",
   "a Set card": "выставленная карта",
-  "You lost the connection.": "Вы потеряли соединение.",
 };

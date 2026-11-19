@@ -643,5 +643,4 @@ export const FR: Dictionary = {
   "You can't duel your own account.": "Vous ne pouvez pas affronter votre propre compte.",
   "Target: {card}": "Cible : {card}",
   "a Set card": "une carte posée",
-  "You lost the connection.": "Vous avez perdu la connexion.",
 };

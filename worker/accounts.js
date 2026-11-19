@@ -12,7 +12,7 @@ import { canJoin, giveRole, joinServer, postDuel } from './discord.js';
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 /** How long a claimed win waits for the opponent's own report before a player who left loses by default. */
 export const GRACE_MS = 3 * 60_000;
-/** Two claimed wins at level LP: how much earlier the first must be to take it. */
+/** Two claimed wins: how much earlier the first must be to take it on time alone. */
 export const CLAIM_GAP_MS = 3000;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
 const LP = (n) => Number.isInteger(n) && n >= 0 && n <= 1e6;
@@ -61,12 +61,13 @@ export async function report(db, me, { match, opponent, result, lp }, now = Date
     // agree on the LP, the player who was ahead takes it
     const ours = await db.prepare('SELECT lp, opp_lp, at FROM reports WHERE match = ? AND user = ?').bind(match, me).first();
     if (!ours) return false;
+    // claims seconds apart: the first one wins. The player who stayed sees the drop at once; one coming back to a phone
+    // that froze the game in the background, or to a page that lost its connection, claims later.
+    if (Math.abs(ours.at - theirs.at) >= CLAIM_GAP_MS) return count(db, match, me, opponent, ours.at < theirs.at ? 'win' : 'loss', now);
+    // claims made together (both lost the connection at once): the player ahead on LP, when both reports agree on it
     const agree = ours.lp != null && theirs.lp != null && ours.lp === theirs.opp_lp && ours.opp_lp === theirs.lp;
-    if (agree && ours.lp !== theirs.lp) return count(db, match, me, opponent, ours.lp > theirs.lp ? 'win' : 'loss', now);
-    // level on LP: the first claim wins. The player who stayed sees the drop at once; one coming back to a phone that
-    // froze the game in the background claims later. Claims within a few seconds of each other settle nothing.
-    if (Math.abs(ours.at - theirs.at) < CLAIM_GAP_MS) return false;
-    return count(db, match, me, opponent, ours.at < theirs.at ? 'win' : 'loss', now);
+    if (!agree || ours.lp === theirs.lp) return false;
+    return count(db, match, me, opponent, ours.lp > theirs.lp ? 'win' : 'loss', now);
   }
   if (theirs?.result !== OPPOSITE[result]) return false;
   // the primary key on matches makes sure two reports arriving together count the duel once
