@@ -4,7 +4,7 @@ import { mountDuelChat } from '../multiplayer/ui';
 import Phaser from 'phaser';
 import { go } from '../app/dom';
 import { showCardSheet } from '../app/cardInfo';
-import { MENU_ICONS } from '../app/icons';
+import { MENU_ICONS, type ButtonIcon } from '../app/icons';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
 import type { Side, Zone } from '../engine/types';
@@ -1669,15 +1669,28 @@ export class DuelScene extends Phaser.Scene {
     }
   }
 
+  /** The icon beside an action's label. */
+  private actionIcon(a: Action): ButtonIcon {
+    switch (a.a) {
+      case 'summon': case 'gemini': return 'summon';
+      case 'mset': case 'sset': return 'cardSet';
+      case 'flip': case 'pos': return 'rotate';
+      case 'ss': return 'sparkle';
+      case 'act': return 'zap';
+      case 'attack': return 'swords';
+      case 'phase': return 'next';
+    }
+  }
+
   private actionMenu(c: Card, acts: Action[]) {
     this.closeMenu();
     const attacks = acts.filter((a) => a.a === 'attack');
-    const items: { label: string; run: () => void }[] = acts.filter((a) => a.a !== 'attack')
+    const items: { label: string; run: () => void; icon: ButtonIcon }[] = acts.filter((a) => a.a !== 'attack')
       .sort((a, b) => Number(b.a === 'act') - Number(a.a === 'act'))
-      .map((a) => ({ label: this.label(a), run: () => this.choose(a) }));
-    if (attacks.length === 1) items.unshift({ label: this.label(attacks[0]), run: () => this.choose(attacks[0]) });
-    else if (attacks.length > 1) items.unshift({ label: t('Attack…'), run: () => this.startTargeting(c, attacks) });
-    if (this.portrait) items.push({ label: t('Details'), run: () => this.cardSheet(c) });
+      .map((a) => ({ label: this.label(a), run: () => this.choose(a), icon: this.actionIcon(a) }));
+    if (attacks.length === 1) items.unshift({ label: this.label(attacks[0]), run: () => this.choose(attacks[0]), icon: 'swords' });
+    else if (attacks.length > 1) items.unshift({ label: t('Attack…'), run: () => this.startTargeting(c, attacks), icon: 'swords' });
+    if (this.portrait) items.push({ label: t('Details'), run: () => this.cardSheet(c), icon: 'info' });
     const s = this.sprites.get(c.uid)!;
     // Labels keep their full size: the menu widens to fit, and a long effect label wraps onto a second line
     // (broken at the space nearest its middle) instead of being shrunk.
@@ -1695,7 +1708,7 @@ export class DuelScene extends Phaser.Scene {
       const at = spaces.reduce((best, index) => (Math.abs(index - item.label.length / 2) < Math.abs(best - item.label.length / 2) ? index : best));
       item.label = `${item.label.slice(0, at)}\n${item.label.slice(at + 1)}`;
     }
-    const w = Phaser.Math.Clamp(Math.max(...items.map((item) => widthOf(item.label))) + PAD, 190, MAX_W);
+    const w = Phaser.Math.Clamp(Math.max(...items.map((item) => widthOf(item.label.split('\n').sort((a, b) => b.length - a.length)[0]))) + PAD + 24, 190, MAX_W + 24);
     const heights = items.map((item) => (item.label.includes('\n') ? 52 : 34));
     const layer = this.add.container(0, 0).setDepth(900);
     const blocker = this.add.rectangle(640, 360, 4000, 4000, 0, 0.001).setInteractive();
@@ -1722,7 +1735,7 @@ export class DuelScene extends Phaser.Scene {
     }
     let top = y - total / 2;
     items.forEach((it, i) => {
-      layer.add(button(this, x, top + heights[i] / 2, w, heights[i], it.label, () => { this.closeMenu(); it.run(); }, { size: 13 }));
+      layer.add(button(this, x, top + heights[i] / 2, w, heights[i], it.label, () => { this.closeMenu(); it.run(); }, { size: 13, icon: it.icon }));
       top += heights[i] + 4;
     });
     this.overlay = layer;
@@ -1797,9 +1810,9 @@ export class DuelScene extends Phaser.Scene {
             ? `${cardName(attack.attacker.def)} → ${target ? target.faceUp || target.ctrl === this.me ? cardName(target.def) : t('Face-down monster') : t('Direct attack')}`
             : '';
           this.showDialog(t('Chain?'), [context, p.text, t('Activate a card in response?')].filter(Boolean).join('\n'), [
-            ...opts.map((a) => ({ label: t('Activate {card}', { card: cardName(a.card.def) }), run: () => this.choose(a), hover: a.card })),
-            { label: t('No'), run: () => this.choose(null) },
-          ]);
+            ...opts.map((a) => ({ label: t('Activate {card}', { card: cardName(a.card.def) }), run: () => this.choose(a), hover: a.card, card: a.card })),
+            { label: t('No'), run: () => this.choose(null), icon: 'close' as const, danger: true },
+          ], true, attack?.attacker);
           break;
         }
         case 'select':
@@ -1809,8 +1822,8 @@ export class DuelScene extends Phaser.Scene {
         case 'yesno':
           if (p.card) this.cardPanel.show(p.card.def);
           this.showDialog(t(p.kind === 'upkeep' ? 'Maintenance Cost' : p.kind === 'choice' ? 'Choose' : 'Activate?'), p.text, [
-            { label: t('Yes'), run: () => this.choose(true) }, { label: t('No'), run: () => this.choose(false) },
-          ]);
+            { label: t('Yes'), run: () => this.choose(true), icon: 'check' }, { label: t('No'), run: () => this.choose(false), icon: 'close', danger: true },
+          ], true, p.card);
           break;
         case 'announce': void modal(this, { title: p.text, input: '', ok: t('Declare'), cancel: t('Retry') }).then(function resolve(this: DuelScene, value: string | boolean | null) {
           if (this.pending?.p !== p) return;
@@ -1825,7 +1838,7 @@ export class DuelScene extends Phaser.Scene {
         case 'replay':
           this.showDialog(t('Attack replay'), t('The battle field changed. Choose a new target for {card}, or stop the attack.', { card: cardName(p.attacker.def) }), [
             ...p.targets.map((target) => ({ label: attackTargetLabel(target), run: () => this.choose(target), hover: target?.faceUp ? target : undefined })),
-            { label: t('Stop attacking'), run: () => this.choose(false) },
+            { label: t('Stop attacking'), run: () => this.choose(false), icon: 'close', danger: true },
           ]);
           break;
       }
@@ -1872,14 +1885,24 @@ export class DuelScene extends Phaser.Scene {
     blocker.once('destroy', () => this.scale.off('resize', resize));
     return blocker;
   }
-  private showDialog(title: string, body: string, opts: { label: string; run: () => void; hover?: Card }[], modal = true) {
+  /** A small picture of a card for buttons and prompts: face-up when you may see it. */
+  private cardThumb(c: Card, height: number) {
+    const vis = this.canSee(c);
+    const img = this.add.image(0, 0, vis ? faceKey(this.textures, c.def.id) : BACK);
+    if (vis) setCardTexture(img, c.def.id);
+    return img.setDisplaySize(height * CW / CH, height);
+  }
+
+  private showDialog(title: string, body: string, opts: { label: string; run: () => void; hover?: Card; card?: Card; icon?: ButtonIcon; danger?: boolean }[], modal = true, about?: Card) {
     this.closeDialog();
     const w = 420, bh = 38;
     const layer = this.add.container(0, 0).setDepth(950);
     if (modal) layer.add(this.playfieldBlocker(0x000000, 0.35));
-    const bodyT = txt(this, 0, 0, body, 16, COL.text, { wordWrap: { width: w - 40 }, align: 'center' }).setOrigin(0.5, 0);
+    // the card the question is about sits in the corner, and the text makes room for it
+    const PIC = 78, side = about ? PIC * CW / CH + 16 : 0;
+    const bodyT = txt(this, 0, 0, body, 16, COL.text, { wordWrap: { width: w - 40 - side * 2 }, align: 'center' }).setOrigin(0.5, 0);
     // Long option lists (big chains) scroll inside the dialog with a scroll bar instead of running off screen.
-    const fixed = 70 + bodyT.height + 10, step = bh + 6;
+    const fixed = Math.max(70 + bodyT.height + 10, about ? PIC + 30 : 0), step = bh + 6;
     const fit = Math.max(3, Math.floor(((modal && this.pending ? 650 : 700) - fixed) / step));
     const rows = Math.min(opts.length, fit);
     const h = fixed + rows * step;
@@ -1889,10 +1912,16 @@ export class DuelScene extends Phaser.Scene {
     layer.add(htxt(this, CX, y0 + 22, title, 20).setOrigin(0.5));
     bodyT.setPosition(CX, y0 + 44);
     layer.add(bodyT);
-    const listTop = y0 + 60 + bodyT.height, listH = rows * step;
+    if (about) {
+      const pic = this.cardThumb(about, PIC).setOrigin(0, 0).setPosition(x0 + w - side + 2, y0 + 14).setInteractive({ useHandCursor: true });
+      pic.on('pointerover', () => this.cardPanel.show(about.def, { hidden: !this.canSee(about) }));
+      layer.add(pic);
+    }
+    const listTop = y0 + fixed - 10, listH = rows * step;
     const list = this.add.container(0, 0);
     const btns = opts.map((o, i) => {
-      const b = button(this, CX - (opts.length > fit ? 8 : 0), listTop + i * step + bh / 2, w - 60 - (opts.length > fit ? 16 : 0), bh, o.label, o.run, { size: 14 });
+      const b = button(this, CX - (opts.length > fit ? 8 : 0), listTop + i * step + bh / 2, w - 60 - (opts.length > fit ? 16 : 0), bh, o.label, o.run,
+        { size: 14, icon: o.icon, danger: o.danger, lead: o.card ? this.cardThumb(o.card, bh - 8) : undefined });
       if (o.hover) b.on('pointerover', () => this.cardPanel.show(o.hover!.def));
       list.add(b);
       return b;
@@ -1916,7 +1945,7 @@ export class DuelScene extends Phaser.Scene {
       to(0);
     }
     if (modal && this.pending) {
-      layer.add(button(this, CX, y0 + h + 20, 190, 34, t('Inspect field'), () => this.minimizePrompt(true), { size: 12 }));
+      layer.add(button(this, CX, y0 + h + 20, 190, 34, t('Inspect field'), () => this.minimizePrompt(true), { size: 12, icon: 'eye' }));
     }
     this.dialog = layer;
   }
@@ -1949,7 +1978,7 @@ export class DuelScene extends Phaser.Scene {
     const label = htxt(this, CX - 86, top + 30, '', 18, COL.goldTxt).setOrigin(0.5);
     layer.add(panel(this, CX - 260, top, 520, 60, 0.98));
     layer.add(label);
-    const confirm = button(this, CX + 160, top + 30, 172, 44, t('Confirm'), () => this.choose([...selected]), { size: 16, primary: true });
+    const confirm = button(this, CX + 160, top + 30, 172, 44, t('Confirm'), () => this.choose([...selected]), { size: 16, primary: true, icon: 'check' });
     const update = () => {
       label.setText(`${t('Disable zones')} · ${selected.size}/${prompt.count}`);
       confirm.setEnabled(selected.size === prompt.count);
@@ -1991,7 +2020,7 @@ export class DuelScene extends Phaser.Scene {
     const chosen = new Set<Card>();
     const single = prompt.min === 1 && prompt.max === 1 && !prompt.validate;
     const hasSecondary = prompt.finish || prompt.cancel;
-    const confirm = single ? null : button(this, hasSecondary ? CX - 90 : CX, 128, 200, 44, t('Confirm'), () => this.choose([...chosen]), { size: 16, primary: true });
+    const confirm = single ? null : button(this, hasSecondary ? CX - 90 : CX, 128, 200, 44, t('Confirm'), () => this.choose([...chosen]), { size: 16, primary: true, icon: 'check' });
     if (confirm) { confirm.setEnabled(prompt.min === 0 && (!prompt.validate || prompt.validate([]))); layer.add(confirm); }
     if (prompt.finish || prompt.cancel) {
       layer.add(button(this, single ? CX : CX + 116, 128, 160, 44, prompt.finish ? t('Confirm') : t('Cancel'),
@@ -2000,6 +2029,10 @@ export class DuelScene extends Phaser.Scene {
     this.fieldSelection = { prompt, chosen, layer, confirm };
     this.refreshHighlights();
   }
+  private zoneIcon(zone: Zone): ButtonIcon | undefined {
+    return ({ hand: 'hand', mzone: 'field', szone: 'field', fzone: 'field', gy: 'grave', banished: 'banish', deck: 'deck', extra: 'deck' } as Partial<Record<Zone, ButtonIcon>>)[zone];
+  }
+
   private showSelect(p: Extract<Prompt, { t: 'select' }>) {
     this.closeDialog();
     const layer = this.add.container(0, 0).setDepth(950);
@@ -2018,7 +2051,7 @@ export class DuelScene extends Phaser.Scene {
     const single = p.min === 1 && p.max === 1 && !p.validate;
     // a pick-one-at-a-time prompt finishes with Confirm once the core allows it
     const ok = button(this, CX, y0 + h - (tall ? 80 : 30), 200, 38, p.reveal ? t('Continue') : t('Confirm'),
-      () => { if (single && p.finish) { this.markedSelectPage = undefined; this.choose(null); } else this.choose([...chosen]); }, { primary: true });
+      () => { if (single && p.finish) { this.markedSelectPage = undefined; this.choose(null); } else this.choose([...chosen]); }, { primary: true, icon: 'check' });
     const grid = this.add.container(0, 0);
     layer.add([grid, ok]);
     const pages = Math.ceil(p.cards.length / perPage);
@@ -2036,6 +2069,12 @@ export class DuelScene extends Phaser.Scene {
         if (vis) setCardTexture(img, c.def.id);
         const sel = chosen.has(c) || !!p.marked?.includes(c);
         const mark = sel ? htxt(this, x, y + 74, '✓', 16, COL.goldTxt).setOrigin(0.5) : null;
+        // where the card is: hand, field, Graveyard, banished, Deck
+        const where = this.zoneIcon(c.zone);
+        if (where && this.textures.exists(`ticon_${where}`)) {
+          const tag = this.add.image(x, y - 82, `ticon_${where}`).setDisplaySize(20, 20).setTint(c.owner === this.me ? 0xf5d77a : 0xff8a9a);
+          grid.add(tag);
+        }
         img.on('pointerover', () => this.cardPanel.show(c.def, { hidden: !vis }));
         if (p.marked?.includes(c)) img.setTint(0xb8ffd8);
         img.on('pointerup', () => {
@@ -2057,7 +2096,7 @@ export class DuelScene extends Phaser.Scene {
       ok.setVisible(!single || !!p.finish).setEnabled(valid() || !!p.finish);
     };
     render();
-    layer.add(button(this, x0 + w - 100, y0 + h - 30, 160, 35, t('Inspect field'), () => this.minimizePrompt(true), { size: 12 }));
+    layer.add(button(this, x0 + w - 100, y0 + h - 30, 160, 35, t('Inspect field'), () => this.minimizePrompt(true), { size: 12, icon: 'eye' }));
     if (p.cancel) layer.add(button(this, x0 + 85, y0 + h - 30, 120, 35, t('Cancel'), () => this.choose(null), { size: 12 }));
     this.dialog = layer;
   }

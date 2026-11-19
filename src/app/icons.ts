@@ -37,6 +37,17 @@ const PATHS = {
   skipNext: '<path d="m5 4 10 8-10 8V4ZM19 5v14"/>',
   mute: '<path d="M4 9h4l5-4v14l-5-4H4V9Z"/><path d="m17 9 5 6M22 9l-5 6"/>',
   more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  swords: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>',
+  summon: '<path d="m17 8-5-5-5 5M12 3v13M5 21h14"/>',
+  sparkle: '<path d="m12 3 1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6ZM19 16v5M16.5 18.5h5"/>',
+  cardSet: '<rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="12" r="3.5"/>',
+  rotate: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  hand: '<path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/>',
+  field: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  grave: '<path d="M7 21V10a5 5 0 0 1 10 0v11M4 21h16M12 9v6M9.5 11.5h5"/>',
+  banish: '<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>',
 } as const;
 export type IconName = keyof typeof PATHS;
 
@@ -49,3 +60,6 @@ export const icon = (name: IconName, cls = 'size-5') =>
 export const iconUrl = (name: IconName, color = '#e0b34f') =>
   `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PATHS[name]}</svg>`)}`;
 export const MENU_ICONS = ['play', 'log', 'chain', 'speed', 'volume', 'news', 'settings', 'flag', 'home'] as const;
+/** Icons on the duel's buttons and prompts, drawn white so each button tints them like its label (`ticon_<name>`). */
+export const BUTTON_ICONS = ['swords', 'check', 'close', 'eye', 'zap', 'summon', 'sparkle', 'cardSet', 'rotate', 'info', 'next', 'hand', 'field', 'grave', 'banish', 'deck'] as const;
+export type ButtonIcon = (typeof BUTTON_ICONS)[number];

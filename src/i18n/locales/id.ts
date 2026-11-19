@@ -647,4 +647,7 @@ export const ID: Dictionary = {
   "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "Pilih asrama, Slifer Red, Ra Yellow, atau Obelisk Blue: warnanya membingkai avatarmu di lobi dan saat duel.",
   "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "Masuk akan menambahkanmu ke server Discord kami dengan peran asramamu, dan duel yang selesai diposting di sana.",
   "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "Keluar dari duel online berarti kalah. Tamu tetap bisa duel online; duel mereka tidak dihitung.",
+  "Slifer Red": "Slifer Red",
+  "Ra Yellow": "Ra Yellow",
+  "Obelisk Blue": "Obelisk Blue",
 };

@@ -644,7 +644,10 @@ export const AR: Dictionary = {
   "New avatar": "صورة رمزية جديدة",
   "Avatar {n}": "صورة رمزية {n}",
   "Sign in with Discord: your online wins, losses and draws are counted, and the top duelists are on a leaderboard in the lobby.": "سجّل الدخول عبر Discord: تُحتسب انتصاراتك وهزائمك وتعادلاتك عبر الإنترنت، ويظهر أفضل المبارزين في لوحة المتصدرين في الردهة.",
-  "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "اختر سكنًا: Slifer Red أو Ra Yellow أو Obelisk Blue، وستؤطّر ألوانه صورتك في الردهة وفي المبارزات.",
+  "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "اختر سكنًا: سلايفر الأحمر أو راع الأصفر أو أوبليسك الأزرق، وستؤطّر ألوانه صورتك في الردهة وفي المبارزات.",
   "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "يضيفك تسجيل الدخول إلى خادمنا على Discord بدور سكنك، وتُنشر المبارزات المنتهية هناك.",
   "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "مغادرة مبارزة عبر الإنترنت تعني خسارتها. لا يزال بإمكان الضيوف المبارزة عبر الإنترنت، لكن مبارزاتهم لا تُحتسب.",
+  "Slifer Red": "سلايفر الأحمر",
+  "Ra Yellow": "راع الأصفر",
+  "Obelisk Blue": "أوبليسك الأزرق",
 };
