@@ -391,22 +391,28 @@
  },
  "olderText": {
   "fr": {
-   "83555666": "Détruisez 1 Carte Monstre face recto et infligez des Dommages Directs égaux à l'ATK de la carte détruite aux Life Points des deux joueurs."
+   "83555666": "Détruisez 1 Carte Monstre face recto et infligez des Dommages Directs égaux à l'ATK de la carte détruite aux Life Points des deux joueurs.",
+   "77565204": "Envoyez au Cimetière, depuis votre Deck, les Monstres Matériels Fusion listés sur une Carte Monstre Fusion, et sélectionnez ce Monstre Fusion dans votre Deck Fusion. Invoquez Spécialement le Monstre Fusion sélectionné durant votre 2e Standby Phase après l'activation de cette carte. (Cette Invocation Spéciale est considérée comme une Invocation Fusion.) Lorsque cette carte est retirée du Terrain, détruisez ce monstre. Lorsque ce monstre est détruit, détruisez cette carte."
   },
   "de": {
-   "83555666": "Zerstöre 1 offene Monsterkarte und füge deinen Life Points und denen deines Gegners direkten Schaden in Höhe der ATK der zerstörten Karte zu."
+   "83555666": "Zerstöre 1 offene Monsterkarte und füge deinen Life Points und denen deines Gegners direkten Schaden in Höhe der ATK der zerstörten Karte zu.",
+   "77565204": "Lege die Fusionsmaterial-Monster, die auf einer Fusionsmonsterkarte aufgeführt sind, von deinem Deck auf den Friedhof und wähle dieses 1 Fusionsmonster aus deinem Fusionsdeck. Beschwöre das gewählte Fusionsmonster während deiner 2. Standby Phase nach der Aktivierung dieser Karte als Spezialbeschwörung. (Diese Spezialbeschwörung wird als Fusionsbeschwörung behandelt.) Wenn diese Karte vom Spielfeld entfernt wird, zerstöre dieses Monster. Wenn das Monster zerstört wird, zerstöre diese Karte."
   },
   "it": {
-   "83555666": "Distruggi 1 Carta Mostro scoperta e infliggi Danno Diretto pari all'ATK della carta distrutta ai Life Point tuoi e del tuo avversario."
+   "83555666": "Distruggi 1 Carta Mostro scoperta e infliggi Danno Diretto pari all'ATK della carta distrutta ai Life Point tuoi e del tuo avversario.",
+   "77565204": "Manda al Cimitero, dal tuo Deck, i Mostri Materiali da Fusione indicati su una Carta Mostro Fusione, e seleziona quel Mostro Fusione dal tuo Deck Fusione. Evoca Specialmente il Mostro Fusione selezionato durante la tua 2ª Standby Phase dopo l'attivazione di questa carta. (Questa Evocazione Speciale è considerata un'Evocazione tramite Fusione.) Quando questa carta viene rimossa dal Terreno, distruggi quel mostro. Quando il mostro viene distrutto, distruggi questa carta."
   },
   "pt": {
-   "83555666": "Destrua 1 Card de Monstro com a face para cima e cause dano direto igual ao ATK do card destruído aos LPs de ambos os jogadores."
+   "83555666": "Destrua 1 Card de Monstro com a face para cima e cause dano direto igual ao ATK do card destruído aos LPs de ambos os jogadores.",
+   "77565204": "Envie do seu Deck para o Cemitério os Monstros Matéria de Fusão listados em um Card de Monstro de Fusão e selecione esse Monstro de Fusão do seu Deck de Fusão. Invoque por Invocação-Especial o Monstro de Fusão selecionado durante sua 2ª Fase de Apoio depois da ativação deste card. (Esta Invocação-Especial é tratada como uma Invocação-Fusão.) Quando este card for removido do campo, destrua esse monstro. Quando o monstro for destruído, destrua este card."
   },
   "es": {
-   "83555666": "Destruye 1 Carta de Monstruo boca arriba e inflige Daño Directo igual al ATK de la carta destruida a los Life Points de ambos jugadores."
+   "83555666": "Destruye 1 Carta de Monstruo boca arriba e inflige Daño Directo igual al ATK de la carta destruida a los Life Points de ambos jugadores.",
+   "77565204": "Manda al Cementerio, desde tu Deck, los Monstruos Material de Fusión listados en una Carta de Monstruo de Fusión, y selecciona ese Monstruo de Fusión de tu Deck de Fusión. Invoca de Modo Especial el Monstruo de Fusión seleccionado durante tu 2da. Standby Phase después de la activación de esta carta. (Esta Invocación Especial se considera una Invocación por Fusión.) Cuando esta carta es removida del Campo, destruye ese monstruo. Cuando el monstruo es destruido, destruye esta carta."
   },
   "ar": {
-   "83555666": "دمّر بطاقة وحش 1 مكشوفة وألحق ضرراً مباشراً يساوي نقاط هجوم البطاقة المدمَّرة بنقاط حياتك ونقاط حياة خصمك."
+   "83555666": "دمّر بطاقة وحش 1 مكشوفة وألحق ضرراً مباشراً يساوي نقاط هجوم البطاقة المدمَّرة بنقاط حياتك ونقاط حياة خصمك.",
+   "77565204": "أرسل من مجموعتك إلى المقبرة وحوش مواد الدمج المذكورة على بطاقة وحش دمج، واختر وحش الدمج ذلك من مجموعة الدمج الخاصة بك. استدعِ بشكل خاص وحش الدمج المختار أثناء مرحلة استعدادك الثانية بعد تفعيل هذه البطاقة. (يُعامل هذا الاستدعاء الخاص كاستدعاء بالدمج.) عندما تُزال هذه البطاقة من الملعب، دمّر ذلك الوحش. عندما يُدمَّر ذلك الوحش، دمّر هذه البطاقة."
   }
  }
 }
