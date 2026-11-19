@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 // @ts-expect-error plain JavaScript Worker module
 import { chooseTeam, readSession, report, signSession } from '../../worker/accounts.js';
+// @ts-expect-error plain JavaScript Worker module
+import { joinServer, postDuel } from '../../worker/discord.js';
 import { avatarURL, cleanSeed, cleanTeam } from '../../src/multiplayer/profile';
 
 function d1() {
@@ -94,4 +96,30 @@ test('peers can only send Discord avatars and dorms the game knows', () => {
   assert.equal(cleanSeed('12'), '12', 'older builds still send portrait numbers');
   assert.equal(cleanTeam('slifer'), 'slifer');
   assert.equal(cleanTeam('constructor'), undefined);
+});
+
+test('Discord: joining adds the dorm role, and a counted duel posts without pings', async () => {
+  const calls: { url: string, method: string, body?: string }[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url, method: init.method!, body: init.body as string });
+    return new Response(null, { status: 204 });
+  }) as typeof fetch;
+  try {
+    const env = { DISCORD_BOT_TOKEN: 't', DISCORD_GUILD_ID: 'g', DISCORD_ROLE_RA: 'r1', DISCORD_WEBHOOK_URL: 'https://hook' };
+    await joinServer(env, '111', 'oauth', 'ra');
+    assert.deepEqual(calls.map(c => `${c.method} ${c.url}`), ['PUT https://discord.com/api/v10/guilds/g/members/111',
+      'PUT https://discord.com/api/v10/guilds/g/members/111/roles/r1'], 'already a member (204): the role is added after');
+    calls.length = 0;
+    await joinServer({}, '111', 'oauth', 'ra');
+    assert.equal(calls.length, 0, 'nothing without the server set up');
+    const db = setup();
+    db.sql.prepare("UPDATE users SET name = '@everyone', team = 'slifer' WHERE id = '111'").run();
+    await report(db, '111', { match: MATCH, opponent: '222', result: 'loss' });
+    await report(db, '222', { match: MATCH, opponent: '111', result: 'win' });
+    await postDuel(env, db, MATCH);
+    const post = JSON.parse(calls[0].body!);
+    assert.equal(post.content, '⚔️ **p222** defeated **@everyone** (Slifer Red)!');
+    assert.deepEqual(post.allowed_mentions, { parse: [] });
+  } finally { globalThis.fetch = real; }
 });

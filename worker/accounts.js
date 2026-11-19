@@ -1,10 +1,12 @@
 // Accounts and online stats, in D1 (tables: worker/schema.sql).
-// Sign-in is Discord OAuth (scope `identify`); the session is a signed cookie, so checking it reads no database row.
+// Sign-in is Discord OAuth (scope `identify`, plus `guilds.join` once the server is set up: discord.js); the session is a signed cookie, so checking it reads no database row.
 // Secrets: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET (Discord developer portal → OAuth2) and SESSION_SECRET (any long
 // random string). Discord's redirect list needs https://<site>/auth/callback.
 //
 // Duels are peer to peer, so the server never sees one: each player reports its own result, and a duel counts only
 // when both players' reports name each other and agree. One player alone can't add a win, only withhold a result.
+
+import { canJoin, giveRole, joinServer, postDuel } from './discord.js';
 
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
@@ -67,13 +69,15 @@ export async function chooseTeam(db, me, team) {
 }
 
 /** /auth/* and /api/* routes; null for any other path. */
-export async function accounts(request, env, path) {
+export async function accounts(request, env, path, ctx) {
   const url = new URL(request.url);
+  // Discord calls run after the response, so a slow or failing Discord never holds up the page
+  const later = (task) => ctx?.waitUntil(task.catch(() => {}));
   const callback = `${url.origin}/auth/callback`;
   if (path === '/auth/discord') {
     if (!env.DISCORD_CLIENT_ID) return new Response('Discord sign-in is not set up.', { status: 503 });
     const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
-    const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, response_type: 'code', scope: 'identify', redirect_uri: callback, state });
+    const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, response_type: 'code', scope: canJoin(env) ? 'identify guilds.join' : 'identify', redirect_uri: callback, state });
     return redirect(`https://discord.com/oauth2/authorize?${params}`, setCookie(STATE, state, 600));
   }
   if (path === '/auth/callback') {
@@ -92,6 +96,8 @@ export async function accounts(request, env, path) {
     // name and picture follow the Discord profile on every sign-in
     await env.DB.prepare('INSERT INTO users (id, name, avatar, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, avatar = excluded.avatar')
       .bind(String(user.id), name, avatar, Date.now()).run();
+    const team = (await env.DB.prepare('SELECT team FROM users WHERE id = ?').bind(String(user.id)).first())?.team;
+    later(joinServer(env, String(user.id), token.access_token, team));
     return redirect('/#lobby', setCookie(STATE, '', 0), setCookie(SESSION, await signSession(env.SESSION_SECRET, String(user.id)), MONTH_S));
   }
   if (path === '/auth/logout' && request.method === 'POST') {
@@ -109,9 +115,11 @@ export async function accounts(request, env, path) {
     const body = (await request.json().catch(() => null)) || {};
     if (path === '/api/team') {
       const team = await chooseTeam(env.DB, me, body.team);
+      if (team) later(giveRole(env, me, team));
       return team ? json({ team }) : json({ error: 'bad team' }, 400);
     }
     const counted = await report(env.DB, me, body);
+    if (counted) later(postDuel(env, env.DB, body.match));
     return counted === null ? json({ error: 'bad report' }, 400) : json({ counted });
   }
   return null;

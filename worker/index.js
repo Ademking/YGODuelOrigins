@@ -9,10 +9,10 @@ import { accounts } from './accounts.js';
 export { GameRelay };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     if (path === '/relay') return env.RELAY.get(env.RELAY.idFromName('relay')).fetch(request);
-    if (path.startsWith('/auth/') || path.startsWith('/api/')) return (await accounts(request, env, path)) ?? new Response('Not found', { status: 404 });
+    if (path.startsWith('/auth/') || path.startsWith('/api/')) return (await accounts(request, env, path, ctx)) ?? new Response('Not found', { status: 404 });
     if (path !== '/turn') return env.ASSETS.fetch(request);
     if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) return Response.json([]);
     const response = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
