@@ -273,7 +273,8 @@ const deckEditor: Screen<{ createNew?: boolean; returnTo?: string; importCode?: 
     if (event.pointerType !== 'mouse' && Math.abs(dx) > 50) { swiped = true; turn(dx < 0 ? 1 : -1); }
   });
   // cards and pages follow the panels' size
-  const resized = new ResizeObserver(() => { renderDeck(); drawPage(); });
+  // a resize can be delivered after the screen's elements left the page: nothing to lay out then
+  const resized = new ResizeObserver(() => { if (screen.isConnected) { renderDeck(); drawPage(); } });
   resized.observe(q('[data-main-box]'));
   resized.observe(poolBox);
 
