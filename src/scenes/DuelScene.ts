@@ -19,7 +19,8 @@ import { num, t } from '../i18n';
 import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
-import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
+import { avatarCanvasURL, avatarFor, discordAvatar, flagCanvasURL, TEAMS, type Team } from '../multiplayer/profile';
+import { reportResult, reportStart, signedIn, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -91,6 +92,7 @@ let HAND_SCALE = 0.46 * CARD_K;
 let OPP_HAND_SCALE = 0.28 * CARD_K;
 let HAND_SPACING = 92, HAND_ROW = 600;
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
+const hexColor = (css: string) => Phaser.Display.Color.HexStringToColor(css).color;
 const LEFT_W = 214; // width of the HUD column on the left: as wide as the card preview
 type Pos = { x: number; y: number; s: number; k: number; w: number };
 const QUAD_IDX = [0, 1, 2, 0, 2, 3]; // TL,TR,BR + TL,BR,BL
@@ -216,6 +218,8 @@ export class DuelScene extends Phaser.Scene {
   private chainMode: 'auto' | 'always' = 'auto';
   private dead = false;
   private ended = false;
+  /** This online duel's result went to the stats server (once per duel). */
+  private reported = false;
   private hoverCard: Card | null = null;
   private minimizedDialog: Phaser.GameObjects.Container | null = null;
 
@@ -249,7 +253,7 @@ export class DuelScene extends Phaser.Scene {
     this.fieldSelection = null;
     this.overlay = this.dialog = this.logLayer = this.minimizedDialog = null;
     this.dragging = null;
-    this.dead = this.ended = false;
+    this.dead = this.ended = this.reported = false;
     this.revealingGod = null;
     this.revealedGods.clear();
     // full effects by default, phones included (they used to start on Reduced, so attacks showed only a flash);
@@ -312,11 +316,14 @@ export class DuelScene extends Phaser.Scene {
       }, (line, [icon, label]) => this.showEmote(line.self ? this.me : opp(this.me), `${icon}  ${label}`));
       session.onChange = () => this.updateRematch?.();
       session.onStart = match => { this.rematching = true; this.scene.restart({ ...this.init0, multiplayer: match }); };
-      session.onEnd = (reason, surrendered) => {
+      // signed in on both sides: the server hears the duel began, so leaving it without a result loses it
+      if (d.multiplayer.account && d.multiplayer.opponentAccount) void reportStart(d.multiplayer.network.seed, d.multiplayer.opponentAccount);
+      // an opponent who surrenders, times out, leaves or disconnects loses
+      session.onEnd = (reason, won) => {
         if (this.dead || this.ended) return;
         duel.stop();
         this.pending?.resolve(SURRENDER);
-        this.showEnd(surrendered ? this.me : -1, reason);
+        this.showEnd(won ? this.me : -1, reason);
       };
       this.events.once('shutdown', () => {
         removeChat(); session.onEnd = () => {};
@@ -1135,22 +1142,31 @@ export class DuelScene extends Phaser.Scene {
   /** One player's LP plate at the sidebar's coordinates (portrait wraps it in a scaled container). */
   private buildPlate(s: Side) {
     const y = this.plateY(s);
-    const g = this.add.graphics();
-    g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
-    g.lineStyle(1, COL.line, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
-    // brass edge while it is this player's turn
-    this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
-    // portrait well
-    const px = PLATE.x + 34, py = y + PLATE.h / 2;
     // online duels, played or spectated, show each player's lobby avatar and flag
     const people = this.init0.multiplayer ? { looks: this.init0.multiplayer.looks, names: [this.init0.multiplayer.name, this.init0.multiplayer.opponent] }
       : this.init0.spectate ? { looks: this.init0.spectate.setup.looks, names: this.init0.spectate.setup.names } : undefined;
-    if (people) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
-    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     const watched = s === this.me ? this.init0.watch : undefined;
+    // signed in with Discord: your own plate shows your Discord picture, name, dorm and online record in every duel
+    const account = s === this.me && !watched ? signedIn() : null;
+    const framed = people || account;
+    const team = people ? people.looks[s === this.me ? 0 : 1].team : account?.team ?? undefined;
+    const dorm = team ? TEAMS[team] : undefined;
+    const g = this.add.graphics();
+    g.fillStyle(0x121020, 1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
+    // a dorm plate: tinted in the dorm's colour, edged in it, and lit in its light shade on its turn
+    if (dorm) g.fillStyle(hexColor(dorm.color), 0.1).fillPoints(chamfer(PLATE.x, y, PLATE.w, PLATE.h, 8), true);
+    g.lineStyle(1, dorm ? hexColor(dorm.color) : COL.line, dorm ? 0.6 : 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true);
+    // brass (or dorm) edge while it is this player's turn
+    this.lpPlate[s] = this.add.graphics().lineStyle(1.5, dorm ? hexColor(dorm.light) : COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
+    // portrait well
+    const px = PLATE.x + 34, py = y + PLATE.h / 2;
+    if (framed) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
+    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     if (people) {
       const index = s === this.me ? 0 : 1, look = people.looks[index];
-      this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country);
+      this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country, look.team);
+    } else if (account) {
+      this.plateLook(px, py, discordAvatar(account.id, account.avatar), undefined, account.team ?? undefined);
     } else if (s === this.me && !watched) {
       // your side shows the art of your deck's strongest monster
       const deck = this.init0.deck;
@@ -1171,8 +1187,8 @@ export class DuelScene extends Phaser.Scene {
       }
       else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
     }
-    if (!people) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
-    const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? t('You') : this.init0.opp.name),
+    if (!framed) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
+    const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? account?.name ?? t('You') : this.init0.opp.name),
       { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
     if (this.init0.multiplayer) {
       this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
@@ -1183,7 +1199,24 @@ export class DuelScene extends Phaser.Scene {
       while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
     }
     this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
-    this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
+    if (account) {
+      // online record, right-aligned beside the LP: a small icon before each count (▲ wins, ▼ losses, = draws)
+      const right = PLATE.x + PLATE.w - 12, cy = y + 38;
+      const icons = this.add.graphics(), row = this.add.container(right, cy, [icons]);
+      let x = 0;
+      for (const [count, color, kind] of [[account.draws, '#c9c4dd', 'draw'], [account.losses, '#ff8a9a', 'loss'], [account.wins, '#7dffa6', 'win']] as const) {
+        const n = this.add.text(x, 0, String(count), { fontFamily: FONT_N, fontSize: '10px', fontStyle: 'bold', color }).setOrigin(1, 0.5);
+        row.add(n); x -= n.width + 2;
+        icons.fillStyle(hexColor(color), 1);
+        if (kind === 'win') icons.fillTriangle(x - 6, 2.5, x, 2.5, x - 3, -2.5);
+        else if (kind === 'loss') icons.fillTriangle(x - 6, -2.5, x, -2.5, x - 3, 2.5);
+        else icons.fillRect(x - 6, -2, 6, 1.5).fillRect(x - 6, 0.8, 6, 1.5);
+        x -= 6 + 6;
+      }
+      // long records shrink to fit the room the LP leaves
+      const room = right - PLATE.lpX - this.lpText[s].width - 6, width = -x - 6;
+      if (width > room) row.setScale(room / width);
+    }
     this.lpBar[s] = this.add.graphics();
     this.drawLP(s, this.lpShown[s]);
   }
@@ -1194,6 +1227,7 @@ export class DuelScene extends Phaser.Scene {
     const x0 = PLATE.lpX, bw = PLATE.x + PLATE.w - 12 - x0, gap = 2, seg = (bw - gap * 7) / 8;
     const startingLP = this.init0.startingLP ?? 8000;
     const frac = Phaser.Math.Clamp(lp / startingLP, 0, 1);
+    // gold for everyone, dorm or not: Slifer's red would read as the low-life warning
     const col = frac > 0.25 ? COL.gold : COL.red; // red only as a low-life warning, the same for both players
     const g = this.lpBar[s].clear();
     for (let i = 0; i < 8; i++) {
@@ -2196,8 +2230,8 @@ export class DuelScene extends Phaser.Scene {
     if (yes === true && !this.dead) this.surrender();
   }
 
-  /** Online plate portrait: avatar with a flag badge, loaded into textures on first use. */
-  private plateLook(px: number, py: number, avatar: string, country?: string) {
+  /** Online plate portrait: avatar framed in the player's dorm colour, with a flag badge; loaded into textures on first use. */
+  private plateLook(px: number, py: number, avatar: string, country?: string, team?: Team) {
     const show = (key: string, url: string, place: (img: Phaser.GameObjects.Image) => void) => {
       const img = this.add.image(px, py, this.textures.exists(key) ? key : '__DEFAULT');
       if (this.textures.exists(key)) { place(img); return; }
@@ -2208,6 +2242,12 @@ export class DuelScene extends Phaser.Scene {
       this.load.start();
     };
     show(`avatar-${avatar}`, avatarCanvasURL(avatar), img => img.setPosition(px, py).setDisplaySize(48, 48));
+    if (team) {
+      // the dorm frame: one clean line in the dorm's colour, a soft halo of it outside
+      const dorm = TEAMS[team];
+      this.add.rectangle(px, py, 54, 54).setStrokeStyle(3, hexColor(dorm.color), 0.25);
+      this.add.rectangle(px, py, 50, 50).setStrokeStyle(2, hexColor(dorm.color));
+    }
     if (country) show(`flag-${country}`, flagCanvasURL(country), img => img.setPosition(px - 15, py - 19).setDisplaySize(18, 12));
   }
 
@@ -2256,6 +2296,7 @@ export class DuelScene extends Phaser.Scene {
   /** Give up the duel. `leaving`: the player is quitting to the menus, so skip the result screen and its jingle. */
   private surrender(leaving = false) {
     if (this.ended) return;
+    this.reportOnline('loss');
     if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit();
     if (leaving) this.ended = true;
     this.duel.stop();
@@ -2378,6 +2419,7 @@ export class DuelScene extends Phaser.Scene {
         await wait(this, 400);
         if (e.reason === 'Exodia the Forbidden One' && e.winner !== -1) await this.exodiaFx(e.winner);
         if (this.dead) return;
+        if (e.winner === -1 && !e.reason.startsWith('Engine error')) this.reportOnline('draw');
         this.showEnd(e.winner, t(e.reason));
         return;
     }
@@ -3034,9 +3076,21 @@ export class DuelScene extends Phaser.Scene {
     this.layout();
   }
 
+  /**
+   * An online duel's result, for stats: both players report and the server counts it when they agree. Draws are
+   * reported only from the duel itself, not for a lost connection.
+   */
+  private reportOnline(result: Result) {
+    const m = this.init0.multiplayer;
+    if (this.reported || !m?.account || !m.opponentAccount) return;
+    this.reported = true;
+    void reportResult(m.network.seed, m.opponentAccount, result);
+  }
+
   private showEnd(winner: Side | -1, reason: string) {
     if (this.ended || this.dead) return;
     this.ended = true;
+    if (winner !== -1) this.reportOnline(winner === this.me ? 'win' : 'loss');
     this.closeDialog();
     this.closeMenu();
     this.actionsByCard.clear();

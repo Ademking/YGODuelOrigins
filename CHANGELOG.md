@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.5.0 — 2026-11-19
+
+Discord accounts, online stats, dorms and a leaderboard.
+
+### Discord sign-in
+
+- Sign in with Discord in the online lobby: other duelists see your Discord name and picture.
+- Your online wins, losses and draws are counted. A duel counts once both players' results agree, so nobody can add a win alone.
+- Your duelist card in the lobby shows your record: wins, losses, draws and your win rate.
+- Guests can still duel online with a name and an avatar of their choice; their duels aren't counted.
+
+### Dorms
+
+- On your first sign-in you pick a dorm for good, shown by its Egyptian God: **Slifer Red**, **Ra Yellow** or **Obelisk Blue**.
+- Your dorm's colours frame your avatar in the lobby, the chat and duels.
+- In duels, your plate shows your Discord picture, your dorm's colours and your record.
+
+### Leaderboard
+
+- **Top duelists** in the lobby: the 10 players with the most wins (fewer losses breaks a tie). Only Discord accounts are listed.
+
+### Fair play
+
+- Leaving an online duel loses it. When your opponent closes the game or disconnects, you win; once you've claimed it, a player who left without a result gets the loss after 10 minutes.
+
+### Discord server
+
+- Signing in adds you to the YGO Duel Origins Discord server with your dorm's role.
+- Finished online duels are posted to a channel on the server.
+
 ## 1.4.4 — 2026-11-19
 
 A new banlist for online duels, and fixes for duels on phones.

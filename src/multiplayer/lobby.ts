@@ -6,16 +6,16 @@ import { SimplePool } from 'nostr-tools/pool';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, type Event } from 'nostr-tools/pure';
 import * as nip44 from 'nostr-tools/nip44';
 import { cleanName, cleanChat } from './protocol';
-import { cleanCountry, cleanSeed, type Look } from './profile';
+import { cleanCountry, cleanSeed, cleanTeam, type Look, type Team } from './profile';
 import { t } from '../i18n';
 import { GAME_RELAY, type RelayStatus } from './relays';
 import { serverNow, syncClock } from './clock';
 import { isWatchCode } from './spectate';
 
 /** `side`: in a spectated duel's chat, which player wrote it (0 the host, 1 the guest). */
-export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string; side?: 0 | 1 };
+export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string; team?: Team; side?: 0 | 1 };
 /** `watch` and `vs`: the watch code and opponent of a duelist in a duel, so others can spectate it (spectate.ts). */
-export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string; watch?: string; vs?: string };
+export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string; team?: Team; watch?: string; vs?: string };
 
 /**
  * The game's own relay, then public relays tested to accept and fan out ephemeral events from fresh keys. Events go to
@@ -172,7 +172,7 @@ export class Lobby {
       const known = this.peers.has(peer);
       if (!known && this.peers.size >= MAX_PEERS) return;
       const watch = m.busy && isWatchCode(m.watch) ? { watch: m.watch, vs: cleanName(m.vs) || undefined } : {};
-      this.peers.set(peer, { name, busy: m.busy, avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), ...watch });
+      this.peers.set(peer, { name, busy: m.busy, avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), team: cleanTeam(m.team), ...watch });
       this.seen.set(peer, Date.now());
       if (!known) this.addChat({ name: '', text: `${name} joined`, system: true });
       else this.onChange();
@@ -186,7 +186,7 @@ export class Lobby {
     if (m.type === 'chat') {
       if (!this.allow(peer + ':chat', 800)) return;
       const text = cleanChat(m.text), from = this.peers.get(peer)!;
-      if (text) this.addChat({ name: from.name, text, avatar: from.avatar, country: from.country });
+      if (text) this.addChat({ name: from.name, text, avatar: from.avatar, country: from.country, team: from.team });
     } else if (m.type === 'invite' && forMe) {
       const code = this.open(peer, m.data);
       if (!CODE.test(code) || !this.allow(peer + ':invite', 10000)) return;

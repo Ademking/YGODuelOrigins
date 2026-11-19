@@ -1,7 +1,7 @@
 import type { ChatLine, PrivateRoom } from './client';
 import { t } from '../i18n';
 import { shieldFromCanvas } from '../app/dom';
-import { avatarFor, avatarURL, flagURL } from './profile';
+import { avatarFor, avatarURL, flagURL, teamColor } from './profile';
 import { GIF_LIBRARY, KLIPY_PATH, gifMessage, gifSrc, gifURL, klipyMessage, klipyURL } from './gifs';
 import { timeoutSignal } from '../timeoutSignal';
 
@@ -76,6 +76,8 @@ export function renderChat(parent: HTMLElement, lines: ChatLine[]) {
       const face = element('span', '', 'relative size-7 flex-none rounded-lg bg-raised');
       const img = element('img', '', 'size-full rounded-lg object-cover'); img.src = avatarURL(avatarFor(line.avatar, line.name)); img.alt = ''; img.referrerPolicy = 'no-referrer';
       face.append(img);
+      const ring = teamColor(line.team);
+      if (ring) face.style.boxShadow = `0 0 0 2px ${ring}`;
       if (line.country) { const flag = element('img', '', 'absolute -right-1.5 -bottom-1 h-auto w-3.5 drop-shadow'); flag.src = flagURL(line.country); flag.alt = line.country; flag.title = line.country; flag.referrerPolicy = 'no-referrer'; face.append(flag); }
       head.append(face, element('b', line.name, 'min-w-0 truncate font-semibold text-brass-txt'), element('time', time(line.at), 'text-xs text-faint'));
       row.append(head);

@@ -9,7 +9,7 @@ import type { joinRoom, Room } from 'trystero';
 import type { OcgMessage, OcgResponse } from 'ocgcore-wasm';
 import type { DeckList } from '../engine/duel';
 import { decode, encode, fingerprint, validDeck, cleanName, cleanChat } from './protocol';
-import { cleanCountry, cleanSeed, type Look } from './profile';
+import { cleanCountry, cleanSeed, cleanTeam, type Look } from './profile';
 import type { DecisionPacket, DuelNetwork, Lockstep } from './lockstep';
 import { DUEL_ENDED } from './lockstep';
 import { t } from '../i18n';
@@ -210,7 +210,7 @@ export class Spectator {
     const text = cleanChat(raw);
     if (!this.setup || (side !== 0 && side !== 1) || !text) return;
     const look = this.setup.looks[side];
-    const line: ChatLine = { name: this.setup.names[side], text, at: Date.now(), side, avatar: look.avatar, country: look.country };
+    const line: ChatLine = { name: this.setup.names[side], text, at: Date.now(), side, avatar: look.avatar, country: look.country, team: look.team };
     this.chat.push(line);
     if (this.chat.length > 100) this.chat.shift();
     if (notify) this.onChat(line);
@@ -233,7 +233,7 @@ export class Spectator {
       this.setup = {
         ...setup,
         names: [cleanName(setup.names[0]), cleanName(setup.names[1])],
-        looks: [0, 1].map(i => ({ avatar: cleanSeed(setup.looks?.[i]?.avatar), country: cleanCountry(setup.looks?.[i]?.country) })) as WatchSetup['looks'],
+        looks: [0, 1].map(i => ({ avatar: cleanSeed(setup.looks?.[i]?.avatar), country: cleanCountry(setup.looks?.[i]?.country), team: cleanTeam(setup.looks?.[i]?.team) })) as WatchSetup['looks'],
       };
       this.network?.abort(t('A new duel started.'));
       this.network = new SpectatorNetwork(this.setup.seed);

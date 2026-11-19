@@ -97,7 +97,7 @@ test('private room handshake requires both players ready and delivers decisions'
     onPeerLeave: () => {}, onError: () => {}, leave: async () => {},
   })) as any;
   const hello = { type: 'hello' as const, protocol: PROTOCOL, name: 'A', deck: OPPONENTS[0].deck, revision: 'test', ready: false };
-  const host = new PrivateRoom('ABCDEFGH2345', { ...hello, host: true }, factory(0));
+  const host = new PrivateRoom('ABCDEFGH2345', { ...hello, host: true, account: '111' }, factory(0));
   const guest = new PrivateRoom('ABCDEFGH2345', { ...hello, name: 'B', host: false }, factory(1));
   const started: any[] = [];
   host.onStart = m => { started[0] = m; };
@@ -115,6 +115,10 @@ test('private room handshake requires both players ready and delivers decisions'
     assert.ok(started[0] && started[1]);
     assert.equal(started[0].first, 1 - started[1].first);
     assert.deepEqual(started[0].network.seed, started[1].network.seed);
+    // the host is signed in, the guest is not: only the guest learns an opponent account, so neither duel is counted
+    assert.equal(started[1].opponentAccount, '111');
+    assert.equal(started[0].opponentAccount, undefined);
+    assert.equal(started[0].account, '111');
     const response = { type: R.SELECT_YESNO, yes: false } as const;
     const waiting = guest.network!.exchange(prompt, false, async () => undefined);
     await host.network!.exchange(prompt, true, async () => response);
@@ -178,9 +182,8 @@ test('chat GIF messages only resolve to the GIPHY library or static.klipy.com', 
     'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/a/b.gif', 'klipy:ii/8ce8357c78ea940b9c2015daf05ce1a5/c3/5c/x.png', `tenor:${path}`, 'hello']) assert.equal(gifSrc(bad), null, bad);
 });
 
-test('lobby profiles only accept an avatar number and a two-letter country', async () => {
-  const { cleanSeed, cleanCountry, avatarURL, avatarFor, flagURL, randomSeed, AVATAR_COUNT } = await import('../../src/multiplayer/profile');
-  for (let i = 0; i < 200; i++) { const n = Number(randomSeed()); assert.ok(n >= 1 && n <= AVATAR_COUNT); }
+test('lobby profiles only accept a known avatar and a two-letter country', async () => {
+  const { cleanSeed, cleanCountry, avatarURL, avatarFor, flagURL, AVATAR_COUNT } = await import('../../src/multiplayer/profile');
   assert.equal(cleanSeed('1'), '1');
   assert.equal(cleanSeed(String(AVATAR_COUNT)), String(AVATAR_COUNT));
   for (const bad of ['', '0', '007', String(AVATAR_COUNT + 1), '12a', '../1', 'ovwm1w9s', 42]) assert.equal(cleanSeed(bad), undefined, String(bad));

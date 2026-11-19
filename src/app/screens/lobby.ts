@@ -4,29 +4,27 @@ import { cleanName, newCode, parseCode, inviteURL } from '../../multiplayer/prot
 import { Lobby, PrivateRoom, watchDuel } from '../../multiplayer/client';
 import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
-import { go, type Screen } from '../dom';
+import { artSrc, go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { AVATAR_COUNT, avatarFor, avatarURL, flagURL, lookupCountry, randomSeed, savedSeed, saveSeed } from '../../multiplayer/profile';
+import { AVATAR_COUNT, avatarFor, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagCode, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
 import { clockOffset } from '../../multiplayer/clock';
+import { chooseTeam, loadAccount, loadLeaderboard, signedIn, signOut, type Account } from '../../multiplayer/account';
+import { RETURN_KEY } from '../returnHash';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
 const RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow';
 const ROW = 'mt-5 flex gap-3 *:flex-1';
+/** A guest's lobby name, kept for next time. */
+const NAME_KEY = 'duel-origins.multiplayer.name';
 const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
 const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
 const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
-/** The Duelist license: your avatar beside your name and deck. The one loud card on the screen. */
-const LICENSE = (artId: string, body: string) => `<div class="relative grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[112px_minmax(0,1fr)] rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
-    <div class="relative aspect-square" id="mp-${artId}"></div>
-    <div class="flex min-w-0 flex-col gap-2.5">${body}</div>
-  </div>`;
 
-const NAME_KEY = 'duel-origins.multiplayer.name';
 /** An unanswered challenge cancels itself after this long. */
 const CHALLENGE_MS = 30000;
 /** With no lobby relay connected for this long, the lobby says the network may be blocking them. */
@@ -53,7 +51,19 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       <div class="grid min-h-0 flex-1 gap-4 sm:gap-5 max-lg:grid-rows-[minmax(0,1fr)] max-lg:[&>*:not(.on)]:hidden lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
-          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`)}
+          <section class="relative flex-none overflow-hidden rounded-3xl border border-white/10 bg-[#130f24] shadow-xl shadow-black/40" aria-label="${h('Your duelist card')}">
+            <div class="pointer-events-none absolute inset-0" id="mp-lic-glow"></div>
+            <span class="absolute top-3 right-3 z-10" id="mp-lic-out"></span>
+            <div class="relative flex items-center gap-4 p-4 pr-16">
+              <div class="relative size-[84px] flex-none sm:size-24" id="mp-lic-art"></div>
+              <div class="flex min-w-0 flex-col gap-1.5">
+                <b class="block truncate font-display text-lg leading-tight text-brass-txt sm:text-xl" id="mp-lic-name">…</b>
+                <span class="flex items-center gap-2 text-xs font-semibold tracking-wide empty:hidden" id="mp-lic-dorm"></span>
+              </div>
+            </div>
+            <div class="relative px-4 pb-4"><div id="mp-lic-deck"></div></div>
+            <div class="relative border-t border-white/[.07] bg-black/25 px-4 py-3 empty:hidden" id="mp-account"></div>
+          </section>
           <section class="mp-panel flex-none">
             <h2>${icon('online', 'size-4 text-brass')}${h('Play a friend')}</h2>
             <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
@@ -61,6 +71,11 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
               <button class="mp-btn primary w-full" id="mp-create">${icon('plus', 'size-4')}<span>${h('Create room')}</span></button>
               <div class="flex gap-2"><input class="mp-field min-w-0 flex-1 [&:not(:placeholder-shown)]:tracking-wider [&:not(:placeholder-shown)]:uppercase" id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}" autocomplete="off" autocapitalize="characters"><button class="mp-btn" id="mp-join">${icon('next', 'size-4')}<span>${h('Join')}</span></button></div>
             </div>
+          </section>
+          <section class="mp-panel flex-none">
+            <h2>${icon('solo', 'size-4 text-brass')}${h('Top duelists')}</h2>
+            <ol class="flex flex-col gap-1 px-3 pb-4 text-sm empty:hidden sm:px-4" id="mp-top"></ol>
+            <p class="px-5 pb-5 text-[13px] text-dim" id="mp-top-empty" hidden>${h('No online duels won yet. Be the first.')}</p>
           </section>
           <a class="flex flex-none items-center gap-3.5 rounded-2xl border border-discord/60 bg-[linear-gradient(135deg,#2a2b6b,#191a45)] p-4 text-ink no-underline transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow" href="https://discord.gg/VYfWyXyRuf" target="_blank" rel="noopener noreferrer">
             <svg class="flex-none text-[#b9bfff]" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
@@ -80,18 +95,19 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       </div>
       <dialog autofocus class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
-        <h2>${h('Enter the lobby')}</h2>
-        <p>${h('This is how other duelists will see you.')}</p>
-        ${LICENSE('name-art', `<input class="w-full rounded-none border-0 border-b border-brass/50 bg-transparent px-0 pt-1 pb-2 font-display text-base text-brass-txt outline-none placeholder:text-[#6b5f45] focus:border-glow sm:text-lg" id="mp-name" maxlength="16" placeholder="${h('Your name')}" autocomplete="nickname" aria-label="${h('Your name')}"><div id="mp-deck"></div>`)}
-        <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
-        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary"><span>${h('Enter lobby')}</span></button></div>
+        <h2 id="mp-entry-title"></h2>
+        <p id="mp-entry-text"></p>
+        <div id="mp-entry"></div>
+        <div class="mt-2.5 text-xs text-bad empty:hidden" id="mp-name-err" role="alert"></div>
+        <div class="mt-4 flex justify-end"><button type="button" class="mp-btn small" id="mp-name-back"><span>${h('Back')}</span></button></div>
       </form></dialog>
       <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
       <dialog autofocus class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
         <h2>${h('Choose your avatar')}</h2>
         <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
         <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
-      </div></dialog>`;
+      </div></dialog>
+`;
     app.append(root);
     // phones and tablets: tabs pick the panel on show
     const panes = root.querySelectorAll<HTMLElement>('[data-pane]:not([role])');
@@ -102,39 +118,68 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       };
     });
     const q = <T extends HTMLElement>(id: string) => root.querySelector<T>('#mp-' + id)!;
-    const name = q<HTMLInputElement>('name'), decks = loadDecks();
+    const decks = loadDecks();
     const nameModal = q<HTMLDialogElement>('name-modal'), roomModal = q<HTMLDialogElement>('room-modal');
-    try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
     // online duels follow the banlist (data/banlist.ts): decks that break it are fixed in the Deck Builder first
     const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: t('{n} cards', { n: deck.main.length }) })), selectedDeck(), t('Deck'));
-    q('deck').replaceWith(select.el);
-    let seed = savedSeed(), country: string | undefined;
-    /** Avatar with an optional flag badge. */
-    const portrait = (avatar: string, flag?: string, label = '', small = false) => {
-      const art = el('div', '', small ? 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]' : 'relative size-full');
-      const img = el('img', '', small ? 'size-full rounded-xl object-cover' : 'size-full object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
-      art.append(img);
-      if (flag) { const f = el('img', '', small ? 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow' : 'absolute top-1.5 left-1.5 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+    q('lic-deck').replaceWith(select.el);
+    /** Your Discord picture and dorm, once the account has loaded; a guest gets a portrait picked from their name. */
+    let seed = '', country: string | undefined, team: Team | undefined, guest = false;
+    /** Avatar framed in its dorm colour, with an optional flag badge. */
+    const portrait = (avatar: string, flag?: string, label = '', small = false, dorm?: Team) => {
+      const colors = dorm ? TEAMS[dorm] : undefined;
+      const img = el('img', '', small ? 'size-full rounded-[10px] object-cover' : 'size-full rounded-[13px] object-cover'); img.src = avatarURL(avatar); img.alt = label; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+      if (small) {
+        const art = el('div', '', 'relative size-12 flex-none rounded-xl bg-raised group-[.busy]/d:brightness-75 group-[.busy]/d:grayscale-[.6]');
+        // a thin gradient ring in the dorm's colours
+        if (colors) { art.classList.add('p-[2px]'); art.style.background = `linear-gradient(145deg, ${colors.light}, ${colors.color} 50%, ${colors.dark})`; }
+        art.append(img);
+        if (flag) { const f = el('img', '', 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow'); f.src = flagURL(flag); f.alt = f.title = flagCode(flag); f.referrerPolicy = 'no-referrer'; art.append(f); }
+        return art;
+      }
+      // the license portrait: a slim frame in the dorm's colours with a soft glow
+      const art = el('div', '', 'relative size-full rounded-2xl bg-raised');
+      const well = el('div', '', 'relative size-full overflow-hidden rounded-[13px]');
+      well.append(img);
+      if (colors) {
+        art.classList.add('p-[3px]');
+        art.style.background = `linear-gradient(150deg, ${colors.light}, ${colors.color} 45%, ${colors.dark})`;
+        art.style.boxShadow = `0 8px 26px -8px ${colors.color}`;
+      }
+      art.append(well);
+      if (flag) { const f = el('img', '', 'absolute top-2 left-2 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = f.title = flagCode(flag); f.referrerPolicy = 'no-referrer'; well.append(f); }
       return art;
     };
-    /** Your portrait on both licenses (popup and lobby), with a button that rolls a new avatar. */
+    /** Your duelist card: portrait, dorm and the dorm's tint behind it. */
     const renderLooks = () => {
-      for (const id of ['name-art', 'lic-art']) {
+      const art = seed ? portrait(seed, country, t('Your avatar'), false, team) : undefined;
+      if (art && guest) {
+        // a guest picks their portrait: click it for the grid, or roll the dice for a random one
+        const choose = el('button', '', 'block size-full cursor-pointer rounded-2xl border border-white/10 p-0 transition hover:brightness-110 ' + RING); choose.type = 'button';
+        choose.title = t('Choose avatar'); choose.setAttribute('aria-label', t('Choose avatar'));
+        choose.append(art); choose.onclick = openAvatars;
         const shuffle = el('button', '', 'absolute -right-2 -bottom-2 grid size-8 cursor-pointer place-items-center rounded-full border border-[#fff1c9] bg-brass p-0 text-[#1d1505] shadow-lg shadow-black/60 transition hover:scale-110 hover:-rotate-12 hover:bg-brass-lit ' + RING); shuffle.type = 'button';
         shuffle.title = t('New avatar'); shuffle.setAttribute('aria-label', t('New avatar'));
         shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
         shuffle.onclick = () => setAvatar(randomSeed());
-        const choose = el('button', '', 'block size-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-raised p-0 transition hover:brightness-110 ' + RING); choose.type = 'button';
-        choose.title = t('Choose avatar'); choose.setAttribute('aria-label', t('Choose avatar'));
-        choose.append(portrait(seed, country, t('Your avatar')));
-        choose.onclick = openAvatars;
-        q(id).replaceChildren(choose, shuffle);
-      }
+        q('lic-art').replaceChildren(choose, shuffle);
+      } else q('lic-art').replaceChildren(...(art ? [art] : []));
+      const colors = team ? TEAMS[team] : undefined;
+      q('lic-glow').style.background = colors ? `radial-gradient(130% 100% at 0% 0%, ${colors.color}38, transparent 62%)` : '';
+      if (!colors) { q('lic-dorm').replaceChildren(); return; }
+      const dot = el('span', '', 'size-2.5 flex-none rounded-full'); dot.style.background = colors.color; dot.style.boxShadow = `0 0 10px ${colors.color}`;
+      const label = el('span', colors.name); label.style.color = colors.light;
+      q('lic-dorm').replaceChildren(dot, label);
     };
     const setAvatar = (next: string) => { seed = next; saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
     const avatarModal = q<HTMLDialogElement>('avatar-modal'), avatarGrid = q('avatar-grid');
-    /** Grid of every avatar; images load lazily as the grid scrolls. */
+    const mark = () => {
+      for (const b of Array.from(avatarGrid.children) as HTMLElement[]) {
+        const on = b.dataset.id === seed; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+      }
+    };
+    /** Grid of every portrait; images load lazily as the grid scrolls. */
     function openAvatars() {
       if (!avatarGrid.childElementCount) {
         for (let n = 1; n <= AVATAR_COUNT; n++) {
@@ -151,15 +196,9 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       avatarGrid.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' });
       avatarGrid.querySelector<HTMLElement>('.on')?.focus();
     }
-    const mark = () => {
-      for (const b of Array.from(avatarGrid.children) as HTMLElement[]) {
-        const on = b.dataset.id === seed; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
-      }
-    };
     q<HTMLButtonElement>('avatar-random').onclick = () => { setAvatar(randomSeed()); mark(); avatarGrid.querySelector('.on')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
     q<HTMLButtonElement>('avatar-close').onclick = () => avatarModal.close();
     avatarModal.addEventListener('click', e => { if (e.target === avatarModal) avatarModal.close(); });
-    renderLooks();
     void lookupCountry().then(found => {
       if (!alive || !found) return;
       country = found; renderLooks(); lobby?.setLook({ country });
@@ -224,10 +263,10 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     };
     /** You and your opponent face to face: avatars, flags, names and whether each is ready. */
     const versus = (s: PrivateRoom) => {
-      const side = (who: string, look: { avatar?: string; country?: string } | undefined, state: string, ok: boolean) => {
+      const side = (who: string, look: { avatar?: string; country?: string; team?: Team } | undefined, state: string, ok: boolean) => {
         const box = el('div', '', 'flex min-w-0 flex-col items-center gap-2 text-center');
         const art = el('div', '', `relative size-20 overflow-hidden border-2 bg-raised shadow-xl shadow-black/60 sm:size-24 ${ok ? 'border-ok' : look ? 'border-brass/60' : 'border-white/15 animate-pulse'}`);
-        art.append(look ? portrait(avatarFor(look.avatar, who), look.country, who) : el('span', '?', 'grid size-full place-items-center font-display text-4xl text-faint'));
+        art.append(look ? portrait(avatarFor(look.avatar, who), look.country, who, false, look.team) : el('span', '?', 'grid size-full place-items-center font-display text-4xl text-faint'));
         box.append(art, el('b', who, 'block w-full truncate font-display text-sm text-ink sm:text-base'),
           el('small', state, `inline-flex items-center gap-1.5 text-xs before:size-1.5 before:rounded-full ${ok ? 'text-ok before:bg-ok' : 'text-dim before:bg-brass before:animate-pulse'}`));
         return box;
@@ -236,7 +275,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       const invited = challengeWith ? [...(lobby?.peers.values() ?? [])].find((peer) => peer.name === challengeWith) : undefined;
       const row = el('div', '', 'relative mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 border border-white/[.08] bg-[radial-gradient(ellipse_at_center,#2a2250_0%,#120e22_70%)] px-3 py-5');
       row.append(
-        side(lobby?.name ?? 'You', { avatar: seed, country }, s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
+        side(lobby?.name ?? 'You', { avatar: seed, country, team }, s.isReady ? t('Ready ✓') : t('Not ready'), s.isReady),
         el('b', 'VS', 'font-display text-3xl text-brass-txt italic drop-shadow-[0_0_14px_#e0b34f99] sm:text-4xl'),
         s.opponent ? side(s.opponent.name, s.opponent, s.opponent.ready ? t('Ready ✓') : t('Choosing…'), s.opponent.ready)
           : side(challengeWith ?? t('Waiting…'), invited, challengeWith ? t('Connecting…') : t('No one yet'), false),
@@ -287,7 +326,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!decks[select.value]) { status(t('Build a valid deck in the Deck Editor first.')); return; }
       connecting = true; status(against ? t('Challenging {player}…', { player: against }) : t('Opening private room…'));
       try {
-        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country });
+        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country, team }, account?.id);
         if (!alive) { void room.leave(); return; }
         session = room; challengeWith = against;
         lobby.setBusy(true); select.disabled = true; setSelectedDeck(select.value);
@@ -366,7 +405,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         const who = el('div', '', 'min-w-0');
         who.append(el('b', profile.name, 'block truncate font-semibold'),
           el('small', profile.busy ? (profile.vs ? t('In a duel with {player}', { player: profile.vs }) : t('In a duel')) : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
-        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true), who);
+        card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true, profile.team), who);
         if (!profile.busy) {
           const challenge = btn(t('Challenge'), 'small primary');
           challenge.insertAdjacentHTML('afterbegin', icon('solo', 'size-4'));
@@ -399,10 +438,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       }
     };
     const connect = (chosen: string) => {
-      try { localStorage.setItem(NAME_KEY, chosen); } catch {}
-      lobby = new Lobby(chosen, { avatar: seed, country });
+      lobby = new Lobby(chosen, { avatar: seed, country, team });
       q('lic-name').textContent = chosen;
-      root.querySelector('#mp-lic-deck')?.replaceWith(select.el);
       q('reconnect').hidden = true;
       lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); };
       lobby.onError = (message, code) => {
@@ -434,13 +471,6 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       renderRoster(); renderChat(q('messages'), lobby.chat);
       if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
-    q<HTMLFormElement>('name-form').onsubmit = e => {
-      const chosen = cleanName(name.value);
-      const err = q('name-err');
-      if (!chosen) { e.preventDefault(); err.textContent = t('Type a name to enter the lobby.'); name.focus(); return; }
-      if (!window.RTCPeerConnection || !crypto.subtle) { e.preventDefault(); err.textContent = t('Multiplayer needs a browser with WebRTC over HTTPS.'); return; }
-      try { connect(chosen); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : t('Connection failed.'); }
-    };
     q<HTMLButtonElement>('reconnect').onclick = () => {
       if (!lobby || session) return;
       const me = lobby.name; lobby.close(); lobby = undefined;
@@ -457,10 +487,144 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       void startRoom(code, false);
     };
     codeInput.onkeydown = e => { if (e.key === 'Enter') q<HTMLButtonElement>('join').click(); };
-    if (data.rejoin && cleanName(name.value)) connect(cleanName(name.value)); else {
-      nameModal.showModal();
-
-    }
+    /**
+     * Online play needs a Discord account (worker/accounts.js): its name and picture are what other duelists see, its
+     * stats count your online duels. On first sign-in the player picks a dorm, for good.
+     */
+    let account: Account | null = null;
+    const renderAccount = () => {
+      q('lic-out').replaceChildren();
+      if (!account) {
+        // a guest's duels aren't counted: say so, with the way to change that
+        const login = el('a', t('Sign in with Discord'), 'font-semibold text-[#b9bfff] underline underline-offset-2 hover:text-white ' + RING); login.href = '/auth/discord';
+        q('account').replaceChildren(...(guest ? [el('p', t('Guest duels are not counted and guests are not on the leaderboard.'), 'mb-1 text-xs text-dim'), login] : []));
+        return;
+      }
+      const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
+      out.onclick = () => void signOut().then(() => go('Title'));
+      q('lic-out').replaceChildren(out);
+      // online record: three numbers, then a bar split by wins, losses and draws with the win rate
+      const { wins, losses, draws } = account, played = wins + losses + draws;
+      const row = el('div', '', 'grid grid-cols-3 divide-x divide-white/10 text-center');
+      for (const [count, label, colour] of [[wins, t('Wins'), 'text-ok'], [losses, t('Losses'), 'text-bad'], [draws, t('Draws'), 'text-ink']] as const) {
+        const cell = el('div', '', 'min-w-0 px-1');
+        cell.append(el('b', String(count), `block font-display text-2xl leading-none tabular-nums ${played ? colour : 'text-faint'}`), el('small', label, 'mt-1 block truncate text-[11px] text-dim'));
+        row.append(cell);
+      }
+      const foot = el('div', '', 'mt-3 flex items-center gap-3 text-xs');
+      if (played) {
+        const bar = el('div', '', 'flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10');
+        for (const [count, colour] of [[wins, 'bg-ok'], [losses, 'bg-bad'], [draws, 'bg-dim']] as const) {
+          if (!count) continue;
+          const part = el('span', '', colour); part.style.width = `${count / played * 100}%`; bar.append(part);
+        }
+        foot.append(bar, el('span', t('{n}% win rate', { n: Math.round(wins / played * 100) }), 'flex-none font-semibold text-ink tabular-nums'));
+      } else foot.append(el('span', t('No online duels yet'), 'text-dim'));
+      q('account').replaceChildren(row, foot);
+    };
+    const renderEntry = () => {
+      const title = q('entry-title'), text = q('entry-text'), entry = q('entry');
+      if (!account) {
+        title.textContent = t('Join the online lobby');
+        text.textContent = t('Sign in with Discord to count your wins and join the leaderboard. Other duelists see your Discord name and picture.');
+        // Discord's own blurple and logo, so the button says where it goes
+        const login = el('a', '', 'mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#5865f2] font-display text-sm text-white no-underline shadow-lg shadow-[#5865f2]/25 transition hover:bg-[#4752c4] ' + RING); login.href = '/auth/discord';
+        login.innerHTML = '<svg viewBox="0 0 24 24" class="size-5 fill-current" aria-hidden="true"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.89-1.52l-.62 1.29a18.3 18.3 0 0 0-5.62 0l-.63-1.29a19.7 19.7 0 0 0-4.88 1.52C.53 9.05-.32 13.58.1 18.06a19.9 19.9 0 0 0 6.02 3.06c.48-.66.9-1.36 1.27-2.1a13 13 0 0 1-2-.97l.48-.37a14.2 14.2 0 0 0 12.26 0l.48.37c-.64.38-1.31.7-2 .97.36.74.79 1.44 1.27 2.1a19.8 19.8 0 0 0 6.02-3.06c.5-5.18-.84-9.68-3.55-13.69ZM8.02 15.33c-1.18 0-2.16-1.09-2.16-2.42s.96-2.42 2.16-2.42 2.18 1.1 2.16 2.42c0 1.33-.96 2.42-2.16 2.42Zm7.97 0c-1.18 0-2.15-1.09-2.15-2.42s.95-2.42 2.15-2.42 2.18 1.1 2.16 2.42c0 1.33-.95 2.42-2.16 2.42Z"/></svg>';
+        // an invite link survives the trip to Discord and back (main.ts)
+        login.onclick = () => { if (location.hash.startsWith('#duel=')) try { sessionStorage.setItem(RETURN_KEY, location.hash); } catch {} };
+        login.append(el('span', t('Sign in with Discord')));
+        // or a guest: just a name, nothing counted
+        const or = el('div', t('or'), 'my-4 flex items-center gap-3 text-xs text-faint before:h-px before:flex-1 before:bg-white/10 after:h-px after:flex-1 after:bg-white/10');
+        const name = el('input', '', 'mp-field min-w-0 flex-1'); name.maxLength = 16; name.placeholder = t('Your name'); name.setAttribute('autocomplete', 'nickname'); name.setAttribute('aria-label', t('Your name'));
+        try { name.value = cleanName(localStorage.getItem(NAME_KEY)); } catch {}
+        const play = el('button', '', 'mp-btn'); play.type = 'button'; play.append(el('span', t('Play as guest')));
+        const update = () => { play.disabled = !cleanName(name.value); };
+        name.oninput = update; update();
+        play.onclick = () => enterAsGuest(name.value);
+        name.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAsGuest(name.value); } };
+        const row = el('div', '', 'flex gap-2'); row.append(name, play);
+        entry.replaceChildren(login, or, row);
+      } else {
+        title.textContent = t('Choose your dorm');
+        text.textContent = t('Pick the dorm you duel for. Your avatar wears its colour, and the choice is for good.');
+        // each dorm is shown by its Egyptian God's artwork, framed in the dorm's colours
+        const grid = el('div', '', 'mt-4 grid grid-cols-3 gap-2 sm:gap-3');
+        for (const [id, dorm] of Object.entries(TEAMS) as [Team, typeof TEAMS[Team]][]) {
+          const pick = el('button', '', 'group/god relative aspect-[3/4] cursor-pointer overflow-hidden rounded-2xl border-0 p-[3px] text-left transition duration-200 hover:-translate-y-1 disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 ' + RING); pick.type = 'button';
+          pick.style.background = `linear-gradient(150deg, ${dorm.light}, ${dorm.color} 40%, ${dorm.dark})`;
+          pick.onpointerenter = () => { pick.style.boxShadow = `0 12px 34px -6px ${dorm.color}`; };
+          pick.onpointerleave = () => { pick.style.boxShadow = ''; };
+          const well = el('span', '', 'relative block size-full overflow-hidden rounded-[13px] bg-raised');
+          const art = el('img', '', 'size-full object-cover transition duration-300 group-hover/god:scale-105'); art.src = artSrc(dorm.god); art.alt = ''; art.draggable = false; art.referrerPolicy = 'no-referrer';
+          const shade = el('span', '', 'absolute inset-0'); shade.style.background = `linear-gradient(180deg, transparent 45%, ${dorm.dark}f2 100%)`;
+          const label = el('span', dorm.name, 'absolute inset-x-1 bottom-2 text-center font-display text-[11px] leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-sm');
+          well.append(art, shade, label);
+          pick.append(well);
+          pick.setAttribute('aria-label', dorm.name);
+          pick.onclick = async () => {
+            grid.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+            const chosen = await chooseTeam(id);
+            if (!alive || !account) return;
+            if (chosen) { account = { ...account, team: chosen }; applyAccount(); }
+            else { q('name-err').textContent = t('Could not save your dorm. Try again.'); renderEntry(); }
+          };
+          grid.append(pick);
+        }
+        entry.replaceChildren(grid);
+      }
+    };
+    const join = (name: string) => {
+      if (nameModal.open) nameModal.close();
+      if (!window.RTCPeerConnection || !crypto.subtle) { status(t('Multiplayer needs a browser with WebRTC over HTTPS.')); return; }
+      try { connect(name); } catch (x) { lobby = undefined; error(x); }
+    };
+    /** Into the lobby as your Discord account; the entry dialog only shows to sign in (or play as a guest) or pick a dorm. */
+    const enterLobby = () => {
+      if (lobby || !account?.team) return;
+      join(cleanName(account.name) || 'Duelist');
+    };
+    const enterAsGuest = (raw: string) => {
+      const name = cleanName(raw);
+      if (!name || lobby || account) return;
+      try { localStorage.setItem(NAME_KEY, name); } catch {}
+      guest = true; seed = savedSeed(); team = undefined;
+      q('lic-name').textContent = name;
+      renderLooks(); renderAccount();
+      join(name);
+    };
+    const applyAccount = () => {
+      if (account) { seed = discordAvatar(account.id, account.avatar); team = account.team ?? undefined; if (!lobby) q('lic-name').textContent = cleanName(account.name) || 'Duelist'; }
+      renderLooks(); renderAccount();
+      if (account?.team) enterLobby();
+      else { renderEntry(); if (!nameModal.open) nameModal.showModal(); }
+    };
+    // top duelists by wins: medal colours for the first three, your own row lit
+    void loadLeaderboard().then(top => {
+      if (!alive) return;
+      q('top-empty').hidden = top.length > 0;
+      q('top').replaceChildren(...top.map((player, i) => {
+        const mine = player.id === account?.id, dorm = player.team ? TEAMS[player.team] : undefined;
+        const row = el('li', '', 'flex items-center gap-2.5 rounded-xl px-2 py-1.5 ' + (mine ? 'bg-brass/10 ring-1 ring-brass/40' : 'odd:bg-white/[.03]'));
+        const rank = el('b', String(i + 1), 'w-5 flex-none text-center font-display tabular-nums ' + (['text-[#f5d77a]', 'text-[#d6dbe6]', 'text-[#e0a06a]'][i] ?? 'text-faint'));
+        const img = el('img', '', 'size-7 flex-none rounded-lg object-cover'); img.src = avatarURL(discordAvatar(player.id, player.avatar)); img.alt = ''; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+        if (dorm) img.style.boxShadow = `0 0 0 2px ${dorm.color}`;
+        const name = el('span', cleanName(player.name) || 'Duelist', 'min-w-0 flex-1 truncate font-semibold text-ink'); if (dorm) name.title = dorm.name;
+        const score = el('span', '', 'flex-none text-xs tabular-nums');
+        score.append(el('b', String(player.wins), 'text-ok'), el('span', ` / ${player.losses}`, 'text-dim'));
+        score.title = `${t('Wins')}: ${player.wins} · ${t('Losses')}: ${player.losses} · ${t('Draws')}: ${player.draws}`;
+        row.append(rank, img, name, score);
+        return row;
+      }));
+    });
+    // the account main.ts loaded at start opens the lobby at once; the fresh copy then updates the record
+    account = signedIn();
+    if (account?.team) applyAccount();
+    void loadAccount().then(found => {
+      if (!alive) return;
+      if (guest) return;
+      if (lobby && !found) { void go('Title'); return; } // signed out elsewhere
+      account = found; applyAccount();
+    });
     return () => {
       clearInterval(relayTimer);
       alive = false; root.remove();
