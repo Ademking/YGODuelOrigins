@@ -226,6 +226,8 @@ export class PrivateRoom {
   private addChat(name: string, text: string, self = false) {
     const who = self ? this.hello : this.opponent;
     const line = { name, text, at: Date.now(), self, avatar: who?.avatar, country: who?.country };
+    // spectators read the chat too: the host's own lines are side 0
+    this.watch?.chat(self ? 0 : 1, text);
     this.chat.push(line);
     if (this.chat.length > 100) this.chat.shift();
     this.onChat(line);

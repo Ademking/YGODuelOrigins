@@ -8,19 +8,21 @@
 import type { joinRoom, Room } from 'trystero';
 import type { OcgMessage, OcgResponse } from 'ocgcore-wasm';
 import type { DeckList } from '../engine/duel';
-import { decode, encode, fingerprint, validDeck, cleanName } from './protocol';
+import { decode, encode, fingerprint, validDeck, cleanName, cleanChat } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import type { DecisionPacket, DuelNetwork, Lockstep } from './lockstep';
 import { DUEL_ENDED } from './lockstep';
 import { t } from '../i18n';
 import type { DuelInit } from '../scenes/DuelScene';
 import type { Opponent } from '../data/decks';
-import type { Lobby } from './lobby';
+import type { ChatLine, Lobby } from './lobby';
 
 /** Spectators per duel: each one adds to the host's upload. */
 export const MAX_SPECTATORS = 8;
 /** Decisions per history message, so a long duel stays under the 32 KB message limit. */
 const HISTORY_CHUNK = 100;
+/** Chat lines a spectator who joins late still gets. */
+const CHAT_KEPT = 50;
 const CODE = /^[A-HJ-NP-Z2-9]{12}$/;
 const SEED = /^\d{1,20}$/;
 
@@ -49,6 +51,7 @@ export class WatchHost {
   private viewers = new Set<string>();
   private setup?: WatchSetup;
   private history: DecisionPacket[] = [];
+  private chatLog: { side: 0 | 1; text: string }[] = [];
   private closed = false;
   constructor(readonly code: string, factory: RoomFactory, config: RoomConfig) {
     this.room = factory({ ...config, maxUsers: MAX_SPECTATORS + 1, password: code }, watchRoomId(code));
@@ -69,6 +72,13 @@ export class WatchHost {
       this.broadcast({ type: 'decision', game, packet });
     };
     this.broadcast({ type: 'setup', setup: this.setup });
+  }
+  /** A line of the players' chat (0: the host wrote it, 1: the guest); spectators read it. */
+  chat(side: 0 | 1, text: string) {
+    if (this.closed) return;
+    this.chatLog.push({ side, text });
+    if (this.chatLog.length > CHAT_KEPT) this.chatLog.shift();
+    this.broadcast({ type: 'chat', side, text });
   }
   end(player: 0 | 1, how: WatchEnd['how']) {
     if (this.setup) this.broadcast({ type: 'end', end: { game: this.setup.game, player, how } satisfies WatchEnd });
@@ -93,6 +103,7 @@ export class WatchHost {
   private async catchUp(peer: string) {
     const setup = this.setup!;
     await this.send({ type: 'setup', setup }, [peer]);
+    if (this.chatLog.length) await this.send({ type: 'chatlog', lines: this.chatLog }, [peer]);
     for (let from = 0; from < this.history.length; from += HISTORY_CHUNK) {
       await this.send({ type: 'history', game: setup.game, packets: this.history.slice(from, from + HISTORY_CHUNK) }, [peer]);
     }
@@ -160,6 +171,9 @@ function validSetup(value: unknown): value is WatchSetup {
 export class Spectator {
   network?: SpectatorNetwork;
   setup?: WatchSetup;
+  /** The players' chat, read-only (the duel chat drawer shows it). */
+  readonly chat: ChatLine[] = [];
+  onChat = (_line?: ChatLine) => {};
   /** A duel to show: the first one, or the next after a rematch. */
   onSetup = (_setup: WatchSetup, _network: SpectatorNetwork) => {};
   onEnd = (_end: WatchEnd) => {};
@@ -192,6 +206,15 @@ export class Spectator {
     this.network?.abort(message);
     this.onError(message);
   }
+  private addChat(side: unknown, raw: unknown, notify = true) {
+    const text = cleanChat(raw);
+    if (!this.setup || (side !== 0 && side !== 1) || !text) return;
+    const look = this.setup.looks[side];
+    const line: ChatLine = { name: this.setup.names[side], text, at: Date.now(), side, avatar: look.avatar, country: look.country };
+    this.chat.push(line);
+    if (this.chat.length > 100) this.chat.shift();
+    if (notify) this.onChat(line);
+  }
   private receive(raw: unknown, peer: string) {
     if (this.closed || typeof raw !== 'string' || raw.length > 32768) return;
     let m: Record<string, unknown>;
@@ -217,7 +240,15 @@ export class Spectator {
       this.onSetup(this.setup, this.network);
       return;
     }
-    if (!this.setup || !this.network || m.game !== this.setup.game) return;
+    if (!this.setup) return;
+    // chat carries on across rematches: it belongs to the room, not one duel
+    if (m.type === 'chat') { this.addChat(m.side, m.text); return; }
+    if (m.type === 'chatlog' && Array.isArray(m.lines)) {
+      for (const line of m.lines.slice(-CHAT_KEPT)) this.addChat((line as { side?: unknown })?.side, (line as { text?: unknown })?.text, false);
+      this.onChat();
+      return;
+    }
+    if (!this.network || m.game !== this.setup.game) return;
     if (m.type === 'decision') this.network.receive(m.packet as DecisionPacket);
     else if (m.type === 'history' && Array.isArray(m.packets)) for (const packet of m.packets) this.network.receive(packet as DecisionPacket);
     else if (m.type === 'end') {

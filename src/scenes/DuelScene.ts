@@ -326,6 +326,12 @@ export class DuelScene extends Phaser.Scene {
     if (d.spectate) {
       const { viewer, setup } = d.spectate;
       this.rematching = false;
+      this.emoteBubble = [];
+      // the players' chat, read-only; emotes pop up beside whoever sent them (the host sits on the near side)
+      const removeChat = mountDuelChat(viewer, typing => {
+        if (this.input.keyboard) this.input.keyboard.enabled = !typing;
+      }, (line, [icon, label]) => this.showEmote(line.side === 1 ? opp(this.me) : this.me, `${icon}  ${label}`), true);
+      this.events.once('shutdown', removeChat);
       // a rematch in the watched room: show the new duel
       viewer.onSetup = (next, network) => { this.rematching = true; this.scene.restart(spectateInit(viewer, next, network, d.lobby)); };
       viewer.onEnd = (end) => {
@@ -459,7 +465,9 @@ export class DuelScene extends Phaser.Scene {
       const choice = await ask();
       if (choice === null) return null;
       const player = RPS_CHOICES[choice];
-      const opponent = RPS_CHOICES[Math.floor(Math.random() * RPS_CHOICES.length)];
+      // the CPU never ties: one of the two other hands, so each round is a win or a loss, half and half
+      const others = RPS_CHOICES.filter((hand) => hand !== player);
+      const opponent = others[Math.floor(Math.random() * others.length)];
       const result = rpsResult(player, opponent);
       if (result === 'tie') {
         if (await ask(player, opponent) === null) return null;
@@ -1666,7 +1674,9 @@ export class DuelScene extends Phaser.Scene {
     // portrait: drawn larger, scaled about its own centre, and kept on the screen
     const k = this.portrait ? PORTRAIT.ui : 1;
     let x = s.x, y = s.y - s.displayHeight / 2 - (total / 2) * k - 6;
-    if (c.zone === 'hand') y = Y.myHand - (this.portrait ? 120 : 100) - (total / 2) * k;
+    // your hand: above it; the opponent's hand (a spectator taps it) runs along the top, so just below it
+    if (c.zone === 'hand' && c.owner === this.me) y = Y.myHand - (this.portrait ? 120 : 100) - (total / 2) * k;
+    else if (c.zone === 'hand') y = s.y + s.displayHeight / 2 + (total / 2) * k + 6;
     if (this.portrait) {
       const view = viewOf(this);
       y = Phaser.Math.Clamp(y, view.top + (total / 2) * k + 8, view.bottom - (total / 2) * k - 8);
@@ -2286,6 +2296,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.dead) return;
     // a spectator who joined mid-duel replays what they missed at once, then watches at normal speed
     if (this.init0.spectate && this.init0.spectate.network.backlog > 2 && e.t !== 'end') {
+      // ...still keeping the turn, the phase and the Life Points up to date, just without their animations
+      if (e.t === 'turn') { this.turnCount.setText(t('Turn {n}', { n: e.turn })); this.drawTurnGlow(e.player); }
+      else if (e.t === 'phase') this.updatePhaseButtons();
+      else if (e.t === 'lp') { this.lpShown[e.player] = e.lp; this.drawLP(e.player, e.lp); }
       if (e.t !== 'log') this.layout(true);
       return;
     }

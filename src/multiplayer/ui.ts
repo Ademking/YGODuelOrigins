@@ -288,7 +288,9 @@ const CHAT_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="
 const EMOTE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.5c1.9 2 5.1 2 7 0"/><path d="M9 9.5h.01M15 9.5h.01" stroke-width="2.6"/></svg>';
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}) {
+/** What the duel chat reads from: a player's room, or a spectator's watch room (read-only). */
+export type DuelChatSource = { chat: ChatLine[]; onChat: (line?: ChatLine) => void; say?: (text: string) => Promise<void>; opponent?: { name: string } };
+export function mountDuelChat(session: DuelChatSource | PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}, readOnly = false) {
   const shell = element('div', '', 'mp-scope contents');
   const rail = element('nav', '', 'fixed right-[64px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-[110] flex gap-2'); rail.setAttribute('aria-label', t('Duel chat and emotes'));
   const railButton = (svg: string, label: string) => {
@@ -304,21 +306,23 @@ export function mountDuelChat(session: PrivateRoom, focus: (typing: boolean) => 
   EMOTES.forEach(([glyph, label], i) => {
     const b = element('button', '', 'flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-raised hover:text-brass-txt tall:py-3 tall:text-base ' + RING); b.type = 'button'; b.setAttribute('role', 'menuitem');
     b.append(element('span', glyph, 'w-7 text-center text-xl'), element('span', t(label)));
-    b.onclick = () => { show(null); void session.say(`emote:${i}`).catch(() => {}); };
+    b.onclick = () => { show(null); void session.say?.(`emote:${i}`).catch(() => {}); };
     emotes.append(b);
   });
 
   const drawer = element('section', '', POP + ' fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-[110] flex h-[min(520px,calc(100svh-90px))] w-[min(380px,calc(100vw-24px))] flex-col'); drawer.hidden = true; drawer.setAttribute('aria-label', t('Duel chat'));
   const head = element('header', '', 'flex items-center gap-2.5 border-b border-white/[.08] py-2 pr-2 pl-4');
   const close = element('button', '', 'grid size-9 cursor-pointer place-items-center rounded-xl text-dim hover:bg-white/5 hover:text-ink ' + RING); close.type = 'button'; close.innerHTML = CLOSE_ICON; close.setAttribute('aria-label', t('Close chat'));
-  head.append(element('h2', session.opponent?.name ? t('Chat with {player}', { player: session.opponent.name }) : t('Chat with your opponent'), 'flex-1 truncate font-display text-[13px] text-brass-txt'), close);
+  head.append(element('h2', readOnly ? t('Duel chat') : session.opponent?.name ? t('Chat with {player}', { player: session.opponent.name }) : t('Chat with your opponent'), 'flex-1 truncate font-display text-[13px] text-brass-txt'), close);
   const messages = element('div', '', MESSAGES + ' px-4'); messages.setAttribute('role', 'log');
-  messages.dataset.empty = t('Say hello, or send an emote from the rail.');
+  messages.dataset.empty = readOnly ? t('The players have not chatted yet.') : t('Say hello, or send an emote from the rail.');
   const { form, input } = chatComposer(text => {
-    void session.say(text).catch(() => { messages.append(element('div', t('Chat is disconnected.'), 'py-1.5 text-xs text-faint')); });
+    void session.say?.(text).catch(() => { messages.append(element('div', t('Chat is disconnected.'), 'py-1.5 text-xs text-faint')); });
   }, t('Say something'));
   form.classList.add('border-t', 'border-white/[.08]');
-  drawer.append(head, messages, form);
+  // a spectator reads the players' chat but cannot write to it, nor send emotes
+  drawer.append(head, messages, ...(readOnly ? [] : [form]));
+  if (readOnly) emoteButton.remove();
   shell.append(shieldFromCanvas(rail), shieldFromCanvas(emotes), shieldFromCanvas(drawer));
   document.body.append(shell);
 

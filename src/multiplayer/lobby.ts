@@ -12,7 +12,8 @@ import { GAME_RELAY, type RelayStatus } from './relays';
 import { serverNow, syncClock } from './clock';
 import { isWatchCode } from './spectate';
 
-export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
+/** `side`: in a spectated duel's chat, which player wrote it (0 the host, 1 the guest). */
+export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string; side?: 0 | 1 };
 /** `watch` and `vs`: the watch code and opponent of a duelist in a duel, so others can spectate it (spectate.ts). */
 export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string; watch?: string; vs?: string };
 

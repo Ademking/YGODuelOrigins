@@ -55,6 +55,8 @@ export async function go(name: ScreenName, data?: unknown) {
   leave = undefined;
   document.querySelectorAll('body > dialog, body > .overlay').forEach((node) => node.remove());
   const root = document.getElementById('app')!;
+  // which screen is showing, for page-wide styles (the music button stays off the Deck Builder)
+  document.body.dataset.screen = name;
   root.replaceChildren();
   root.scrollTop = 0;
   leave = screen(root, data as never);

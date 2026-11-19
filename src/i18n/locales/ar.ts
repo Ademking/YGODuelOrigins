@@ -628,4 +628,5 @@ export const AR: Dictionary = {
   "{player} left the duel.": "غادر {player} المبارزة.",
   "{player} ran out of time.": "نفد وقت {player}.",
   "{player} surrendered.": "استسلم {player}.",
+  "The players have not chatted yet.": "لم يتحدث اللاعبون بعد.",
 };

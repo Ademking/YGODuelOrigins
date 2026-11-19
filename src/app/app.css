@@ -211,3 +211,5 @@ input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
 .anime-cards .card { background-image: url(/cards/anime/back.png); }
 /* An anime face shows the card back until it has been painted into its frame. */
 .card > img[data-paint] { opacity: 0; }
+/* the Deck Builder's own buttons sit in that corner: no music button there (the music keeps playing) */
+body[data-screen="DeckEditor"] :is(.music-btn, .music-sheet) { display: none; }

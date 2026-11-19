@@ -311,18 +311,33 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const spectate = async (code: string, player: string) => {
       if (!lobby || session || connecting) return;
       connecting = true; renderRoster();
-      status(t("Joining {player}'s duel as a spectator…", { player }));
+      const text = t("Joining {player}'s duel as a spectator…", { player });
+      status(text);
+      // a loading sheet while the duel's host answers (the duel screen replaces it)
+      let viewer: Awaited<ReturnType<typeof watchDuel>> | undefined;
+      const loading = el('dialog', '', 'mp-modal w-[min(360px,calc(100vw-24px))]') as HTMLDialogElement;
+      const sheet = el('div', '', 'mp-sheet flex flex-col items-center gap-3 text-center');
+      const cancel = btn(t('Cancel'));
+      cancel.onclick = () => { viewer?.close(); loading.close(); status(t('Online')); };
+      sheet.insertAdjacentHTML('afterbegin', `<img src="/ui/loading.gif" alt="" class="size-20">`);
+      sheet.append(el('p', text, 'text-sm'), cancel);
+      loading.append(sheet);
+      loading.addEventListener('cancel', (event) => { event.preventDefault(); cancel.click(); });
+      loading.addEventListener('close', () => loading.remove());
+      document.body.append(loading);
+      loading.showModal();
       try {
-        const viewer = await watchDuel(code);
-        if (!alive) { viewer.close(); return; }
-        viewer.onError = (message) => { viewer.close(); if (alive) notice(message); };
-        viewer.onSetup = (setup, network) => {
-          viewer.onError = () => {};
+        viewer = await watchDuel(code);
+        if (!alive || !loading.open) { viewer.close(); return; }
+        const current = viewer;
+        current.onError = (message) => { current.close(); loading.close(); if (alive) notice(message); };
+        current.onSetup = (setup, network) => {
+          current.onError = () => {};
           transferred = true;
           lobby?.setBusy(true);
-          void go('Duel', spectateInit(viewer, setup, network, lobby));
+          void go('Duel', spectateInit(current, setup, network, lobby));
         };
-      } catch (e) { error(e); }
+      } catch (e) { loading.close(); error(e); }
       finally { connecting = false; if (alive) renderRoster(); }
     };
     /** Dismissable card above the player list, mirrored in the status line. */

@@ -628,4 +628,5 @@ export const PT_BR: Dictionary = {
   "{player} left the duel.": "{player} saiu do duelo.",
   "{player} ran out of time.": "O tempo de {player} acabou.",
   "{player} surrendered.": "{player} desistiu.",
+  "The players have not chatted yet.": "Os jogadores ainda não conversaram.",
 };

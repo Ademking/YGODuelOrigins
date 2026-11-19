@@ -242,23 +242,30 @@ test('spectators replay the duel exactly, live or joining after the start, and s
     if (p.t === 'position') return 'atk';
     return SURRENDER;
   };
-  const watch = (name: string, core: Awaited<ReturnType<typeof createCore>>) => new Promise<{ duel: OcgDuel; events: UIEvent[] }>((resolve, reject) => {
+  const watch = (name: string, core: Awaited<ReturnType<typeof createCore>>) => new Promise<{ duel: OcgDuel; events: UIEvent[]; chat: string[] }>((resolve, reject) => {
     const viewer = new Spectator('ABCDEFGH2345', 'test', factory(name), {} as any);
     viewer.onError = message => reject(new Error(message));
     viewer.onSetup = (setup, network) => {
       const events: UIEvent[] = [];
       const duel = new OcgDuel(setup.decks, setup.names, null, e => { events.push(e); }, 8000, 0, 0);
       duel.revealAll = true;
-      duel.run(core, bundle, undefined, setup.first, network).then(() => { viewer.close(); resolve({ duel, events }); }, reject);
+      duel.run(core, bundle, undefined, setup.first, network).then(() => {
+        const chat = viewer.chat.map(line => `${line.name}: ${line.text}`);
+        viewer.close(); resolve({ duel, events, chat });
+      }, reject);
     };
   });
   const live = watch('live', cores[2]);
+  // the players' chat reaches spectators, the guest's lines as side 1
+  await new Promise(r => setTimeout(r, 20));
+  host.chat(1, 'good luck!');
   const left = new OcgDuel([deckA, deckB], ['A', 'B'], ask, () => {}, 8000, 0, 0);
   const right = new OcgDuel([deckB, deckA], ['B', 'A'], ask, () => {}, 8000, 0, 0);
   await Promise.all([left.run(cores[0], bundle, undefined, 0, a), right.run(cores[1], bundle, undefined, 1, b)]);
   // a second spectator arrives after the last decision: the history brings it to the same end
   const late = watch('late', cores[3]);
-  for (const { duel, events } of await Promise.all([live, late])) {
+  for (const { duel, events, chat } of await Promise.all([live, late])) {
+    assert.deepEqual(chat, ['B: good luck!'], 'live, or from the chat kept for late spectators');
     assert.ok(events.some(e => e.t === 'end'), 'the replay reaches the end');
     assert.equal(duel.turn, left.turn);
     for (const side of [0, 1] as const) {

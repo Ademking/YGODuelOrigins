@@ -628,4 +628,5 @@ export const RU: Dictionary = {
   "{player} left the duel.": "{player} покинул дуэль.",
   "{player} ran out of time.": "Время {player} вышло.",
   "{player} surrendered.": "{player} сдался.",
+  "The players have not chatted yet.": "Игроки ещё не переписывались.",
 };
