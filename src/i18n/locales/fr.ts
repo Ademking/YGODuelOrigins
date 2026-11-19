@@ -641,4 +641,7 @@ export const FR: Dictionary = {
   "Ra Yellow": "Ra Yellow",
   "Obelisk Blue": "Obelisk Blue",
   "You can't duel your own account.": "Vous ne pouvez pas affronter votre propre compte.",
+  "Target: {card}": "Cible : {card}",
+  "a Set card": "une carte posée",
+  "You lost the connection.": "Vous avez perdu la connexion.",
 };

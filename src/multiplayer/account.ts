@@ -48,8 +48,15 @@ export async function signOut() {
 }
 
 /** Both players derive the same match id from the duel's seed (a rematch has a new seed). */
-export async function matchId(seed: readonly string[]) {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed.join(',')));
+const ids = new Map<string, Promise<string>>();
+/** Kept per seed, so a report sent while the page closes doesn't wait on hashing. */
+export function matchId(seed: readonly string[]) {
+  const key = seed.join(',');
+  if (!ids.has(key)) ids.set(key, hashSeed(key));
+  return ids.get(key)!;
+}
+async function hashSeed(seed: string) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed));
   return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 

@@ -6,7 +6,7 @@
   "name": "ygoduelorigins",
   "compatibility_date": "2026-10-01",
   "main": "worker/index.js",
-  "triggers": { "crons": ["*/10 * * * *"] },
+  "triggers": { "crons": ["* * * * *"] },
   "assets": { "directory": "./dist", "binding": "ASSETS" },
   "previews": { "d1_databases": [{ "binding": "DB", "database_name": "ygoduelorigins-dev", "database_id": "f5fa504d-fcfe-4125-a82b-b3d76b9b7ef9" }] },
   // the game's own Nostr relay at /relay: one Durable Object holds every connection (worker/relay.js)

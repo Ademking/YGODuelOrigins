@@ -10,7 +10,7 @@ import { postDuel } from './discord.js';
 export { GameRelay };
 
 export default {
-  // every 10 minutes (wrangler.jsonc triggers): duels a player left without a result go to the opponent's claim
+  // every minute (wrangler.jsonc triggers): duels a player left without a result go to the opponent's claim
   async scheduled(_event, env, ctx) {
     if (!env.DB) return;
     for (const match of await abandoned(env.DB)) ctx.waitUntil(postDuel(env, env.DB, match).catch(() => {}));

@@ -641,4 +641,7 @@ export const ID: Dictionary = {
   "Ra Yellow": "Ra Yellow",
   "Obelisk Blue": "Obelisk Blue",
   "You can't duel your own account.": "Kamu tidak bisa duel melawan akunmu sendiri.",
+  "Target: {card}": "Target: {card}",
+  "a Set card": "kartu yang di-Set",
+  "You lost the connection.": "Kamu kehilangan koneksi.",
 };

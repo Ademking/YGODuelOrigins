@@ -70,6 +70,8 @@ export class PrivateRoom {
   /** `won`: the opponent surrendered, ran out of time, left or disconnected. */
   onEnd = (_reason: string, _won: boolean) => {};
   error = '';
+  /** The opponent's connection dropped (rather than a message saying they left, surrendered or timed out). */
+  dropped = false;
   private room: Room;
   private action;
   private peer?: string;
@@ -98,7 +100,7 @@ export class PrivateRoom {
     this.action = this.room.makeAction('duel');
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e), false, true)); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
-    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) { this.watch?.end(1, 'left'); this.fail(t('Your opponent disconnected.'), true); } });
+    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) { this.dropped = true; this.watch?.end(1, 'left'); this.fail(t('Your opponent disconnected.'), true); } });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
       if (!this.opponent) { this.error = relay.length ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }

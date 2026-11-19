@@ -107,7 +107,7 @@ export type Prompt =
   | { t: 'chain'; actions: Action[]; ev: Ev; text: string; core?: boolean; optionalWindow?: boolean }
   | { t: 'select'; text: string; cards: Card[]; min: number; max: number; purpose: Purpose; validate?: (cs: Card[]) => boolean; selectionKind?: 'target'; reveal?: boolean; cancel?: boolean; showCardFaces?: boolean; marked?: Card[]; finish?: boolean }
   | { t: 'yesno'; text: string; card?: Card; kind: 'trigger' | 'upkeep' | 'choice'; ai?: boolean; eff?: Effect; ev?: Ev }
-  | { t: 'option'; text: string; options: string[]; ai?: number }
+  | { t: 'option'; text: string; options: string[]; ai?: number; card?: Card }
   | { t: 'announce'; text: string; cards: { name: string; code: number }[] }
   | { t: 'position'; card: Card }
   | { t: 'replay'; attacker: Card; targets: (Card | null)[] };
@@ -130,6 +130,7 @@ export type UIEvent =
   | { t: 'flip'; card: Card }
   | { t: 'pos'; card: Card }
   | { t: 'activate'; card: Card; link: number; player: Side }
+  | { t: 'target'; cards: Card[] }
   | { t: 'resolve'; card: Card; link: number; negated: boolean }
   | { t: 'attack'; attacker: Card; target: Card | null }
   | { t: 'destroy'; card: Card; by: 'battle' | 'effect' }

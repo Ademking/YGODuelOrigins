@@ -168,6 +168,8 @@ export class OcgDuel {
     const player = this.players[side];
     return zone === 'mzone' ? player.m : zone === 'szone' ? player.s : player[zone];
   }
+  /** The card whose effect is being activated or resolved, for a prompt's picture. */
+  private effectCard() { return this.solving ?? this.chain.get(this.chain.size); }
   private lookup(loc: Location) {
     const zone = zoneOf(loc);
     const side = this.side(loc.controller);
@@ -326,6 +328,11 @@ export class OcgDuel {
         break;
       }
       case M.CHAIN_SOLVING: this.solving = this.chain.get(message.chain_size); break;
+      case M.BECOME_TARGET: {
+        const cards = message.cards.map((loc) => this.lookup(loc)).filter((card): card is Card => !!card);
+        if (cards.length) event = { t: 'target', cards };
+        break;
+      }
       case M.CHAIN_SOLVED: case M.CHAIN_NEGATED: {
         this.solving = undefined;
         const card = this.chain.get(message.chain_size);
@@ -861,7 +868,7 @@ export class OcgDuel {
       for (;;) {
         const confirm = spec.valid(picked);
         const options = [...spec.labels.map((label, i) => picked.includes(i) ? `✓ ${label}` : label), ...(confirm ? [t('Confirm')] : [])];
-        const choice = await ask({ t: 'option', text: prompt.title, options });
+        const choice = await ask({ t: 'option', text: prompt.title, options, card: this.effectCard() });
         if (choice === SURRENDER) return;
         const index = choice as number;
         if (index === spec.labels.length && confirm) return spec.response(picked);
@@ -871,12 +878,12 @@ export class OcgDuel {
       }
     }
     if (message.type === M.SELECT_YESNO || message.type === M.SELECT_EFFECTYN) {
-      const selected = await ask({ t: 'yesno', kind: 'choice', text: prompt.title });
+      const selected = await ask({ t: 'yesno', kind: 'choice', text: prompt.title, card: message.type === M.SELECT_EFFECTYN ? this.lookup(message) ?? undefined : undefined });
       if (selected === SURRENDER) return;
       return { type: message.type === M.SELECT_YESNO ? R.SELECT_YESNO : R.SELECT_EFFECTYN, yes: selected === true };
     }
     if (prompt.choices.length === 1) return prompt.choices[0].response;
-    const index = await ask({ t: 'option', text: prompt.title, options: prompt.choices.map(choice => choice.label) });
+    const index = await ask({ t: 'option', text: prompt.title, options: prompt.choices.map(choice => choice.label), card: this.effectCard() });
     return index === SURRENDER ? undefined : prompt.choices[index as number]?.response;
   }
 
