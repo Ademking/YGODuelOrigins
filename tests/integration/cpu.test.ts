@@ -75,6 +75,21 @@ test('Future Fusion sends the materials when it resolves and summons on your 2nd
   assert.deepEqual(spiralled, Array(3).fill('Blue-Eyes White Dragon'));
 });
 
+test('Cyber Jar shows you the top 5 cards of both Decks', async () => {
+  const revealed: [number, string][][] = [];
+  await duel({
+    setup: { hand: [id('Cyber Jar')] }, cpuDeck: 'Battle Ox', turns: 3,
+    you: (prompt, d) => {
+      if (prompt.t === 'select' && prompt.reveal) { revealed.push(prompt.cards.map(card => [card.owner, card.def.name])); return []; }
+      if (prompt.t !== 'main') return;
+      const jar = (a: string) => prompt.actions.find(action => action.a === a && 'card' in action && action.card.def.name === 'Cyber Jar');
+      return d.turn === 1 ? jar('mset') : d.turn === 3 ? jar('flip') : undefined;
+    },
+    done: () => revealed.length >= 2,
+  });
+  assert.deepEqual(revealed.sort((a, b) => a[0][0] - b[0][0]), [Array(5).fill([0, 'Blue-Eyes White Dragon']), Array(5).fill([1, 'Battle Ox'])]);
+});
+
 test('The CPU springs Sakuretsu Armor on your attack', async () => {
   const destroyed: string[] = [];
   await duel({

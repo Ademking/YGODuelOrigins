@@ -370,8 +370,11 @@ export class OcgDuel {
         break;
       }
       case M.CONFIRM_CARDS: case M.CONFIRM_DECKTOP: {
-        if (this.side(message.player) !== 0 || !this.ask || !message.cards.length) break;
-        const cards = message.cards.map(loc => this.card(0, 'hand', this.definition(loc.code)));
+        // cards shown to one player are only seen by that player; the top of a Deck (Cyber Jar, Card Trader) is
+        // revealed to both, whoever's Deck it is
+        const forYou = message.type === M.CONFIRM_DECKTOP || this.side(message.player) === 0;
+        if (!forYou || !this.ask || !message.cards.length) break;
+        const cards = message.cards.map(loc => this.card(this.side(loc.controller), 'hand', this.definition(loc.code)));
         try {
           await this.ask({ t: 'select', text: 'Revealed cards', cards, min: 0, max: 0, purpose: 'good', reveal: true }, this);
         } finally { cards.forEach(card => this.ids.delete(card.uid)); }

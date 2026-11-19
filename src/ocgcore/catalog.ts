@@ -16,7 +16,12 @@ const specials: CardDef[] = [
     text: 'All monsters you control gain 500 ATK. Once per turn, this card cannot be destroyed by card effects. While you control 2 or more face-up Attack Position monsters, your opponent cannot target your monster(s) with the lowest ATK for an attack. If this card is activated: Destroy all Special Summoned monsters you control (if any). You cannot Special Summon monsters from the Extra Deck. You can only activate \"The Seal of Orichalcos\" once per Duel.' },
 ];
 
-export const CARDS: CardDef[] = [...SOURCE_CARDS, ...specials];
+/** The video-game card list writes a "?" ATK or DEF (Chimeratech Overdragon, The Wicked Avatar…) as 5110. */
+const UNKNOWN_STAT = 5110;
+const withUnknownStats = (card: CardDef): CardDef => card.atk !== UNKNOWN_STAT && card.def !== UNKNOWN_STAT ? card
+  : { ...card, atk: card.atk === UNKNOWN_STAT ? undefined : card.atk, def: card.def === UNKNOWN_STAT ? undefined : card.def };
+
+export const CARDS: CardDef[] = [...SOURCE_CARDS.map(withUnknownStats), ...specials];
 /**
  * Video-game-only cards with no Project Ignis data: the duel engine cannot play them, so the Deck Builder hides them
  * and a deck holding one is not legal. tests/engine/decks.test.ts keeps this list in step with the engine data.

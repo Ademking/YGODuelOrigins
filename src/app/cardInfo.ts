@@ -54,7 +54,8 @@ export function cardInfo(hint = t('Hover over a card to see its details.'), layo
     if (def.kind === 'monster') {
       const atk = info.atk ?? def.atk!, defense = info.def ?? def.def!;
       const shown = (value: number, raw: number | undefined) => cardStat(def.variableStats && raw === undefined ? undefined : value);
-      const changed = atk !== def.atk || defense !== def.def;
+      // a "?" base (Chimeratech Overdragon) has nothing to compare with: no higher or lower colour
+      const changed = def.atk !== undefined && def.def !== undefined && (atk !== def.atk || defense !== def.def);
       stats.style.color = !changed ? '' : atk + defense > def.atk! + def.def! ? '#7dffa6' : '#ff8a8a';
       stats.textContent = `ATK ${shown(atk, info.atk)}  /  DEF ${shown(defense, info.def)}`;
     }

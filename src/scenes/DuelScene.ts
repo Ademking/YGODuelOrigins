@@ -1187,9 +1187,15 @@ export class DuelScene extends Phaser.Scene {
         if (htmlDialogOpen()) return;
         const shown = c.zone === 'gy' ? this.duel.players[c.owner].gy.slice(-1)[0] ?? c : c;
         if (ptr.wasTouch) this.hover(shown);
-        // phones: a long press shows the card's details
+        // phones: a long press offers the card's details (a Details button, like a tap)
         clearTimeout(this.pressTimer);
-        if (this.portrait) this.pressTimer = window.setTimeout(() => { if (!this.dragMoved) { this.longPressed = true; this.cardSheet(shown); } }, 450);
+        if (this.portrait) this.pressTimer = window.setTimeout(() => {
+          if (this.dragMoved || !this.canSee(shown)) return;
+          this.longPressed = true;
+          this.hover(shown);
+          if (this.sprites.has(shown.uid)) this.actionMenu(shown, []);
+          else this.cardSheet(shown);
+        }, 450);
       });
       s.on('pointerout', () => clearTimeout(this.pressTimer));
       s.on('pointerup', (ptr: Phaser.Input.Pointer) => {
@@ -1618,7 +1624,10 @@ export class DuelScene extends Phaser.Scene {
     const heights = items.map((item) => (item.label.includes('\n') ? 52 : 34));
     const layer = this.add.container(0, 0).setDepth(900);
     const blocker = this.add.rectangle(640, 360, 4000, 4000, 0, 0.001).setInteractive();
-    blocker.on('pointerup', () => this.closeMenu());
+    // only a press that starts on it closes the menu: lifting the finger of the long press that opened it does not
+    let pressed = false;
+    blocker.on('pointerdown', () => { pressed = true; });
+    blocker.on('pointerup', () => { if (pressed) this.closeMenu(); });
     layer.add(blocker);
     const total = heights.reduce((sum, h) => sum + h + 4, 0);
     // portrait: drawn larger, scaled about its own centre, and kept on the screen
