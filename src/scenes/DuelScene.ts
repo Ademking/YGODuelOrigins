@@ -1196,17 +1196,23 @@ export class DuelScene extends Phaser.Scene {
       while (name.displayWidth > room && name.text.length > 2) name.setText(name.text.slice(0, -2) + '…');
     }
     this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
-    this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: dorm?.light ?? COL.goldTxt }).setOrigin(1, 0.5);
     if (account) {
-      // online record on a small pill beside "LP", coloured like the lobby's: wins, losses, draws
-      const pill = this.add.graphics();
-      const right = PLATE.x + PLATE.w - 30;
-      let x = right;
-      for (const [text, color] of [[account.draws, COL.text], [account.losses, '#ff8a9a'], [account.wins, '#7dffa6']] as const) {
-        x -= this.add.text(x, y + 39, String(text), { fontFamily: FONT_N, fontSize: '10px', fontStyle: 'bold', color }).setOrigin(1, 0.5).width + 6;
+      // online record, right-aligned beside the LP: a small icon before each count (▲ wins, ▼ losses, = draws)
+      const right = PLATE.x + PLATE.w - 12, cy = y + 38;
+      const icons = this.add.graphics(), row = this.add.container(right, cy, [icons]);
+      let x = 0;
+      for (const [count, color, kind] of [[account.draws, '#c9c4dd', 'draw'], [account.losses, '#ff8a9a', 'loss'], [account.wins, '#7dffa6', 'win']] as const) {
+        const n = this.add.text(x, 0, String(count), { fontFamily: FONT_N, fontSize: '10px', fontStyle: 'bold', color }).setOrigin(1, 0.5);
+        row.add(n); x -= n.width + 2;
+        icons.fillStyle(hexColor(color), 1);
+        if (kind === 'win') icons.fillTriangle(x - 6, 2.5, x, 2.5, x - 3, -2.5);
+        else if (kind === 'loss') icons.fillTriangle(x - 6, -2.5, x, -2.5, x - 3, 2.5);
+        else icons.fillRect(x - 6, -2, 6, 1.5).fillRect(x - 6, 0.8, 6, 1.5);
+        x -= 6 + 6;
       }
-      pill.fillStyle(0x07060d, 0.75).fillRoundedRect(x - 1, y + 32, right - x + 7, 14, 7)
-        .lineStyle(1, dorm ? hexColor(dorm.color) : COL.line, 0.7).strokeRoundedRect(x - 1, y + 32, right - x + 7, 14, 7);
+      // long records shrink to fit the room the LP leaves
+      const room = right - PLATE.lpX - this.lpText[s].width - 6, width = -x - 6;
+      if (width > room) row.setScale(room / width);
     }
     this.lpBar[s] = this.add.graphics();
     this.drawLP(s, this.lpShown[s]);
