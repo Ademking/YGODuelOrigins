@@ -1958,7 +1958,8 @@ export class DuelScene extends Phaser.Scene {
         if (page > 0) grid.add(button(this, x0 + 34, y0 + 176, 34, 48, '‹', () => { page--; render(); }, { size: 24 }));
         if (page < pages - 1) grid.add(button(this, x0 + w - 34, y0 + 176, 34, 48, '›', () => { page++; render(); }, { size: 24 }));
       }
-      if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
+      // below the ✓ marks under the cards
+      if (pages > 1) grid.add(txt(this, CX, y0 + 282, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
       info.setText(p.reveal ? t('Revealed cards') : single ? t(tall ? 'Tap one card to choose it.' : 'Click one card to choose it.') : t('Selected {n} (need {need})', { n: chosen.size, need: p.min === p.max ? p.min : `${p.min}–${p.max}` }));
       ok.setVisible(!single || !!p.finish).setEnabled(valid() || !!p.finish);
     };
