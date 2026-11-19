@@ -2,9 +2,10 @@ import { defaultRelayUrls, joinRoom, type Room } from 'trystero';
 import { getRelays } from '@trystero-p2p/core';
 import { GAME_RELAY } from './relays';
 import type { DeckList } from '../engine/duel';
-import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode } from './protocol';
+import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode, newCode } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
+import { Spectator, WatchHost, isWatchCode } from './spectate';
 
 import type { ChatLine } from './lobby';
 import { t } from '../i18n';
@@ -13,13 +14,14 @@ import { timeoutSignal } from '../timeoutSignal';
 export { Lobby, type ChatLine, type PeerProfile } from './lobby';
 type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
 /** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
-export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>] };
+export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>]; watchCode?: string };
 /**
  * Signaling relays: the game's own relay, plus the same five public relays Trystero picks by default for this app id
  * (so players on an older build still meet on them).
  */
 const ROOM_RELAYS = [GAME_RELAY, ...getRelays({ appId: APP_ID }, defaultRelayUrls, 5, true)];
-const config = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, relayConfig: { urls: ROOM_RELAYS } };
+export const roomConfig = { appId: APP_ID, identity: 'none' as const, maxReceiveBytes: 32768, relayConfig: { urls: ROOM_RELAYS } };
+const config = roomConfig;
 let relay: Promise<RTCIceServer[]> | undefined, relayAt = 0;
 /**
  * Short-lived TURN relay logins from the site's /turn endpoint (worker/index.js, Cloudflare TURN), for networks that
@@ -44,6 +46,17 @@ function roomErrorText(error: { code?: string; message: string }, who: string) {
   }
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : t('Connection failed.');
+/** The duel engine build this page runs: players and spectators must match it. */
+async function engineRevision() {
+  const response = await fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: timeoutSignal(15000) });
+  if (!response.ok) throw new Error(t('Could not verify the duel engine version. Reload and try again.'));
+  return (await response.text()).trim();
+}
+/** Join a duel as a spectator, by the watch code its players announce in the lobby. */
+export async function watchDuel(code: string) {
+  const [revision, relay] = await Promise.all([engineRevision(), relayServers()]);
+  return new Spectator(code, revision, joinRoom, { ...config, ...(relay.length ? { turnConfig: relay } : {}) });
+}
 export class PrivateRoom {
   readonly chat: ChatLine[] = [];
   opponent?: Hello;
@@ -67,22 +80,29 @@ export class PrivateRoom {
   private receivedChat = 0;
   private connectionTimer: ReturnType<typeof setTimeout>;
   private handshakeTimer?: ReturnType<typeof setTimeout>;
-  constructor(public code: string, private hello: Hello, roomFactory: typeof joinRoom = joinRoom, relay: RTCIceServer[] = []) {
+  /** The host's room for spectators (spectate.ts), opened when the first duel starts. */
+  private watch?: WatchHost;
+  /** The code spectators join with: the host makes it, the guest learns it from the duel's start. */
+  watchCode?: string;
+  /**
+   * `watchFactory` lets the host open a watch room for spectators (production passes Trystero's joinRoom; tests that
+   * leave it out have no spectators).
+   */
+  constructor(public code: string, private hello: Hello, roomFactory: typeof joinRoom = joinRoom, private relay: RTCIceServer[] = [], private watchFactory?: typeof joinRoom) {
+    if (hello.host && watchFactory) this.watchCode = newCode();
     this.room = roomFactory({ ...config, ...(relay.length ? { turnConfig: relay } : {}), maxUsers: 2, password: code }, 'duel-' + code);
     this.action = this.room.makeAction('duel');
     this.action.onMessage((raw, { peerId }) => { void this.receive(raw, peerId).catch(e => this.fail(errorText(e), false, true)); });
     this.room.onPeerJoin(({ peerId }) => { void this.send({ ...hello, ready: this.ready }, peerId).catch(e => this.fail(errorText(e))); });
-    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) this.fail(t('Your opponent disconnected.')); });
+    this.room.onPeerLeave(({ peerId }) => { if (peerId === this.peer) { this.watch?.end(1, 'left'); this.fail(t('Your opponent disconnected.')); } });
     this.room.onError(error => { if (!this.opponent) { this.error = roomErrorText(error, 'your opponent'); this.onChange(); } });
     this.connectionTimer = setTimeout(() => {
       if (!this.opponent) { this.error = relay.length ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
     }, 30000);
   }
   static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
-    const [response, relay] = await Promise.all([fetch(`${import.meta.env.BASE_URL}ocgcore/revision`, { signal: timeoutSignal(15000) }), relayServers()]);
-    if (!response.ok) throw new Error(t('Could not verify the duel engine version. Reload and try again.'));
-    const revision = (await response.text()).trim();
-    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look }, joinRoom, relay);
+    const [revision, relay] = await Promise.all([engineRevision(), relayServers()]);
+    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look }, joinRoom, relay, joinRoom);
   }
   get isHost() { return this.hello.host; }
   get isReady() { return this.ready; }
@@ -104,7 +124,7 @@ export class PrivateRoom {
     this.pendingFirst = crypto.getRandomValues(new Uint8Array(1))[0] % 2 as 0 | 1;
     this.makeNetwork(this.pendingSeed);
     this.handshakeTimer = setTimeout(() => this.fail(t('Opponent did not acknowledge the rematch.')), 20000);
-    await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst, rematch: true });
+    await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst, rematch: true, watch: this.watchCode });
   }
   private send(value: unknown, target = this.peer) {
     if (this.closed) return Promise.reject(new Error('Room closed.'));
@@ -134,7 +154,7 @@ export class PrivateRoom {
         this.pendingFirst = crypto.getRandomValues(new Uint8Array(1))[0] % 2 as 0 | 1;
         this.makeNetwork(this.pendingSeed);
         this.handshakeTimer = setTimeout(() => this.fail(t('Opponent did not acknowledge the duel. Recreate the room.')), 20000);
-        await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst });
+        await this.send({ type: 'start', seed: this.pendingSeed, first: this.pendingFirst, watch: this.watchCode });
       }
       return;
     }
@@ -156,6 +176,7 @@ export class PrivateRoom {
         || !m.seed.every(s => typeof s === 'string' && /^\d{1,20}$/.test(s) && BigInt(s) < (1n << 64n))
         || (m.first !== 0 && m.first !== 1)) throw new Error(t('Invalid duel setup.'));
       this.makeNetwork(m.seed as DuelNetwork['seed']);
+      if (isWatchCode(m.watch)) this.watchCode = m.watch;
       await this.send({ type: 'ack' });
       this.start(m.first === 0 ? 1 : 0);
     } else if (m.type === 'ack' && this.isHost && this.pendingSeed && !this.started) {
@@ -169,10 +190,12 @@ export class PrivateRoom {
       this.receivedChat = Date.now();
       this.addChat(this.opponent.name, text);
     } else if (m.type === 'forfeit') {
+      this.watch?.end(1, m.timeout === true ? 'timeout' : 'surrender');
       const reason = m.timeout === true ? t('Your opponent ran out of time.') : t('Your opponent surrendered.');
       this.network?.abort(reason);
       this.onEnd(reason, true);
     } else if (m.type === 'leave') {
+      this.watch?.end(1, m.timeout === true ? 'timeout' : m.surrender === true ? 'surrender' : 'left');
       this.fail(m.timeout === true ? t('Your opponent ran out of time.') : m.surrender === true ? t('Your opponent surrendered.') : t('Your opponent left the room.'), m.surrender === true);
     }
   }
@@ -182,9 +205,15 @@ export class PrivateRoom {
   private start(first: 0 | 1) {
     if (!this.network || !this.opponent || this.started) return;
     this.started = true;
+    const looks: Match['looks'] = [{ avatar: this.hello.avatar, country: this.hello.country }, { avatar: this.opponent.avatar, country: this.opponent.country }];
+    // the host shows this duel (and each rematch) to spectators
+    if (this.isHost && this.watchFactory && this.watchCode) {
+      this.watch ??= new WatchHost(this.watchCode, this.watchFactory, { ...config, ...(this.relay.length ? { turnConfig: this.relay } : {}) });
+      this.watch.start({ revision: this.hello.revision, names: [this.hello.name, this.opponent.name], looks,
+        decks: [this.hello.deck, this.opponent.deck], first, seed: this.network.seed }, this.network);
+    }
     this.onStart({ name: this.hello.name, opponent: this.opponent.name, deck: this.hello.deck,
-      opponentDeck: this.opponent.deck, first, network: this.network, session: this,
-      looks: [{ avatar: this.hello.avatar, country: this.hello.country }, { avatar: this.opponent.avatar, country: this.opponent.country }] });
+      opponentDeck: this.opponent.deck, first, network: this.network, session: this, looks, watchCode: this.watchCode });
   }
   async setReady() {
     if (this.started || !this.opponent || this.ready) return;
@@ -218,12 +247,15 @@ export class PrivateRoom {
   /** Lose the current duel (surrender or clock) without leaving the room. */
   async forfeit(timeout = false) {
     if (this.closed) return;
+    this.watch?.end(0, timeout ? 'timeout' : 'surrender');
     this.network?.abort(timeout ? t('You ran out of time.') : t('You surrendered.'));
     try { await this.send({ type: 'forfeit', timeout }); } catch {}
   }
   async leave(surrender = false, timeout = false) {
     if (this.closed) return;
     try { await this.send({ type: 'leave', surrender, timeout }); } catch {}
+    this.watch?.end(0, timeout ? 'timeout' : surrender ? 'surrender' : 'left');
+    this.watch?.close();
     this.closed = true;
     clearTimeout(this.connectionTimer);
     clearTimeout(this.handshakeTimer);

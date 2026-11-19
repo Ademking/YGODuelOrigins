@@ -125,6 +125,9 @@ export class OcgDuel {
   }
   byUid(uid: number) { return this.ids.get(uid); }
   onField(c: Card) { return c.zone === 'mzone' || c.zone === 'szone' || c.zone === 'fzone'; }
+  /** A spectator sees both players' hidden cards (hands, Extra Decks, Set cards); a player only their own. */
+  revealAll = false;
+  private knows(side: Side) { return side === 0 || this.revealAll; }
   fieldCards(side: Side) { const p = this.players[side]; return [...p.m, ...p.s, p.f].filter((c): c is Card => c !== null); }
   handRevealed(side: Side) { return this.players[side].hand.every(c => c.faceUp); }
   atk(card: Card) { return card.data.atk ?? card.def.atk ?? 0; }
@@ -175,7 +178,7 @@ export class OcgDuel {
     if (!zone) return;
     const side = this.side(loc.controller);
     const faceUp = !!(loc.position & 5);
-    const visible = zone === 'gy' || (zone !== 'deck' && (faceUp || side === 0 && zone !== 'banished'));
+    const visible = zone === 'gy' || (zone !== 'deck' && (faceUp || this.knows(side) && zone !== 'banished'));
     if (code || !visible) card.def = this.definition(visible ? code : 0);
     Object.assign(card, { zone, ctrl: side, slot: loc.sequence, faceUp, pos: loc.position & 12 ? 'def' : 'atk' });
     if (zone === 'fzone') this.players[side].f = card;
@@ -241,7 +244,7 @@ export class OcgDuel {
         if (message.drawn.length) this.log(t(message.drawn.length === 1 ? '{player} draws 1 card.' : '{player} draws {n} cards.', { player: this.name(side), n: message.drawn.length }));
         for (const draw of message.drawn) {
           const card = p.deck.pop() ?? this.card(side, 'deck');
-          Object.assign(card, { zone: 'hand', slot: p.hand.length, faceUp: !!(draw.position & 5), def: this.definition(side === 0 ? draw.code : 0) });
+          Object.assign(card, { zone: 'hand', slot: p.hand.length, faceUp: !!(draw.position & 5), def: this.definition(this.knows(side) ? draw.code : 0) });
           p.hand.push(card);
           await this.emit({ t: 'draw', card, player: side });
         }
@@ -414,7 +417,7 @@ export class OcgDuel {
           if (!row) continue;
           const card = current ?? this.card(side, zone);
           const position = row.position ?? OcgPosition.FACEDOWN_DEFENSE;
-          const visible = zone === 'gy' || !!(position & 5) || row.isPublic || side === 0 && zone !== 'banished';
+          const visible = zone === 'gy' || !!(position & 5) || row.isPublic || this.knows(side) && zone !== 'banished';
           card.def = this.definition(visible ? row.code ?? 0 : 0);
           Object.assign(card, { slot: sequence, faceUp: !!(position & 5) || row.isPublic === true, pos: position & 12 ? 'def' : 'atk' });
           if (row.owner === 0 || row.owner === 1) card.owner = this.side(row.owner);

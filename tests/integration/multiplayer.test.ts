@@ -203,3 +203,75 @@ test('a disconnect or surrender ends the duel without counting as a bug; a sync 
   assert.equal((await failureOf(ended) as Error).name, DUEL_ENDED);
   assert.equal((await failureOf(broken) as Error).name, 'Error');
 });
+
+test('spectators replay the duel exactly, live or joining after the start, and see both hands', { timeout: 60000 }, async () => {
+  const { WatchHost, Spectator } = await import('../../src/multiplayer/spectate');
+  const bundle = JSON.parse(gunzipSync(readFileSync('assets/ocgcore/duel.json.gz')).toString());
+  const cores = await Promise.all([0, 1, 2, 3].map(() => createCore({ sync: true })));
+  // legal decks: a spectator only accepts duels the lobby could have started
+  const [deckA, deckB] = [OPPONENTS[0].deck, OPPONENTS[2].deck];
+  // an in-memory watch room: every peer hears joins, and messages go to the peers they target
+  const peers = new Map<string, { message?: (data: string, ctx: { peerId: string }) => void; joined?: (ctx: { peerId: string }) => void }>();
+  const factory = (me: string) => (() => {
+    const self: { message?: (data: string, ctx: { peerId: string }) => void; joined?: (ctx: { peerId: string }) => void } = {};
+    peers.set(me, self);
+    queueMicrotask(() => { for (const [other, peer] of peers) if (other !== me) { peer.joined?.({ peerId: me }); self.joined?.({ peerId: other }); } });
+    return {
+      makeAction: () => ({
+        send: async (data: string, { target }: { target: string | string[] }) => {
+          for (const to of [target].flat()) queueMicrotask(() => peers.get(to)?.message?.(data, { peerId: me }));
+        },
+        onMessage: (fn: typeof self.message) => { self.message = fn; },
+      }),
+      onPeerJoin: (fn: typeof self.joined) => { self.joined = fn; },
+      onPeerLeave: () => {}, leave: async () => { peers.delete(me); },
+    };
+  }) as any;
+  let a!: Lockstep, b!: Lockstep;
+  a = new Lockstep(seed, async packet => { b.receive(decode(encode(packet)) as DecisionPacket); }, 5000);
+  b = new Lockstep(seed, async packet => { a.receive(decode(encode(packet)) as DecisionPacket); }, 5000);
+  const host = new WatchHost('ABCDEFGH2345', factory('host'), {} as any);
+  host.start({ revision: 'test', names: ['A', 'B'], looks: [{}, {}], decks: [deckA, deckB], first: 0, seed }, a);
+  const ask = async (p: Prompt) => {
+    if (p.t === 'main') return p.actions.find(action => action.a === 'summon' && !action.tributes)
+      ?? p.actions.find(action => action.a === 'phase' && action.to === 'EP');
+    if (p.t === 'chain') return null;
+    if (p.t === 'select') return p.cards.slice(0, p.min);
+    if (p.t === 'yesno') return false;
+    if (p.t === 'option') return 0;
+    if (p.t === 'position') return 'atk';
+    return SURRENDER;
+  };
+  const watch = (name: string, core: Awaited<ReturnType<typeof createCore>>) => new Promise<{ duel: OcgDuel; events: UIEvent[] }>((resolve, reject) => {
+    const viewer = new Spectator('ABCDEFGH2345', 'test', factory(name), {} as any);
+    viewer.onError = message => reject(new Error(message));
+    viewer.onSetup = (setup, network) => {
+      const events: UIEvent[] = [];
+      const duel = new OcgDuel(setup.decks, setup.names, null, e => { events.push(e); }, 8000, 0, 0);
+      duel.revealAll = true;
+      duel.run(core, bundle, undefined, setup.first, network).then(() => { viewer.close(); resolve({ duel, events }); }, reject);
+    };
+  });
+  const live = watch('live', cores[2]);
+  const left = new OcgDuel([deckA, deckB], ['A', 'B'], ask, () => {}, 8000, 0, 0);
+  const right = new OcgDuel([deckB, deckA], ['B', 'A'], ask, () => {}, 8000, 0, 0);
+  await Promise.all([left.run(cores[0], bundle, undefined, 0, a), right.run(cores[1], bundle, undefined, 1, b)]);
+  // a second spectator arrives after the last decision: the history brings it to the same end
+  const late = watch('late', cores[3]);
+  for (const { duel, events } of await Promise.all([live, late])) {
+    assert.ok(events.some(e => e.t === 'end'), 'the replay reaches the end');
+    assert.equal(duel.turn, left.turn);
+    for (const side of [0, 1] as const) {
+      assert.deepEqual(duel.players[side].m.map(c => c && [c.def.name, c.pos]), left.players[side].m.map(c => c && [c.def.name, c.pos]));
+      assert.deepEqual(duel.players[side].gy.map(c => c.def.name), left.players[side].gy.map(c => c.def.name));
+      assert.equal(duel.players[side].lp, left.players[side].lp);
+    }
+    // both hands are known to the spectator, card by card
+    assert.deepEqual(duel.players[0].hand.map(c => c.def.name).sort(), left.players[0].hand.map(c => c.def.name).sort());
+    assert.deepEqual(duel.players[1].hand.map(c => c.def.name).sort(), right.players[0].hand.map(c => c.def.name).sort());
+    assert.ok(duel.players[1].hand.every(c => c.def.id), "the guest's hand is face-up to the spectator");
+  }
+  // a long duel: the late spectator's history came in several messages
+  assert.ok(left.turn > 10);
+  host.close();
+});

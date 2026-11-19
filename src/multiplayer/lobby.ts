@@ -10,9 +10,11 @@ import { cleanCountry, cleanSeed, type Look } from './profile';
 import { t } from '../i18n';
 import { GAME_RELAY, type RelayStatus } from './relays';
 import { serverNow, syncClock } from './clock';
+import { isWatchCode } from './spectate';
 
 export type ChatLine = { name: string; text: string; system?: boolean; at?: number; self?: boolean; avatar?: string; country?: string };
-export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string };
+/** `watch` and `vs`: the watch code and opponent of a duelist in a duel, so others can spectate it (spectate.ts). */
+export type PeerProfile = { name: string; busy: boolean; avatar?: string; country?: string; watch?: string; vs?: string };
 
 /**
  * The game's own relay, then public relays tested to accept and fan out ephemeral events from fresh keys. Events go to
@@ -66,6 +68,7 @@ export class Lobby {
   private seen = new Map<string, number>();
   private rate = new Map<string, number>();
   private busy = false;
+  private watching?: { code: string; vs: string };
   private lastChat = 0;
   private closed = false;
   /** Events thrown away as too old or too new: many with nobody in the lobby points at a clock problem. */
@@ -90,7 +93,8 @@ export class Lobby {
   get avatar() { return this.look.avatar; }
   /** How many lobby relays are connected, or null when the transport cannot tell. */
   relayStatus(): RelayStatus | null { return this.transport.status?.() ?? null; }
-  setBusy(busy: boolean) { this.busy = busy; void this.announce(); }
+  /** In a duel or not; `watch`: the duel spectators can join, announced while busy. */
+  setBusy(busy: boolean, watch?: { code: string; vs: string }) { this.busy = busy; this.watching = busy ? watch : undefined; void this.announce(); }
   /** Change avatar or country and tell everyone. */
   setLook(look: Partial<Look>) { this.look = { ...this.look, ...look }; void this.announce(); }
 
@@ -125,7 +129,7 @@ export class Lobby {
     catch { if (!closing) this.onError(t('Lost touch with the matchmaking servers. Check your internet connection.'), 'relay-failed'); }
   }
   private async announce(ask = false) {
-    await this.send({ type: 'presence', name: this.name, busy: this.busy, ...this.look, ...(ask ? { ask: true } : {}) });
+    await this.send({ type: 'presence', name: this.name, busy: this.busy, ...this.look, ...(this.watching ? { watch: this.watching.code, vs: this.watching.vs } : {}), ...(ask ? { ask: true } : {}) });
   }
   private allow(key: string, interval: number) {
     const t = Date.now();
@@ -165,7 +169,8 @@ export class Lobby {
       if (!name || typeof m.busy !== 'boolean' || !this.allow(peer + ':presence', 2000)) return;
       const known = this.peers.has(peer);
       if (!known && this.peers.size >= MAX_PEERS) return;
-      this.peers.set(peer, { name, busy: m.busy, avatar: cleanSeed(m.avatar), country: cleanCountry(m.country) });
+      const watch = m.busy && isWatchCode(m.watch) ? { watch: m.watch, vs: cleanName(m.vs) || undefined } : {};
+      this.peers.set(peer, { name, busy: m.busy, avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), ...watch });
       this.seen.set(peer, Date.now());
       if (!known) this.addChat({ name: '', text: `${name} joined`, system: true });
       else this.onChange();

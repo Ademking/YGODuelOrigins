@@ -5,6 +5,7 @@ const PATHS = {
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   deck: '<rect x="4" y="6" width="11" height="15" rx="2"/><path d="M9 3h9a2 2 0 0 1 2 2v13"/>',
   replay: '<path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7M4 4v4.7h4.7"/><path d="m10 9 5 3-5 3V9Z"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   back: '<path d="m15 5-7 7 7 7"/>',
   prev: '<path d="m14 6-6 6 6 6"/>',
   next: '<path d="m10 6 6 6-6 6"/>',

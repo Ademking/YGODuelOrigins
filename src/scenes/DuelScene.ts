@@ -18,6 +18,7 @@ import { LOG_MARK, OcgDuel, opp, SURRENDER, type LogKind } from '../ocgcore/duel
 import { num, t } from '../i18n';
 import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
+import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
 import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
@@ -41,11 +42,17 @@ import { portraitKey } from '../ui/portraits';
 import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
-/** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
 /** Is an HTML dialog (card sheet, notice) open over the duel? */
 const htmlDialogOpen = () => !!document.querySelector('body > dialog[open]');
 
-export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
+/** Spectating an online duel: the watch room, the duel as its host sees it, and the decisions replayed into it. */
+export type SpectateInit = { viewer: Spectator; setup: WatchSetup; network: SpectatorNetwork };
+/**
+ * `watch` makes it a duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the
+ * viewer. With `spectate` too, it is a live online duel (the host on the near side), with both players' cards shown.
+ */
+export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; spectate?: SpectateInit; startingLP?: 4000 | 8000 }
+
 
 // ---- board geometry: a ground plane seen in true perspective (proportions fitted to the wireframe).
 // u = column in tile widths (0 = centre), w = depth in tile depths (0 = midline, + towards you).
@@ -292,6 +299,7 @@ export class DuelScene extends Phaser.Scene {
       () => { if (duel === this.duel) this.layout(); },
     );
     this.events.once('shutdown', () => duel.stop());
+    if (d.spectate) duel.revealAll = true;
     duel.onRejected = (info) => reportRejectedAnswer(info, { matchup: [d.deckName, d.opp.name], lastActions: duel.logLines.slice(-8), multiplayer: !!d.multiplayer });
     this.duel = duel;
     if (d.multiplayer) {
@@ -315,6 +323,27 @@ export class DuelScene extends Phaser.Scene {
         if (!this.rematching) { void session.leave(); d.lobby?.close(); }
       });
     }
+    if (d.spectate) {
+      const { viewer, setup } = d.spectate;
+      this.rematching = false;
+      // a rematch in the watched room: show the new duel
+      viewer.onSetup = (next, network) => { this.rematching = true; this.scene.restart(spectateInit(viewer, next, network, d.lobby)); };
+      viewer.onEnd = (end) => {
+        if (this.dead || this.ended) return;
+        duel.stop();
+        this.showEnd(end.player === 0 ? 1 : 0, watchEndText(end, setup.names));
+      };
+      viewer.onError = (message) => {
+        if (this.dead || this.ended) return;
+        duel.stop();
+        this.showEnd(-1, message);
+      };
+      this.events.once('shutdown', () => {
+        if (this.rematching) return;
+        viewer.onSetup = () => {}; viewer.onEnd = () => {}; viewer.onError = () => {};
+        viewer.close(); d.lobby?.close();
+      });
+    }
     this.layout(true);
     if (d.multiplayer) this.startClocks(d.multiplayer.network.clock);
     this.input.dragDistanceThreshold = 8;
@@ -332,7 +361,7 @@ export class DuelScene extends Phaser.Scene {
     void (async () => {
       this.layout(true);
       // spectated duels skip Rock, Paper, Scissors: the engine tosses for the first turn
-      const first = d.multiplayer ? d.multiplayer.first : d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
+      const first = d.multiplayer ? d.multiplayer.first : d.spectate ? d.spectate.setup.first : d.debug || d.watch ? undefined : await this.chooseFirstPlayer(duel);
       if (this.dead || duel !== this.duel) return;
       if (!d.debug && !d.watch && first === null) {
         duel.log(t('You surrendered.'));
@@ -340,7 +369,7 @@ export class DuelScene extends Phaser.Scene {
         return;
       }
       const [core, bundle] = await this.waitForRuntime();
-      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined, d.multiplayer?.network);
+      if (!this.dead && duel === this.duel) await duel.run(core, bundle, d.debug, d.debug ? 0 : first ?? undefined, d.multiplayer?.network ?? d.spectate?.network);
     })().catch((error: unknown) => {
       if (this.dead || this.ended || duel !== this.duel) return;
       if (d.multiplayer) void d.multiplayer.session.leave();
@@ -1105,14 +1134,15 @@ export class DuelScene extends Phaser.Scene {
     this.lpPlate[s] = this.add.graphics().lineStyle(1.5, COL.gold, 1).strokePoints(chamfer(PLATE.x + 0.5, y + 0.5, PLATE.w - 1, PLATE.h - 1, 8), true).setAlpha(0);
     // portrait well
     const px = PLATE.x + 34, py = y + PLATE.h / 2;
-    if (this.init0.multiplayer) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
+    // online duels, played or spectated, show each player's lobby avatar and flag
+    const people = this.init0.multiplayer ? { looks: this.init0.multiplayer.looks, names: [this.init0.multiplayer.name, this.init0.multiplayer.opponent] }
+      : this.init0.spectate ? { looks: this.init0.spectate.setup.looks, names: this.init0.spectate.setup.names } : undefined;
+    if (people) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
     else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     const watched = s === this.me ? this.init0.watch : undefined;
-    const online = this.init0.multiplayer;
-    if (online) {
-      // online duels show each player's lobby avatar and flag
-      const look = online.looks[s === this.me ? 0 : 1];
-      this.plateLook(px, py, avatarFor(look.avatar, s === this.me ? online.name : online.opponent), look.country);
+    if (people) {
+      const index = s === this.me ? 0 : 1, look = people.looks[index];
+      this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country);
     } else if (s === this.me && !watched) {
       // your side shows the art of your deck's strongest monster
       const deck = this.init0.deck;
@@ -1133,7 +1163,7 @@ export class DuelScene extends Phaser.Scene {
       }
       else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
     }
-    if (!this.init0.multiplayer) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
+    if (!people) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
     const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? t('You') : this.init0.opp.name),
       { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
     if (this.init0.multiplayer) {
@@ -1219,6 +1249,8 @@ export class DuelScene extends Phaser.Scene {
 
   private canSee(c: Card) {
     if (c.zone === 'gy') return true;
+    // a spectator sees both players' cards, all but the Decks
+    if (this.init0.spectate) return c.zone !== 'deck';
     if (c.zone === 'banished') return c.faceUp;
     if (this.duel.onField(c)) return c.faceUp || c.ctrl === this.me;
     if (c.zone === 'hand') return c.owner === this.me || this.duel.handRevealed(c.owner);
@@ -1284,9 +1316,10 @@ export class DuelScene extends Phaser.Scene {
         const x = CX + k * sp;
         // straight row, no fan; the opponent's hand is turned to face them
         const y = mine ? Y.myHand - (hov ? 42 : 0) : Y.oppHand;
-        const angle = mine ? 0 : 180;
+        // a spectator reads both hands, so neither is turned away
+        const angle = mine || this.init0.spectate ? 0 : 180;
         const sc = mine ? HAND_SCALE * (hov ? 1.12 : 1) : opponentScale;
-        this.place(c, x, y, angle, sc, mine || d.handRevealed(s), (hov ? 290 : 200) + i, dur);
+        this.place(c, x, y, angle, sc, mine || d.handRevealed(s) || !!this.init0.spectate, (hov ? 290 : 200) + i, dur);
       });
       P.m.forEach((c, i) => {
         if (!c) return;
@@ -2251,6 +2284,11 @@ export class DuelScene extends Phaser.Scene {
   // ================================================================== duel events & animation
   private async onDuelEvent(e: UIEvent): Promise<void> {
     if (this.dead) return;
+    // a spectator who joined mid-duel replays what they missed at once, then watches at normal speed
+    if (this.init0.spectate && this.init0.spectate.network.backlog > 2 && e.t !== 'end') {
+      if (e.t !== 'log') this.layout(true);
+      return;
+    }
     const s = this.spd;
     switch (e.t) {
       case 'log':
@@ -3006,6 +3044,8 @@ export class DuelScene extends Phaser.Scene {
       ? [[t('Rematch'), () => void online.requestRematch(), true],
         [t('Back to lobby'), () => void go('Multiplayer', { rejoin: true }), false],
         [t('Home'), () => void go('Title'), false]]
+      // a spectator stays in the watch room: a rematch between the players shows here on its own
+      : this.init0.spectate ? [[t('Back to lobby'), () => void go('Multiplayer', { rejoin: true }), true], [t('Home'), () => void go('Title'), false]]
       : [[t('Rematch'), () => this.scene.restart(this.init0), true], [t('Home'), () => void go('Title'), false]];
     const rowY = (index: number) => portrait ? (online ? 466 : 446) + index * 62 : 470; // online: room for the rematch note
     const logY = portrait ? rowY(actions.length - 1) + 64 : 528;

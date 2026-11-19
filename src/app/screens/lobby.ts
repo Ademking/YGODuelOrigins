@@ -1,7 +1,8 @@
 import { icon } from '../icons';
 import { loadDecks, selectedDeck, setSelectedDeck, validateDeck } from '../../data/decks';
 import { cleanName, newCode, parseCode, inviteURL } from '../../multiplayer/protocol';
-import { Lobby, PrivateRoom } from '../../multiplayer/client';
+import { Lobby, PrivateRoom, watchDuel } from '../../multiplayer/client';
+import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
 import { go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
@@ -293,6 +294,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         room.onChange = renderRoom;
         room.onStart = match => {
           transferred = true;
+          // the lobby shows this duel to others, who can watch it
+          lobby?.setBusy(true, match.watchCode ? { code: match.watchCode, vs: match.opponent } : undefined);
           void go('Duel', {
             deck: match.deck, deckName: select.value,
             opp: { id: 'online', name: match.opponent, title: t('Online opponent'), art: '', ace: '', style: '', deck: match.opponentDeck, suggested: 'normal' },
@@ -303,6 +306,24 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         status(against ? t('Challenge with {player}.', { player: against }) : t('In a private room.'));
       } catch (e) { error(e); }
       finally { connecting = false; }
+    };
+    /** Watch a duel from the lobby: the duel screen opens once its host sends the duel (spectate.ts). */
+    const spectate = async (code: string, player: string) => {
+      if (!lobby || session || connecting) return;
+      connecting = true; renderRoster();
+      status(t("Joining {player}'s duel as a spectator…", { player }));
+      try {
+        const viewer = await watchDuel(code);
+        if (!alive) { viewer.close(); return; }
+        viewer.onError = (message) => { viewer.close(); if (alive) notice(message); };
+        viewer.onSetup = (setup, network) => {
+          viewer.onError = () => {};
+          transferred = true;
+          lobby?.setBusy(true);
+          void go('Duel', spectateInit(viewer, setup, network, lobby));
+        };
+      } catch (e) { error(e); }
+      finally { connecting = false; if (alive) renderRoster(); }
     };
     /** Dismissable card above the player list, mirrored in the status line. */
     const notice = (text: string) => {
@@ -329,7 +350,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         const card = el('article', '', 'group/d grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-x-3 border border-white/[.08] bg-[linear-gradient(90deg,#241c3a,#18122a)] p-2 pr-2.5 transition hover:border-brass/50' + (profile.busy ? ' busy' : ''));
         const who = el('div', '', 'min-w-0');
         who.append(el('b', profile.name, 'block truncate font-semibold'),
-          el('small', profile.busy ? t('In a duel') : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
+          el('small', profile.busy ? (profile.vs ? t('In a duel with {player}', { player: profile.vs }) : t('In a duel')) : t('Available'), 'flex items-center gap-1.5 text-xs text-dim before:size-1.5 before:rounded-full before:bg-ok group-[.busy]/d:text-brass-txt group-[.busy]/d:before:bg-brass'));
         card.append(portrait(avatarFor(profile.avatar, profile.name), profile.country, `${profile.name}'s avatar`, true), who);
         if (!profile.busy) {
           const challenge = btn(t('Challenge'), 'small primary');
@@ -352,6 +373,12 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
             outgoingInvite = false; renderRoster();
           };
           card.append(challenge);
+        } else if (profile.watch) {
+          const watch = btn(t('Watch'), 'small');
+          watch.insertAdjacentHTML('afterbegin', icon('eye', 'size-4'));
+          watch.disabled = !!session || connecting;
+          watch.onclick = () => void spectate(profile.watch!, profile.name);
+          card.append(watch);
         }
         grid.append(card);
       }

@@ -33,6 +33,8 @@ export class Lockstep implements DuelNetwork {
   private waiter?: { seq: number; resolve: (packet: DecisionPacket) => void; reject: (error: Error) => void };
   private failure?: Error;
   readonly clock: DuelClock;
+  /** Every decision once applied, both players', in order: the host forwards them to spectators (spectate.ts). */
+  onDecision?: (packet: DecisionPacket) => void;
   /** `timeout` caps how long to wait for one remote decision; by default the opponent's clock plus a grace period decides. */
   constructor(public seed: DuelNetwork['seed'], private send: (packet: DecisionPacket) => Promise<void>, private timeout = Infinity, clockMs = CLOCK_MS) {
     this.clock = new DuelClock(clockMs);
@@ -67,8 +69,10 @@ export class Lockstep implements DuelNetwork {
       this.clock.start(0);
       const response = await answer().finally(() => this.clock.stop());
       if (this.failure) throw this.failure;
-      await this.send({ seq, prompt, response: response ?? null });
+      const packet = { seq, prompt, response: response ?? null };
+      await this.send(packet);
       this.seq++;
+      this.onDecision?.(packet);
       return response;
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -82,6 +86,7 @@ export class Lockstep implements DuelNetwork {
     if (packet.prompt !== prompt) { this.abort(t('The duel went out of sync. Both players must use the same game version.'), true); throw this.failure; }
     this.queued.delete(seq);
     this.seq++;
+    this.onDecision?.(packet);
     return packet.response ?? undefined;
   }
 }
