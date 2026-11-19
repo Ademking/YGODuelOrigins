@@ -16,18 +16,24 @@ const LEVELS = ['Any', '1-4', '5-6', '7+'];
 const MTYPES = ['Any', 'Normal', 'Effect', 'Ritual', 'Fusion'];
 const SORTS = ['Name', 'ATK', 'DEF', 'Level', 'Type'];
 const KIND_ORDER = { monster: 0, spell: 1, trap: 2 };
+/** Heavy condensed digits drawn as shapes, so the badge looks the same with any font: [path, width], 10.6 high. */
+const LIMIT_DIGITS: Record<number, [string, number]> = {
+  1: ['M2.1 0H5.4V10.6H2.1V3.9H0.3V2C1.3 1.7 1.9 1 2.1 0Z', 5.4],
+  2: ['M0.3 3.7C0.3 1.2 1.6 0 3.25 0C5 0 6.2 1.1 6.2 3C6.2 4.6 5.5 5.6 4.5 6.9L3.3 8.45H6.2V10.6H0.1V8.95L2.7 5.6C3.2 4.9 3.4 4.25 3.4 3.4C3.4 2.65 3.3 2.25 3.2 2.25C3.05 2.25 3 2.75 3 3.7Z', 6.3],
+};
 /**
- * The banlist mark on a card's top-right corner, as on the cards: a red no-entry sign for Forbidden, a yellow 1 or 2
- * for Limited and Semi-Limited. Nothing for cards allowed at 3.
+ * The banlist mark on a card's top-right corner: a black disc in a thick red ring, with a red bar for Forbidden or a
+ * yellow 1 or 2 for Limited and Semi-Limited. Nothing for cards allowed at 3.
  */
 function limitBadge(limit: number) {
   if (limit >= 3) return '';
   const label = t(limit === 0 ? 'Forbidden' : limit === 1 ? 'Limited' : 'Semi-Limited');
-  const mark = limit === 0
-    ? '<circle cx="12" cy="12" r="6.6" fill="none" stroke="#e8242f" stroke-width="2.6"/><path d="M7.4 7.4 16.6 16.6" stroke="#e8242f" stroke-width="2.6"/>'
-    : `<text x="12" y="16.9" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="14.5" font-weight="900" fill="#ffd42a">${limit}</text>`;
+  const digit = LIMIT_DIGITS[limit];
+  const mark = digit
+    ? `<path d="${digit[0]}" transform="translate(${12 - digit[1] / 2} 6.35) scale(1 1.065)" fill="#ffd400"/>`
+    : '<path d="M5.9 5.9 18.1 18.1" stroke="#ff1010" stroke-width="2.35"/>';
   return `<span class="pointer-events-none absolute -top-[3%] -right-[5%] z-10 w-[34%] min-w-3.5 max-w-8 drop-shadow-[0_1px_2px_#000c]" role="img" aria-label="${esc(label)}" title="${esc(label)}">`
-    + `<svg viewBox="0 0 24 24" class="block w-full"><circle cx="12" cy="12" r="11" fill="#0b0b0f" stroke="#ffd42a" stroke-width="1.4"/>${mark}</svg></span>`;
+    + `<svg viewBox="0 0 24 24" class="block w-full"><circle cx="12" cy="12" r="11.5" fill="#050505"/><circle cx="12" cy="12" r="8.85" fill="none" stroke="#ff1010" stroke-width="2.35"/>${mark}</svg></span>`;
 }
 
 const RATIO = 86 / 59; // card height / width
