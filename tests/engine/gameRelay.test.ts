@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // @ts-expect-error plain JavaScript Worker module
 import { GameRelay, isGameEvent, matches } from '../../worker/relay.js';
 
-const lobbyEvent = (extra: object = {}) => ({ id: 'e1', pubkey: 'p1', sig: 's1', kind: 25050, created_at: 1000, content: '{}', tags: [['t', 'duelorigins-lobby-v1']], ...extra });
+const lobbyEvent = (extra: object = {}) => ({ id: 'e1', pubkey: 'p1', sig: 's1', kind: 25050, created_at: 1000, content: '{}', tags: [['t', 'duelorigins-lobby-v2']], ...extra });
 
 /** A socket with the Hibernation API's attachment methods; `sent` collects what the relay sends it. */
 function socket() {
@@ -24,13 +24,13 @@ test('the relay takes lobby and duel signaling events only', () => {
   assert.equal(isGameEvent(lobbyEvent({ kind: 24242, tags: [['x', 'a1b2']] })), true, 'Trystero signaling');
   assert.equal(isGameEvent(lobbyEvent({ kind: 1 })), false, 'not ephemeral');
   assert.equal(isGameEvent(lobbyEvent({ tags: [['t', 'bitcoin']] })), false, 'another app');
-  assert.equal(isGameEvent(lobbyEvent({ tags: [['t', 'duelorigins-lobby-v1', 7]] })), false, 'malformed tag');
+  assert.equal(isGameEvent(lobbyEvent({ tags: [['t', 'duelorigins-lobby-v2', 7]] })), false, 'malformed tag');
   assert.equal(isGameEvent(lobbyEvent({ sig: undefined })), false);
 });
 
 test('filters match on kinds and tags, whatever the time', () => {
   const event = lobbyEvent();
-  assert.equal(matches({ kinds: [25050], '#t': ['duelorigins-lobby-v1'], since: 990 }, event), true);
+  assert.equal(matches({ kinds: [25050], '#t': ['duelorigins-lobby-v2'], since: 990 }, event), true);
   assert.equal(matches({ kinds: [25051] }, event), false);
   assert.equal(matches({ '#t': ['other'] }, event), false);
   assert.equal(matches({ since: 1001, until: 10 }, event), true, 'times come from device clocks, which can be off');
@@ -40,8 +40,8 @@ test('filters match on kinds and tags, whatever the time', () => {
 test('an event reaches every matching subscription, and junk is refused', () => {
   const { join, say } = relay();
   const alice = join(), bob = join(), other = join();
-  say(alice, ['REQ', 'lobby', { kinds: [25050], '#t': ['duelorigins-lobby-v1'] }]);
-  say(bob, ['REQ', 'lobby', { kinds: [25050], '#t': ['duelorigins-lobby-v1'] }]);
+  say(alice, ['REQ', 'lobby', { kinds: [25050], '#t': ['duelorigins-lobby-v2'] }]);
+  say(bob, ['REQ', 'lobby', { kinds: [25050], '#t': ['duelorigins-lobby-v2'] }]);
   say(other, ['REQ', 'room', { kinds: [24242], '#x': ['room-topic'] }]);
   assert.deepEqual(alice.sent, [['EOSE', 'lobby']]);
   say(bob, ['EVENT', lobbyEvent()]);

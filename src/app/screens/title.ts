@@ -26,7 +26,7 @@ const changelog = (): [string, string[]][] => [
     t('Sign in with Discord: your online wins, losses and draws are counted, and the top duelists are on a leaderboard in the lobby.'),
     t('Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.'),
     t('Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.'),
-    t('Leaving an online duel loses it. Guests can still duel online; their duels are not counted.'),
+    t('Leaving an online duel loses it.'),
   ]],
   [t('Version {v}', { v: '1.4.4' }), [
     t('A new banlist for online duels: YGO Duel Origins - Custom GX v1.0. The starter decks follow it.'),
