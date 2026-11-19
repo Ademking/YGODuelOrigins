@@ -640,4 +640,5 @@ export const ID: Dictionary = {
   "Slifer Red": "Slifer Red",
   "Ra Yellow": "Ra Yellow",
   "Obelisk Blue": "Obelisk Blue",
+  "You can't duel your own account.": "Kamu tidak bisa duel melawan akunmu sendiri.",
 };

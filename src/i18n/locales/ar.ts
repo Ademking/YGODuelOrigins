@@ -640,4 +640,5 @@ export const AR: Dictionary = {
   "Slifer Red": "سلايفر الأحمر",
   "Ra Yellow": "راع الأصفر",
   "Obelisk Blue": "أوبليسك الأزرق",
+  "You can't duel your own account.": "لا يمكنك مبارزة حسابك نفسه.",
 };

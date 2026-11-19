@@ -640,4 +640,5 @@ export const DE: Dictionary = {
   "Slifer Red": "Slifer Red",
   "Ra Yellow": "Ra Yellow",
   "Obelisk Blue": "Obelisk Blue",
+  "You can't duel your own account.": "Du kannst nicht gegen dein eigenes Konto duellieren.",
 };

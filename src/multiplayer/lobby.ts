@@ -6,7 +6,7 @@ import { SimplePool } from 'nostr-tools/pool';
 import { finalizeEvent, generateSecretKey, getPublicKey, verifyEvent, type Event } from 'nostr-tools/pure';
 import * as nip44 from 'nostr-tools/nip44';
 import { cleanName, cleanChat } from './protocol';
-import { cleanCountry, cleanSeed, cleanTeam, type Look, type Team } from './profile';
+import { avatarAccount, cleanCountry, cleanSeed, cleanTeam, type Look, type Team } from './profile';
 import { t } from '../i18n';
 import { GAME_RELAY, type RelayStatus } from './relays';
 import { serverNow, syncClock } from './clock';
@@ -169,10 +169,17 @@ export class Lobby {
     if (m.type === 'presence') {
       const name = cleanName(m.name);
       if (!name || typeof m.busy !== 'boolean' || !this.allow(peer + ':presence', 2000)) return;
-      const known = this.peers.has(peer);
+      const avatar = cleanSeed(m.avatar), account = avatarAccount(avatar);
+      // your own account on another tab or device is not someone to duel
+      if (account && account === avatarAccount(this.look.avatar)) return;
+      // one entry per account: a newer session (re-entering the lobby, another device) replaces the older one quietly
+      let known = this.peers.has(peer);
+      for (const [other, p] of this.peers) {
+        if (other !== peer && account && avatarAccount(p.avatar) === account) { this.peers.delete(other); this.seen.delete(other); known = true; }
+      }
       if (!known && this.peers.size >= MAX_PEERS) return;
       const watch = m.busy && isWatchCode(m.watch) ? { watch: m.watch, vs: cleanName(m.vs) || undefined } : {};
-      this.peers.set(peer, { name, busy: m.busy, avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), team: cleanTeam(m.team), ...watch });
+      this.peers.set(peer, { name, busy: m.busy, avatar, country: cleanCountry(m.country), team: cleanTeam(m.team), ...watch });
       this.seen.set(peer, Date.now());
       if (!known) this.addChat({ name: '', text: `${name} joined`, system: true });
       else this.onChange();

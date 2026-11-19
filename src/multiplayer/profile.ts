@@ -26,6 +26,8 @@ export type Look = { avatar: string; country?: string; team?: Team };
 
 const AVATAR_PATH = 'ygopro.online/assets/profile/Avatars/';
 /** A Discord account's avatar id, for the Look. */
+/** The Discord account id in a `discord:` avatar, else undefined. */
+export const avatarAccount = (avatar: string | undefined) => (avatar && DISCORD_AVATAR.exec(avatar)?.[1]) || undefined;
 export const discordAvatar = (id: string, hash?: string | null) => `discord:${id}${hash ? ':' + hash : ''}`;
 export const avatarURL = (id: string) => {
   const discord = DISCORD_AVATAR.exec(id);
