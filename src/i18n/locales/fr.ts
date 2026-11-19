@@ -612,4 +612,6 @@ export const FR: Dictionary = {
   "Card rulings and bug fixes.": "Corrections de règles de cartes et de bugs.",
   "Your cards": "Vos cartes",
   "Your opponent's cards": "Cartes de votre adversaire",
+  "A new banlist for online duels: YGO Duel Origins - Custom GX v1.0. The starter decks follow it.": "Une nouvelle banlist pour les duels en ligne : YGO Duel Origins - Custom GX v1.0. Les decks de départ la respectent.",
+  "Duels play better on phones: card details behind a Details button, and a card picker for choosing from your Deck.": "Les duels fonctionnent mieux sur téléphone : les détails d'une carte derrière un bouton Détails, et un sélecteur de cartes pour choisir dans votre Deck.",
 };

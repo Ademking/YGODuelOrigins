@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.4 — 2026-11-19
+
+A new banlist for online duels, and fixes for duels on phones.
+
+### Banlist
+
+- Online duels follow the game's own list, **YGO Duel Origins - Custom GX v1.0**, instead of the GOAT (April 2005) list. The Deck Builder badges show it.
+- The starter decks follow the new list, with cards that suit each deck in place of the ones it limits. Starter decks you never edited are updated; decks you changed are left as they are.
+
+### Duels
+
+- Choosing cards from your Deck one at a time (Future Fusion's materials) uses the card picker instead of a list of buttons.
+- Fusion Summons that use materials sent earlier (Future Fusion) show them spiralling in.
+- Cards revealed from the top of a Deck (Cyber Jar) are shown to both players, and say whose cards they are.
+- Monsters with "?" ATK/DEF (Chimeratech Overdragon and others) no longer show their stats as lowered.
+
+### Phones
+
+- Tapping or long-pressing a card shows a Details button instead of opening its details straight away.
+- A card's details sheet no longer lets taps through to the duel underneath, which could open several sheets.
+
 ## 1.4.3 — 2026-11-19
 
 Deck import and export, a banlist for online duels, better play on phones, and fixes.

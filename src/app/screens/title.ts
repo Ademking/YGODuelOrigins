@@ -23,6 +23,10 @@ const about = (): [string, string][] => [
 
 const changelog = (): [string, string[]][] => [
   [t('Version {v}', { v: __APP_VERSION__ }), [
+    t('A new banlist for online duels: YGO Duel Origins - Custom GX v1.0. The starter decks follow it.'),
+    t('Duels play better on phones: card details behind a Details button, and a card picker for choosing from your Deck.'),
+  ]],
+  [t('Version {v}', { v: '1.4.3' }), [
     t('Import and export decks with deck codes, .ydk files and share links.'),
     t('Online duels follow the GOAT banlist, and the game plays better on phones.'),
     t('Card rulings and bug fixes.'),

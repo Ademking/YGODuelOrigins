@@ -612,4 +612,6 @@ export const ID: Dictionary = {
   "Card rulings and bug fixes.": "Perbaikan aturan kartu dan bug.",
   "Your cards": "Kartumu",
   "Your opponent's cards": "Kartu lawanmu",
+  "A new banlist for online duels: YGO Duel Origins - Custom GX v1.0. The starter decks follow it.": "Banlist baru untuk duel online: YGO Duel Origins - Custom GX v1.0. Deck pemula mengikutinya.",
+  "Duels play better on phones: card details behind a Details button, and a card picker for choosing from your Deck.": "Duel lebih nyaman di ponsel: detail kartu di balik tombol Detail, dan pemilih kartu untuk memilih dari Deck-mu.",
 };
