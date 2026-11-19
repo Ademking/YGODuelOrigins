@@ -42,6 +42,9 @@ import { godSummonShader } from '../ui/godSummonShader';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 
 /** `watch` makes it a CPU vs CPU duel to spectate: that duelist plays the near side with `deck`, and nothing is asked of the viewer. */
+/** Is an HTML dialog (card sheet, notice) open over the duel? */
+const htmlDialogOpen = () => !!document.querySelector('body > dialog[open]');
+
 export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; deckName: string; opp: Opponent; level: Difficulty; debug?: DebugSetup; watch?: Opponent; startingLP?: 4000 | 8000 }
 
 // ---- board geometry: a ground plane seen in true perspective (proportions fitted to the wireframe).
@@ -1181,6 +1184,7 @@ export class DuelScene extends Phaser.Scene {
         if (this.hoverAny === c || (c.zone === 'gy' && this.hoverAny?.zone === 'gy' && this.hoverAny.owner === c.owner)) this.hoverAny = null;
       });
       s.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+        if (htmlDialogOpen()) return;
         const shown = c.zone === 'gy' ? this.duel.players[c.owner].gy.slice(-1)[0] ?? c : c;
         if (ptr.wasTouch) this.hover(shown);
         // phones: a long press shows the card's details
@@ -1191,6 +1195,8 @@ export class DuelScene extends Phaser.Scene {
       s.on('pointerup', (ptr: Phaser.Input.Pointer) => {
         clearTimeout(this.pressTimer);
         if (this.longPressed) { this.longPressed = false; return; }
+        // a card sheet or notice over the duel takes the tap, not the card under it
+        if (htmlDialogOpen()) return;
         if (this.dragMoved) return;
         if (ptr.rightButtonReleased()) {
           if (this.targeting) this.cancelTargeting();
@@ -1535,7 +1541,7 @@ export class DuelScene extends Phaser.Scene {
   private clickCard(c: Card) {
     if (this.minimizedDialog) {
       if (c.zone === 'extra' || c.zone === 'gy' || c.zone === 'banished') this.openPile(c.owner, c.zone);
-      else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.cardSheet(c); }
+      else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.actionMenu(c, []); }
       return;
     }
     if (this.fieldSelection) {
@@ -1560,7 +1566,8 @@ export class DuelScene extends Phaser.Scene {
     const acts = this.actionsByCard.get(c.uid);
     if (acts?.length && this.pending?.p.t === 'main' && !this.dialog) return this.actionMenu(c, acts);
     if (['gy', 'banished'].includes(c.zone)) this.openPile(c.owner, c.zone);
-    else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.cardSheet(c); }
+    // phones: a tap offers Details rather than covering the duel with the card sheet
+    else if (this.canSee(c)) { this.hover(c); if (this.portrait) this.actionMenu(c, []); }
   }
 
   private label(a: Action): string {

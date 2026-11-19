@@ -69,5 +69,9 @@ export function showCardSheet(def: CardDef, info: PanelInfo = {}) {
   // the sheet scrolls as a whole: an inner scroller (overscroll-contain) would swallow every swipe on the text
   panel.el.querySelector('[data-text]')?.classList.remove('mp-scroll');
   panel.show(def, info);
-  sheet('', '', 'w-[min(420px,calc(100vw-24px))]').querySelector('.mt-4')!.append(panel.el);
+  // one card at a time: a new sheet replaces the open one
+  document.querySelectorAll<HTMLDialogElement>('dialog[data-card-sheet]').forEach((open) => open.close());
+  const dialog = sheet('', '', 'w-[min(420px,calc(100vw-24px))]');
+  dialog.dataset.cardSheet = '';
+  dialog.querySelector('.mt-4')!.append(panel.el);
 }

@@ -95,7 +95,7 @@ export function modal(o: { title: string; text?: string; input?: string; ok: str
     const cancel = dialog.querySelector<HTMLButtonElement>('button[value=cancel]');
     if (cancel) cancel.onclick = () => { result = false; dialog.close(); };
     dialog.addEventListener('close', () => { dialog.remove(); resolve(result); });
-    document.body.append(dialog);
+    document.body.append(shieldFromCanvas(dialog));
     dialog.showModal();
     input?.select();
   });
@@ -117,7 +117,7 @@ export function chooseFromList(title: string, options: readonly string[], select
       if (pick) { result = Number(pick.dataset.i); dialog.close(); } else if (target.closest('[data-close]') || target === dialog) dialog.close();
     };
     dialog.addEventListener('close', () => { dialog.remove(); resolve(result); });
-    document.body.append(dialog);
+    document.body.append(shieldFromCanvas(dialog));
     dialog.showModal();
     dialog.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' });
   });
@@ -134,7 +134,7 @@ export function sheet(title: string, body: string, width = 'w-[min(640px,calc(10
     if (target === dialog || target.closest('[data-close]')) dialog.close();
   });
   dialog.addEventListener('close', () => dialog.remove());
-  document.body.append(dialog);
+  document.body.append(shieldFromCanvas(dialog));
   dialog.showModal();
   return dialog;
 }
