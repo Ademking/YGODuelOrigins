@@ -90,6 +90,13 @@ export class OcgDuel {
   private destroyed = new Set<number>();
   /** Cards just used as summon materials, shown spiralling into the next Fusion Summon. */
   private materials: Card[] = [];
+  /** The chain link resolving now, while it resolves. */
+  private solving?: Card;
+  /**
+   * Cards an effect sent from the Deck to the Graveyard, by the uid of the card whose effect it was: Future Fusion
+   * sends its materials turns before it Fusion Summons, and the summon spirals them in all the same.
+   */
+  private delayedMaterials = new Map<number, Card[]>();
   /** The side that just summoned a monster, until play moves on: the CPU answers summons with its traps. */
   private lastSummon: Side | null = null;
   /** Chain windows already shown to the human this turn, so Smart chain prompts ask once per moment. */
@@ -248,6 +255,13 @@ export class OcgDuel {
         // materials leave the hand or field for the Graveyard, banishment or the deck
         const reason = from && to && from !== to && (this.onField(card) || ['gy', 'banished', 'deck', 'extra'].includes(to)) ? this.session?.moveReason(message.to, message.card) ?? 0 : 0;
         if (reason & REASON_MATERIAL) this.materials.push(card);
+        else if (this.solving && from === 'deck' && to === 'gy' && this.solving !== card) {
+          // a snapshot: the Graveyard's card objects can be reused for other cards later
+          const sent = this.delayedMaterials.get(this.solving.uid) ?? [];
+          sent.push({ ...card, def: this.definition(message.card) });
+          this.delayedMaterials.set(this.solving.uid, sent);
+        }
+        if (this.onField(card) && from !== to) this.delayedMaterials.delete(card.uid);
         if (this.onField(card) && (battleDestroyed || (reason & REASON_DESTROY))) {
           await this.emit({ t: 'destroy', card, by: battleDestroyed || (reason & REASON_BATTLE) ? 'battle' : 'effect' });
         }
@@ -289,7 +303,11 @@ export class OcgDuel {
           this.lastSummon = card.ctrl;
           this.summons++;
           if (how === 'ritual') await this.emit({ t: 'ritual', card });
-          if (how === 'fusion') await this.emit({ t: 'fusion', card, materials: this.materials });
+          if (how === 'fusion') {
+            const delayed = !this.materials.length && this.solving ? this.delayedMaterials.get(this.solving.uid) : undefined;
+            if (delayed) this.delayedMaterials.delete(this.solving!.uid);
+            await this.emit({ t: 'fusion', card, materials: delayed ?? this.materials });
+          }
           this.materials = [];
           event = { t: 'summon', card, how };
         }
@@ -304,12 +322,14 @@ export class OcgDuel {
         event = { t: 'activate', card, link, player: this.side(message.controller) };
         break;
       }
+      case M.CHAIN_SOLVING: this.solving = this.chain.get(message.chain_size); break;
       case M.CHAIN_SOLVED: case M.CHAIN_NEGATED: {
+        this.solving = undefined;
         const card = this.chain.get(message.chain_size);
         if (card) event = { t: 'resolve', card, link: message.chain_size, negated: message.type === M.CHAIN_NEGATED };
         break;
       }
-      case M.CHAIN_END: this.chain.clear(); break;
+      case M.CHAIN_END: this.chain.clear(); this.solving = undefined; break;
       case M.BATTLE:
         for (const combatant of [message.card, message.target]) {
           if (combatant?.destroyed) {
@@ -781,6 +801,20 @@ export class OcgDuel {
           finish: message.can_finish, cancel: message.can_cancel && !message.can_finish });
         if (picked === SURRENDER) return;
         return { type: R.SELECT_UNSELECT_CARD, index: picked === null ? null : cards.indexOf((picked as Card[])[0]) };
+      }
+      // cards in the Deck, hand or Graveyard (Future Fusion's materials): the card picker, one card a tap, with the
+      // cards chosen so far listed first and marked, and Confirm once enough are chosen
+      const locations = [...message.select_cards, ...message.unselect_cards];
+      if (locations.length) {
+        const offered = locations.map(loc => this.card(this.side(loc.controller), zoneOf(loc) ?? 'hand', this.definition(loc.code)));
+        const marked = offered.slice(message.select_cards.length);
+        try {
+          const picked = await ask({ t: 'select', text: prompt.title, cards: [...marked, ...offered.slice(0, message.select_cards.length)],
+            min: 1, max: 1, purpose: 'good', showCardFaces: true, marked,
+            finish: message.can_finish, cancel: message.can_cancel && !message.can_finish });
+          if (picked === SURRENDER) return;
+          return { type: R.SELECT_UNSELECT_CARD, index: picked === null ? null : offered.indexOf((picked as Card[])[0]) };
+        } finally { for (const card of offered) this.ids.delete(card.uid); }
       }
     }
     if (message.type === M.SELECT_POSITION && prompt.choices.every(c => c.response.type === R.SELECT_POSITION && (c.response.position === 1 || c.response.position === 4))) {

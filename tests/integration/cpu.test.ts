@@ -53,21 +53,26 @@ test('Ring of Destruction works on your own turn and hits both players (2004 tex
 test('Future Fusion sends the materials when it resolves and summons on your 2nd Standby Phase (original text)', async () => {
   const sent: [number, string][] = [];
   const summoned: [number, string][] = [];
+  const spiralled: string[] = [];
   await duel({
     setup: { traps: [id('Future Fusion')], extra: [id('Blue-Eyes Ultimate Dragon')] }, cpuDeck: 'Battle Ox', turns: 5,
     you: (prompt, d) => {
-      if (prompt.t === 'option') return 0; // pick the first Blue-Eyes as each material
+      // the materials: one card a tap, then Confirm once the core allows it
+      if (prompt.t === 'select' && prompt.marked) return prompt.finish ? null : [prompt.cards.find(card => !prompt.marked!.includes(card))];
       if (d.turn === 1 && prompt.t === 'main') return prompt.actions.find(action => action.a === 'act' && action.card.def.name === 'Future Fusion');
     },
     onEvent: (event, d) => {
       if (event.t === 'move' && event.from === 'deck' && event.to === 'gy') sent.push([d.turn, event.card.def.name]);
       if (event.t === 'summon' && event.card.def.name === 'Blue-Eyes Ultimate Dragon') summoned.push([d.turn, event.how]);
+      if (event.t === 'fusion') spiralled.push(...event.materials.map(card => card.def.name));
     },
     done: () => summoned.length > 0,
   });
   // activated on turn 1: the three Blue-Eyes leave the Deck at once; your 2nd Standby Phase after that is turn 5
   assert.deepEqual(sent, Array(3).fill([1, 'Blue-Eyes White Dragon']));
   assert.deepEqual(summoned, [[5, 'fusion']]);
+  // the summon animation spirals in the materials sent on turn 1
+  assert.deepEqual(spiralled, Array(3).fill('Blue-Eyes White Dragon'));
 });
 
 test('The CPU springs Sakuretsu Armor on your attack', async () => {

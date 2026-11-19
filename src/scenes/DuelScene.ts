@@ -189,6 +189,8 @@ export class DuelScene extends Phaser.Scene {
   private actionsByCard = new Map<number, Action[]>();
   private targeting: { card: Card; acts: Action[] } | null = null;
   private fieldSelection: { prompt: Extract<Prompt, { t: 'select' }>; chosen: Set<Card>; layer: Phaser.GameObjects.Container; confirm: Button | null } | null = null;
+  /** The page a pick-one-at-a-time card prompt was on, so it reopens there after each tap. */
+  private markedSelectPage: { text: string; page: number } | undefined;
   private overlay: Phaser.GameObjects.Container | null = null;
   private dialog: Phaser.GameObjects.Container | null = null;
   private logLayer: Phaser.GameObjects.Container | null = null;
@@ -1921,11 +1923,14 @@ export class DuelScene extends Phaser.Scene {
     layer.add(info);
     const chosen = new Set<Card>();
     const single = p.min === 1 && p.max === 1 && !p.validate;
-    const ok = button(this, CX, y0 + h - (tall ? 80 : 30), 200, 38, p.reveal ? t('Continue') : t('Confirm'), () => this.choose([...chosen]), { primary: true });
+    // a pick-one-at-a-time prompt finishes with Confirm once the core allows it
+    const ok = button(this, CX, y0 + h - (tall ? 80 : 30), 200, 38, p.reveal ? t('Continue') : t('Confirm'),
+      () => { if (single && p.finish) { this.markedSelectPage = undefined; this.choose(null); } else this.choose([...chosen]); }, { primary: true });
     const grid = this.add.container(0, 0);
     layer.add([grid, ok]);
-    let page = 0;
     const pages = Math.ceil(p.cards.length / perPage);
+    // a pick-one-at-a-time prompt (Future Fusion's materials) comes back after each tap: stay on the same page
+    let page = p.marked && this.markedSelectPage?.text === p.text ? Math.min(this.markedSelectPage.page, pages - 1) : 0;
     const valid = () => chosen.size >= p.min && chosen.size <= p.max && (!p.validate || p.validate([...chosen]));
     const render = () => {
       grid.removeAll(true);
@@ -1936,11 +1941,12 @@ export class DuelScene extends Phaser.Scene {
         const vis = !!p.reveal || !!p.showCardFaces || this.canSee(c) || (c.owner === this.me && !this.duel.onField(c));
         const img = this.add.image(x, y, vis ? faceKey(this.textures, c.def.id) : BACK).setScale(0.42 * CARD_K).setInteractive({ useHandCursor: true });
         if (vis) setCardTexture(img, c.def.id);
-        const sel = chosen.has(c);
+        const sel = chosen.has(c) || !!p.marked?.includes(c);
         const mark = sel ? htxt(this, x, y + 74, '✓', 16, COL.goldTxt).setOrigin(0.5) : null;
         img.on('pointerover', () => this.cardPanel.show(c.def, { hidden: !vis }));
+        if (p.marked?.includes(c)) img.setTint(0xb8ffd8);
         img.on('pointerup', () => {
-          if (single) return this.choose([c]);
+          if (single) { this.markedSelectPage = p.marked ? { text: p.text, page } : undefined; return this.choose([c]); }
           if (chosen.has(c)) chosen.delete(c);
           else if (chosen.size < p.max) chosen.add(c);
           render();
@@ -1954,7 +1960,7 @@ export class DuelScene extends Phaser.Scene {
       }
       if (pages > 1) grid.add(txt(this, CX, y0 + 258, `${page + 1} / ${pages}`, 12, COL.dim).setOrigin(0.5));
       info.setText(p.reveal ? t('Revealed cards') : single ? t(tall ? 'Tap one card to choose it.' : 'Click one card to choose it.') : t('Selected {n} (need {need})', { n: chosen.size, need: p.min === p.max ? p.min : `${p.min}–${p.max}` }));
-      ok.setVisible(!single).setEnabled(valid());
+      ok.setVisible(!single || !!p.finish).setEnabled(valid() || !!p.finish);
     };
     render();
     layer.add(button(this, x0 + w - 100, y0 + h - 30, 160, 35, t('Inspect field'), () => this.minimizePrompt(true), { size: 12 }));
