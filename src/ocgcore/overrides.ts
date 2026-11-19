@@ -42,6 +42,38 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 end
 `,
   },
+  // Errata: once per turn, and a delayed effect banishes 1 "Sinister Serpent" from the GY during the opponent's next
+  // End Phase (a Serpent back in the GY by then is banished, which looks random). 2004: it just returns to the hand.
+  8131171: {
+    text: 'During your Standby Phase, if this card is in your Graveyard, you can return it to your hand.',
+    script: `--Sinister Serpent (2004 text)
+local s,id=GetID()
+function s.initial_effect(c)
+	local e1=Effect.CreateEffect(c)
+	e1:SetDescription(aux.Stringid(id,0))
+	e1:SetCategory(CATEGORY_TOHAND)
+	e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+	e1:SetCode(EVENT_PHASE|PHASE_STANDBY)
+	e1:SetRange(LOCATION_GRAVE)
+	e1:SetCountLimit(1)
+	e1:SetCondition(function(_,tp) return Duel.IsTurnPlayer(tp) end)
+	e1:SetTarget(s.target)
+	e1:SetOperation(s.operation)
+	c:RegisterEffect(e1)
+end
+function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
+	local c=e:GetHandler()
+	if chk==0 then return c:IsAbleToHand() end
+	Duel.SetOperationInfo(0,CATEGORY_TOHAND,c,1,tp,0)
+end
+function s.operation(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	if c:IsRelateToEffect(e) then
+		Duel.SendtoHand(c,nil,REASON_EFFECT)
+	end
+end
+`,
+  },
   // Errata: nothing on activation; the materials go to the Graveyard on the 1st Standby Phase, the summon on the 2nd.
   // Original text: the materials go to the Graveyard when the card resolves, the summon comes on the 2nd Standby Phase.
   77565204: {

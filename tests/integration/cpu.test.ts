@@ -93,6 +93,30 @@ test('Cyber Jar shows you the top 5 cards of both Decks', async () => {
   assert.deepEqual(revealed.sort((a, b) => a[0][0] - b[0][0]), [Array(5).fill([0, 'Blue-Eyes White Dragon']), Array(5).fill([1, 'Battle Ox'])]);
 });
 
+test('Sinister Serpent returns to your hand every Standby Phase and is never banished (2004 text)', async () => {
+  const returned: number[] = [];
+  let banished = false;
+  await duel({
+    setup: { hand: [id('Sinister Serpent'), id('Card Destruction')] }, cpuDeck: 'Battle Ox', turns: 5,
+    you: (prompt, d) => {
+      // its Standby Phase trigger: yes
+      if (prompt.t === 'yesno') return true;
+      if (prompt.t !== 'main') return;
+      const act = (a: string, name: string) => prompt.actions.find(action => action.a === a && 'card' in action && action.card.def.name === name);
+      // turn 1: Card Destruction sends it to the Graveyard; turn 3: summon it, so the CPU destroys it on turn 4
+      return d.turn === 1 ? act('act', 'Card Destruction') : d.turn === 3 ? act('summon', 'Sinister Serpent') : undefined;
+    },
+    onEvent: (event, d) => {
+      if (event.t !== 'move' || event.card.def.name !== 'Sinister Serpent') return;
+      if (event.from === 'gy' && event.to === 'hand') returned.push(d.turn);
+      if (event.to === 'banished') banished = true;
+    },
+    done: () => returned.length >= 2,
+  });
+  assert.equal(banished, false);
+  assert.deepEqual(returned, [3, 5]);
+});
+
 test('The CPU springs Sakuretsu Armor on your attack', async () => {
   const destroyed: string[] = [];
   await duel({
