@@ -629,4 +629,7 @@ export const RU: Dictionary = {
   "{player} ran out of time.": "Время {player} вышло.",
   "{player} surrendered.": "{player} сдался.",
   "The players have not chatted yet.": "Игроки ещё не переписывались.",
+  "Sign in with Discord": "Войти через Discord",
+  "Sign out": "Выйти",
+  "{wins} W · {losses} L · {draws} D": "{wins} П · {losses} Пор · {draws} Н",
 };

@@ -629,4 +629,7 @@ export const ID: Dictionary = {
   "{player} ran out of time.": "Waktu {player} habis.",
   "{player} surrendered.": "{player} menyerah.",
   "The players have not chatted yet.": "Para pemain belum mengobrol.",
+  "Sign in with Discord": "Masuk dengan Discord",
+  "Sign out": "Keluar",
+  "{wins} W · {losses} L · {draws} D": "{wins} M · {losses} K · {draws} S",
 };

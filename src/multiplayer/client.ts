@@ -4,6 +4,7 @@ import { GAME_RELAY } from './relays';
 import type { DeckList } from '../engine/duel';
 import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode, newCode } from './protocol';
 import { cleanCountry, cleanSeed, type Look } from './profile';
+import { cleanAccount } from './account';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
 import { Spectator, WatchHost, isWatchCode } from './spectate';
 
@@ -12,9 +13,11 @@ import { t } from '../i18n';
 import { timeoutSignal } from '../timeoutSignal';
 /** The public lobby runs over Nostr (lobby.ts); private rooms and duels below stay peer to peer. */
 export { Lobby, type ChatLine, type PeerProfile } from './lobby';
-type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string };
+type Hello = { type: 'hello'; name: string; deck: DeckList; revision: string; host: boolean; ready: boolean; protocol: string; avatar?: string; country?: string; account?: string };
 /** `looks` is [yours, opponent's]; a missing avatar is picked from the player's name. */
-export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>]; watchCode?: string };
+export type Match = { name: string; opponent: string; deck: DeckList; opponentDeck: DeckList; first: 0 | 1; network: Lockstep; session: PrivateRoom; looks: [Partial<Look>, Partial<Look>]; watchCode?: string;
+  /** Both players' Discord account ids, when signed in: the duel's result is reported for stats (account.ts). */
+  account?: string; opponentAccount?: string };
 /**
  * Signaling relays: the game's own relay, plus the same five public relays Trystero picks by default for this app id
  * (so players on an older build still meet on them).
@@ -100,9 +103,9 @@ export class PrivateRoom {
       if (!this.opponent) { this.error = relay.length ? t('Still waiting for a connection. Check the code and keep both tabs open.') : t('Still waiting. Check the code and keep both tabs open, or press Try again.'); this.onChange(); }
     }, 30000);
   }
-  static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}) {
+  static async create(code: string, host: boolean, name: string, deck: DeckList, look: Partial<Look> = {}, account?: string) {
     const [revision, relay] = await Promise.all([engineRevision(), relayServers()]);
-    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look }, joinRoom, relay, joinRoom);
+    return new PrivateRoom(code, { type: 'hello', protocol: PROTOCOL, host, name, deck: structuredClone(deck), revision, ready: false, ...look, ...(account ? { account } : {}) }, joinRoom, relay, joinRoom);
   }
   get isHost() { return this.hello.host; }
   get isReady() { return this.ready; }
@@ -144,7 +147,7 @@ export class PrivateRoom {
       if (!validDeck(m.deck)) throw new Error(t("Your opponent's deck breaks the banlist, so it can't be used online."));
       const firstHello = !this.peer;
       this.peer = peer;
-      this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country) } as Hello;
+      this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), account: cleanAccount(m.account) } as Hello;
       this.error = '';
       clearTimeout(this.connectionTimer);
       if (firstHello) await this.send({ ...this.hello, ready: this.ready });
@@ -213,7 +216,8 @@ export class PrivateRoom {
         decks: [this.hello.deck, this.opponent.deck], first, seed: this.network.seed }, this.network);
     }
     this.onStart({ name: this.hello.name, opponent: this.opponent.name, deck: this.hello.deck,
-      opponentDeck: this.opponent.deck, first, network: this.network, session: this, looks, watchCode: this.watchCode });
+      opponentDeck: this.opponent.deck, first, network: this.network, session: this, looks, watchCode: this.watchCode,
+      account: this.hello.account, opponentAccount: this.opponent.account });
   }
   async setReady() {
     if (this.started || !this.opponent || this.ready) return;

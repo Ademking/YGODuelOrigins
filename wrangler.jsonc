@@ -9,5 +9,7 @@
   "previews": {},
   // the game's own Nostr relay at /relay: one Durable Object holds every connection (worker/relay.js)
   "durable_objects": { "bindings": [{ "name": "RELAY", "class_name": "GameRelay" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRelay"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRelay"] }],
+  // accounts (Discord login) and online stats: worker/accounts.js, tables in worker/schema.sql
+  "d1_databases": [{ "binding": "DB", "database_name": "ygoduelorigins", "database_id": "1652de15-76e0-4dde-942f-d6ab51d569a0" }]
 }

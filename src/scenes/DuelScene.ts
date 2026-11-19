@@ -20,6 +20,7 @@ import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
 import { avatarCanvasURL, avatarFor, flagCanvasURL } from '../multiplayer/profile';
+import { reportResult, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -216,6 +217,8 @@ export class DuelScene extends Phaser.Scene {
   private chainMode: 'auto' | 'always' = 'auto';
   private dead = false;
   private ended = false;
+  /** This online duel's result went to the stats server (once per duel). */
+  private reported = false;
   private hoverCard: Card | null = null;
   private minimizedDialog: Phaser.GameObjects.Container | null = null;
 
@@ -249,7 +252,7 @@ export class DuelScene extends Phaser.Scene {
     this.fieldSelection = null;
     this.overlay = this.dialog = this.logLayer = this.minimizedDialog = null;
     this.dragging = null;
-    this.dead = this.ended = false;
+    this.dead = this.ended = this.reported = false;
     this.revealingGod = null;
     this.revealedGods.clear();
     // full effects by default, phones included (they used to start on Reduced, so attacks showed only a flash);
@@ -2256,6 +2259,7 @@ export class DuelScene extends Phaser.Scene {
   /** Give up the duel. `leaving`: the player is quitting to the menus, so skip the result screen and its jingle. */
   private surrender(leaving = false) {
     if (this.ended) return;
+    this.reportOnline('loss');
     if (this.init0.multiplayer) void this.init0.multiplayer.session.forfeit();
     if (leaving) this.ended = true;
     this.duel.stop();
@@ -2378,6 +2382,7 @@ export class DuelScene extends Phaser.Scene {
         await wait(this, 400);
         if (e.reason === 'Exodia the Forbidden One' && e.winner !== -1) await this.exodiaFx(e.winner);
         if (this.dead) return;
+        if (e.winner === -1 && !e.reason.startsWith('Engine error')) this.reportOnline('draw');
         this.showEnd(e.winner, t(e.reason));
         return;
     }
@@ -3034,9 +3039,21 @@ export class DuelScene extends Phaser.Scene {
     this.layout();
   }
 
+  /**
+   * An online duel's result, for stats: both players report and the server counts it when they agree. Draws are
+   * reported only from the duel itself, not for a lost connection.
+   */
+  private reportOnline(result: Result) {
+    const m = this.init0.multiplayer;
+    if (this.reported || !m?.account || !m.opponentAccount) return;
+    this.reported = true;
+    void reportResult(m.network.seed, m.opponentAccount, result);
+  }
+
   private showEnd(winner: Side | -1, reason: string) {
     if (this.ended || this.dead) return;
     this.ended = true;
+    if (winner !== -1) this.reportOnline(winner === this.me ? 'win' : 'loss');
     this.closeDialog();
     this.closeMenu();
     this.actionsByCard.clear();

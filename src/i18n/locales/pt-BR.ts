@@ -629,4 +629,7 @@ export const PT_BR: Dictionary = {
   "{player} ran out of time.": "O tempo de {player} acabou.",
   "{player} surrendered.": "{player} desistiu.",
   "The players have not chatted yet.": "Os jogadores ainda não conversaram.",
+  "Sign in with Discord": "Entrar com Discord",
+  "Sign out": "Sair",
+  "{wins} W · {losses} L · {draws} D": "{wins} V · {losses} D · {draws} E",
 };

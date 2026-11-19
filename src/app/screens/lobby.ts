@@ -11,6 +11,7 @@ import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
 import { clockOffset } from '../../multiplayer/clock';
+import { loadAccount, signOut, type Account } from '../../multiplayer/account';
 
 /** Translate for HTML: the text is escaped. */
 const h = (text: string) => t(text).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
@@ -53,7 +54,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       <div class="grid min-h-0 flex-1 gap-4 sm:gap-5 max-lg:grid-rows-[minmax(0,1fr)] max-lg:[&>*:not(.on)]:hidden lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
-          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`)}
+          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div><div class="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1" id="mp-account"></div>`)}
           <section class="mp-panel flex-none">
             <h2>${icon('online', 'size-4 text-brass')}${h('Play a friend')}</h2>
             <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
@@ -164,6 +165,21 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!alive || !found) return;
       country = found; renderLooks(); lobby?.setLook({ country });
     });
+    /** Signed in with Discord: online duels count toward your wins, losses and draws (worker/accounts.js). */
+    let account: Account | null = null;
+    const renderAccount = () => {
+      if (account) {
+        const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
+        out.onclick = () => void signOut().then(() => { account = null; renderAccount(); });
+        q('account').replaceChildren(el('span', t('{wins} W · {losses} L · {draws} D', { wins: account.wins, losses: account.losses, draws: account.draws }), 'text-sm font-semibold text-ink tabular-nums'), out);
+      } else {
+        const login = el('a', '', 'mp-btn small !border-discord/60 !bg-[#24265e] no-underline'); login.href = '/auth/discord';
+        login.append(el('span', t('Sign in with Discord')));
+        q('account').replaceChildren(login);
+      }
+    };
+    renderAccount();
+    void loadAccount().then(found => { if (alive) { account = found; renderAccount(); } });
     const composer = chatComposer(text => void lobby?.say(text).catch(error), t('Message the lobby'));
     q('compose').replaceWith(composer.form);
     const codeInput = q<HTMLInputElement>('code');
@@ -287,7 +303,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (!decks[select.value]) { status(t('Build a valid deck in the Deck Editor first.')); return; }
       connecting = true; status(against ? t('Challenging {player}…', { player: against }) : t('Opening private room…'));
       try {
-        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country });
+        const room = await PrivateRoom.create(code, host, lobby.name, decks[select.value], { avatar: seed, country }, account?.id);
         if (!alive) { void room.leave(); return; }
         session = room; challengeWith = against;
         lobby.setBusy(true); select.disabled = true; setSelectedDeck(select.value);

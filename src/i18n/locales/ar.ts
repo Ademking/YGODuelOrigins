@@ -629,4 +629,7 @@ export const AR: Dictionary = {
   "{player} ran out of time.": "نفد وقت {player}.",
   "{player} surrendered.": "استسلم {player}.",
   "The players have not chatted yet.": "لم يتحدث اللاعبون بعد.",
+  "Sign in with Discord": "تسجيل الدخول عبر Discord",
+  "Sign out": "تسجيل الخروج",
+  "{wins} W · {losses} L · {draws} D": "{wins} فوز · {losses} خسارة · {draws} تعادل",
 };

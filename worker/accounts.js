@@ -1,0 +1,102 @@
+// Accounts and online stats, in D1 (tables: worker/schema.sql).
+// Sign-in is Discord OAuth (scope `identify`); the session is a signed cookie, so checking it reads no database row.
+// Secrets: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET (Discord developer portal → OAuth2) and SESSION_SECRET (any long
+// random string). Discord's redirect list needs https://<site>/auth/callback.
+//
+// Duels are peer to peer, so the server never sees one: each player reports its own result, and a duel counts only
+// when both players' reports name each other and agree. One player alone can't add a win, only withhold a result.
+
+const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
+const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
+const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/;
+const enc = new TextEncoder();
+
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64url = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0));
+const hmacKey = (secret) => crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+
+/** A session token: `<user id>.<expiry, unix seconds>.<HMAC of both>`. */
+export async function signSession(secret, id, now = Date.now()) {
+  const body = `${id}.${Math.floor(now / 1000) + MONTH_S}`;
+  return `${body}.${b64url(await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(body)))}`;
+}
+/** The user id in a valid, unexpired token, else null. */
+export async function readSession(secret, token, now = Date.now()) {
+  const [id, exp, sig] = String(token ?? '').split('.');
+  if (!secret || !USER.test(id ?? '') || !/^\d+$/.test(exp ?? '') || !sig || Number(exp) < now / 1000) return null;
+  try { return await crypto.subtle.verify('HMAC', await hmacKey(secret), unb64url(sig), enc.encode(`${id}.${exp}`)) ? id : null; }
+  catch { return null; }
+}
+
+const cookie = (request, name) => request.headers.get('Cookie')?.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))?.[1];
+const setCookie = (name, value, maxAge) => `${name}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
+function redirect(to, ...cookies) {
+  const headers = new Headers({ Location: to });
+  for (const c of cookies) headers.append('Set-Cookie', c);
+  return new Response(null, { status: 302, headers });
+}
+const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
+
+/**
+ * Record one player's report; when the opponent's matching report is already in, count the duel.
+ * Returns whether the duel was counted by this report.
+ */
+export async function report(db, me, { match, opponent, result }, now = Date.now()) {
+  if (!MATCH.test(match ?? '') || !USER.test(opponent ?? '') || opponent === me || !(result in OPPOSITE)) return null;
+  await db.prepare('INSERT OR IGNORE INTO reports (match, user, opponent, result, at) VALUES (?, ?, ?, ?, ?)').bind(match, me, opponent, result, now).run();
+  const theirs = await db.prepare('SELECT result FROM reports WHERE match = ? AND user = ? AND opponent = ?').bind(match, opponent, me).first();
+  if (theirs?.result !== OPPOSITE[result]) return false;
+  // the primary key on matches makes sure two reports arriving together count the duel once
+  const winner = result === 'draw' ? null : result === 'win' ? me : opponent;
+  const claim = await db.prepare('INSERT OR IGNORE INTO matches (id, a, b, winner, at) VALUES (?, ?, ?, ?, ?)').bind(match, me, opponent, winner, now).run();
+  if (!claim.meta.changes) return false;
+  const add = (id, r) => db.prepare('UPDATE users SET wins = wins + ?, losses = losses + ?, draws = draws + ? WHERE id = ?')
+    .bind(+(r === 'win'), +(r === 'loss'), +(r === 'draw'), id);
+  // ponytail: reports that never get a partner stay in the table; delete by `at` if it ever grows large
+  await db.batch([add(me, result), add(opponent, OPPOSITE[result]), db.prepare('DELETE FROM reports WHERE match = ?').bind(match)]);
+  return true;
+}
+
+/** /auth/* and /api/* routes; null for any other path. */
+export async function accounts(request, env, path) {
+  const url = new URL(request.url);
+  const callback = `${url.origin}/auth/callback`;
+  if (path === '/auth/discord') {
+    if (!env.DISCORD_CLIENT_ID) return new Response('Discord sign-in is not set up.', { status: 503 });
+    const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
+    const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, response_type: 'code', scope: 'identify', redirect_uri: callback, state });
+    return redirect(`https://discord.com/oauth2/authorize?${params}`, setCookie(STATE, state, 600));
+  }
+  if (path === '/auth/callback') {
+    const code = url.searchParams.get('code'), state = cookie(request, STATE);
+    if (!code || !state || state !== url.searchParams.get('state')) return redirect('/#lobby', setCookie(STATE, '', 0));
+    const token = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET, grant_type: 'authorization_code', code, redirect_uri: callback }),
+    }).then((r) => (r.ok ? r.json() : null), () => null);
+    const user = token?.access_token && await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` } })
+      .then((r) => (r.ok ? r.json() : null), () => null);
+    if (!user || !USER.test(String(user.id))) return redirect('/#lobby', setCookie(STATE, '', 0));
+    const name = String(user.global_name || user.username || 'Duelist').slice(0, 32);
+    await env.DB.prepare('INSERT INTO users (id, name, created_at) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET name = excluded.name')
+      .bind(String(user.id), name, Date.now()).run();
+    return redirect('/#lobby', setCookie(STATE, '', 0), setCookie(SESSION, await signSession(env.SESSION_SECRET, String(user.id)), MONTH_S));
+  }
+  if (path === '/auth/logout' && request.method === 'POST') {
+    return new Response(null, { status: 204, headers: { 'Set-Cookie': setCookie(SESSION, '', 0) } });
+  }
+  if (path === '/api/me' || path === '/api/result') {
+    const me = await readSession(env.SESSION_SECRET, cookie(request, SESSION));
+    if (!me) return json({ error: 'signed out' }, 401);
+    if (path === '/api/me') {
+      const user = await env.DB.prepare('SELECT id, name, wins, losses, draws FROM users WHERE id = ?').bind(me).first();
+      return user ? json(user) : json({ error: 'signed out' }, 401);
+    }
+    // a JSON body: a form on another site can't send one with the cookie without the browser asking this site first
+    if (request.method !== 'POST' || !request.headers.get('Content-Type')?.startsWith('application/json')) return json({ error: 'bad request' }, 400);
+    const counted = await report(env.DB, me, (await request.json().catch(() => null)) || {});
+    return counted === null ? json({ error: 'bad report' }, 400) : json({ counted });
+  }
+  return null;
+}

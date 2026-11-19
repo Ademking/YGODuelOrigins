@@ -2,8 +2,9 @@
 // /turn with short-lived TURN relay logins so online duels connect on networks that block direct WebRTC.
 // Secrets (Settings → Variables and secrets): TURN_KEY_ID and TURN_KEY_API_TOKEN from Realtime → TURN.
 // /relay is the game's own Nostr relay (relay.js) for the lobby and duel signaling, for networks that block the
-// public relays.
+// public relays. /auth/* and /api/* are Discord sign-in and online stats (accounts.js).
 import { GameRelay } from './relay.js';
+import { accounts } from './accounts.js';
 
 export { GameRelay };
 
@@ -11,6 +12,7 @@ export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path === '/relay') return env.RELAY.get(env.RELAY.idFromName('relay')).fetch(request);
+    if (path.startsWith('/auth/') || path.startsWith('/api/')) return (await accounts(request, env, path)) ?? new Response('Not found', { status: 404 });
     if (path !== '/turn') return env.ASSETS.fetch(request);
     if (!env.TURN_KEY_ID || !env.TURN_KEY_API_TOKEN) return Response.json([]);
     const response = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
