@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS reports (
   user TEXT NOT NULL,
   opponent TEXT NOT NULL,
   result TEXT NOT NULL,           -- win | loss | draw, from the reporter's side
+  lp INTEGER,                     -- the reporter's LP when the duel ended, and the opponent's: settles two claimed wins
+  opp_lp INTEGER,
   at INTEGER NOT NULL,
   PRIMARY KEY (match, user)
 );
