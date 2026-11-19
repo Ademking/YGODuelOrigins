@@ -24,7 +24,7 @@ export type PeerProfile = { name: string; busy: boolean; avatar?: string; countr
 export const LOBBY_RELAYS = [GAME_RELAY, 'wss://relay.primal.net', 'wss://relay.nostr.net', 'wss://relay.snort.social', 'wss://offchain.pub'];
 /** Ephemeral kind (20000-29999): relays forward these to subscribers and do not store them. */
 export const LOBBY_KIND = 25050;
-export const LOBBY_TAG = 'duelorigins-lobby-v1';
+export const LOBBY_TAG = 'duelorigins-lobby-v2';
 // ponytail: 60 s heartbeat keeps relay traffic low; a tab that dies without its "leave" lingers up to 150 s
 const HEARTBEAT_MS = 60000, EXPIRE_MS = 150000, MAX_AGE_S = 120, MAX_PEERS = 1000;
 const CODE = /^[A-HJ-NP-Z2-9]{12}$/;

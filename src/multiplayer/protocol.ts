@@ -2,7 +2,7 @@ import { CARD_MAP } from '../ocgcore/catalog';
 import { validateDeck } from '../data/decks';
 import type { DeckList } from '../engine/duel';
 
-export const PROTOCOL = 'duel-origins-p2p-1';
+export const PROTOCOL = 'duel-origins-p2p-2';
 export const APP_ID = 'duelorigins.online/multiplayer-v1';
 export const cleanName = (value: unknown) => typeof value === 'string'
   ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 16) : '';
