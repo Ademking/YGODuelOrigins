@@ -19,8 +19,8 @@ import { num, t } from '../i18n';
 import { cardName } from '../i18n/cards';
 import type { DuelClock } from '../multiplayer/lockstep';
 import { spectateInit, watchEndText, type Spectator, type SpectatorNetwork, type WatchSetup } from '../multiplayer/spectate';
-import { avatarCanvasURL, avatarFor, flagCanvasURL, TEAMS, type Team } from '../multiplayer/profile';
-import { reportResult, type Result } from '../multiplayer/account';
+import { avatarCanvasURL, avatarFor, discordAvatar, flagCanvasURL, TEAMS, type Team } from '../multiplayer/profile';
+import { reportResult, signedIn, type Result } from '../multiplayer/account';
 import { loadCards, setCardTexture } from '../ui/cardLoader';
 import { CardPanel } from '../ui/CardPanel';
 import { cardStat } from '../ui/cardStat';
@@ -1148,12 +1148,17 @@ export class DuelScene extends Phaser.Scene {
     // online duels, played or spectated, show each player's lobby avatar and flag
     const people = this.init0.multiplayer ? { looks: this.init0.multiplayer.looks, names: [this.init0.multiplayer.name, this.init0.multiplayer.opponent] }
       : this.init0.spectate ? { looks: this.init0.spectate.setup.looks, names: this.init0.spectate.setup.names } : undefined;
-    if (people) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
-    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     const watched = s === this.me ? this.init0.watch : undefined;
+    // signed in with Discord: your own plate shows your Discord picture, name, dorm and online record in every duel
+    const account = s === this.me && !watched ? signedIn() : null;
+    const framed = people || account;
+    if (framed) g.fillStyle(0x1a1633, 1).fillRect(px - 24, py - 24, 48, 48);
+    else g.fillGradientStyle(0x2a2250, 0x2a2250, 0x0c0a18, 0x0c0a18, 1).fillRect(px - 26, py - 26, 52, 52);
     if (people) {
       const index = s === this.me ? 0 : 1, look = people.looks[index];
       this.plateLook(px, py, avatarFor(look.avatar, people.names[index]), look.country, look.team);
+    } else if (account) {
+      this.plateLook(px, py, discordAvatar(account.id, account.avatar), undefined, account.team ?? undefined);
     } else if (s === this.me && !watched) {
       // your side shows the art of your deck's strongest monster
       const deck = this.init0.deck;
@@ -1174,8 +1179,8 @@ export class DuelScene extends Phaser.Scene {
       }
       else this.add.text(px, py, duelist.art || duelist.name.slice(0, 1).toUpperCase(), { fontSize: '22px' }).setOrigin(0.5);
     }
-    if (!people) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
-    const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? t('You') : this.init0.opp.name),
+    if (!framed) this.add.graphics().lineStyle(1, COL.gold, 0.7).strokeRect(px - 26, py - 26, 52, 52);
+    const name = this.add.text(PLATE.lpX, y + 7, (s === this.me ? this.init0.multiplayer?.name ?? watched?.name ?? account?.name ?? t('You') : this.init0.opp.name),
       { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.text });
     if (this.init0.multiplayer) {
       this.clockText[s] = this.add.text(PLATE.x + PLATE.w - 12, y + 7, '', { fontFamily: FONT_N, fontSize: '12px', fontStyle: 'bold', color: COL.dim }).setOrigin(1, 0);
@@ -1187,6 +1192,13 @@ export class DuelScene extends Phaser.Scene {
     }
     this.lpText[s] = this.add.text(PLATE.lpX, y + 25, String(this.lpShown[s]), { fontFamily: FONT_N, fontSize: '21px', fontStyle: 'bold', color: COL.text });
     this.add.text(PLATE.x + PLATE.w - 12, y + 41, 'LP', { fontFamily: FONT_N, fontSize: '9px', fontStyle: 'bold', color: COL.goldTxt }).setOrigin(1, 0.5);
+    if (account) {
+      // online record beside "LP", coloured like the lobby's tiles: wins · losses · draws
+      let x = PLATE.x + PLATE.w - 27;
+      for (const [text, color] of [[account.draws, COL.text], ['·', COL.dim], [account.losses, '#ff8a9a'], ['·', COL.dim], [account.wins, '#7dffa6']] as const) {
+        x -= this.add.text(x, y + 41, String(text), { fontFamily: FONT_N, fontSize: '11px', fontStyle: 'bold', color }).setOrigin(1, 0.5).width + 2;
+      }
+    }
     this.lpBar[s] = this.add.graphics();
     this.drawLP(s, this.lpShown[s]);
   }

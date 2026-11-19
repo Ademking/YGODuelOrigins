@@ -11,13 +11,17 @@ export type Result = 'win' | 'loss' | 'draw';
 /** Account ids are Discord's numeric ids; an opponent's arrives over the duel connection, so it is checked. */
 export const cleanAccount = (value: unknown) => typeof value === 'string' && /^\d{1,20}$/.test(value) ? value : undefined;
 
+let latest: Account | null = null;
+/** The account as last loaded (main.ts loads it at start, the lobby again on each visit): for screens that can't wait. */
+export const signedIn = () => latest;
+
 export async function loadAccount(): Promise<Account | null> {
   try {
     const response = await fetch('/api/me', { cache: 'no-store', signal: timeoutSignal(6000) });
-    if (!response.ok || !response.headers.get('Content-Type')?.includes('json')) return null;
+    if (!response.ok || !response.headers.get('Content-Type')?.includes('json')) return latest = null;
     const a = await response.json() as Account;
-    return cleanAccount(a.id) ? { ...a, team: cleanTeam(a.team) ?? null } : null;
-  } catch { return null; }
+    return latest = cleanAccount(a.id) ? { ...a, team: cleanTeam(a.team) ?? null } : null;
+  } catch { return latest; }
 }
 
 /** Pick the player's dorm (once). Returns the dorm the server holds, or null when it could not be saved. */
@@ -29,6 +33,7 @@ export async function chooseTeam(team: Team): Promise<Team | null> {
 }
 
 export async function signOut() {
+  latest = null;
   try { await fetch('/auth/logout', { method: 'POST', signal: timeoutSignal(6000) }); } catch { /* offline: the cookie stays */ }
 }
 
