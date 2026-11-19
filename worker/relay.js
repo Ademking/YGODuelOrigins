@@ -8,7 +8,7 @@
 
 const MAX_MESSAGE = 65536; // a duel's connection offers are a few kB each, and Trystero batches them
 const MAX_SUBS = 16;
-const RATE_WINDOW_MS = 10_000, RATE_MAX = 150; // per connection: lobby heartbeats are every 25 s, signaling comes in bursts
+const RATE_WINDOW_MS = 10_000, RATE_MAX = 150; // per connection: lobby heartbeats are every 60 s, signaling comes in bursts
 
 /**
  * Does a Nostr filter match the event? Checks ids, authors, kinds and #tags. `since` and `until` are ignored: every
