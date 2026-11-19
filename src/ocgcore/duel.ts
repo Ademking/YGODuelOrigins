@@ -376,7 +376,10 @@ export class OcgDuel {
         if (!forYou || !this.ask || !message.cards.length) break;
         const cards = message.cards.map(loc => this.card(this.side(loc.controller), 'hand', this.definition(loc.code)));
         try {
-          await this.ask({ t: 'select', text: 'Revealed cards', cards, min: 0, max: 0, purpose: 'good', reveal: true }, this);
+          // whose cards: the title says, the line under it says they are revealed
+          const owners = new Set(cards.map(card => card.owner));
+          const text = owners.size > 1 ? t('Revealed cards') : t(owners.has(0) ? 'Your cards' : "Your opponent's cards");
+          await this.ask({ t: 'select', text, cards, min: 0, max: 0, purpose: 'good', reveal: true }, this);
         } finally { cards.forEach(card => this.ids.delete(card.uid)); }
         break;
       }

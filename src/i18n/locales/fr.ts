@@ -610,4 +610,6 @@ export const FR: Dictionary = {
   "Import and export decks with deck codes, .ydk files and share links.": "Importez et exportez des decks avec des codes de deck, des fichiers .ydk et des liens de partage.",
   "Online duels follow the GOAT banlist, and the game plays better on phones.": "Les duels en ligne suivent la banlist GOAT, et le jeu fonctionne mieux sur téléphone.",
   "Card rulings and bug fixes.": "Corrections de règles de cartes et de bugs.",
+  "Your cards": "Vos cartes",
+  "Your opponent's cards": "Cartes de votre adversaire",
 };
