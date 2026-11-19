@@ -66,6 +66,20 @@ test('draws count for both; disagreeing reports count for nobody', async () => {
   assert.deepEqual({ ...user(db, '111') }, { wins: 0, losses: 0, draws: 1 });
 });
 
+test('two claimed wins go to the player ahead on LP, when both reports agree on it', async () => {
+  const db = setup();
+  await report(db, '111', { match: MATCH, opponent: '222', result: 'win', lp: [6000, 1200] });
+  assert.equal(await report(db, '222', { match: MATCH, opponent: '111', result: 'win', lp: [1200, 6000] }), true);
+  assert.deepEqual({ ...user(db, '111') }, { wins: 1, losses: 0, draws: 0 });
+  assert.deepEqual({ ...user(db, '222') }, { wins: 0, losses: 1, draws: 0 });
+  const lied = 'c'.repeat(64);
+  await report(db, '111', { match: lied, opponent: '222', result: 'win', lp: [6000, 1200] });
+  assert.equal(await report(db, '222', { match: lied, opponent: '111', result: 'win', lp: [8000, 6000] }), false, 'LP that disagree count for nobody');
+  const even = 'd'.repeat(64);
+  await report(db, '111', { match: even, opponent: '222', result: 'win', lp: [4000, 4000] });
+  assert.equal(await report(db, '222', { match: even, opponent: '111', result: 'win', lp: [4000, 4000] }), false, 'level on LP');
+});
+
 test('a third account cannot pair with a report that names someone else', async () => {
   const db = setup();
   await report(db, '111', { match: MATCH, opponent: '222', result: 'win' });

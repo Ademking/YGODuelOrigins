@@ -13,6 +13,7 @@ const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 /** How long a claimed win waits for the opponent's own report before a player who left loses by default. */
 export const GRACE_MS = 10 * 60_000;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
+const LP = (n) => Number.isInteger(n) && n >= 0 && n <= 1e6;
 const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/, AVATAR = /^(a_)?[0-9a-f]{32}$/;
 /** The three dorms a player picks on first sign-in. */
 export const TEAMS = ['slifer', 'ra', 'obelisk'];
@@ -48,10 +49,18 @@ const json = (value, status = 200) => Response.json(value, { status, headers: { 
  * Record one player's report; when the opponent's matching report is already in, count the duel.
  * Returns whether the duel was counted by this report.
  */
-export async function report(db, me, { match, opponent, result }, now = Date.now()) {
+export async function report(db, me, { match, opponent, result, lp }, now = Date.now()) {
   if (!MATCH.test(match ?? '') || !USER.test(opponent ?? '') || opponent === me || !(result in OPPOSITE)) return null;
-  await db.prepare('INSERT OR IGNORE INTO reports (match, user, opponent, result, at) VALUES (?, ?, ?, ?, ?)').bind(match, me, opponent, result, now).run();
-  const theirs = await db.prepare('SELECT result FROM reports WHERE match = ? AND user = ? AND opponent = ?').bind(match, opponent, me).first();
+  const [mine, theirsLp] = Array.isArray(lp) && lp.length === 2 && lp.every(LP) ? lp : [null, null];
+  await db.prepare('INSERT OR IGNORE INTO reports (match, user, opponent, result, lp, opp_lp, at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(match, me, opponent, result, mine, theirsLp, now).run();
+  const theirs = await db.prepare('SELECT result, lp, opp_lp FROM reports WHERE match = ? AND user = ? AND opponent = ?').bind(match, opponent, me).first();
+  if (result === 'win' && theirs?.result === 'win') {
+    // a dropped connection looks like the opponent leaving on both sides, so both claim the win: when both reports
+    // agree on the LP, the player who was ahead takes it
+    const ours = await db.prepare('SELECT lp, opp_lp FROM reports WHERE match = ? AND user = ?').bind(match, me).first();
+    if (ours?.lp == null || theirs.lp == null || ours.lp !== theirs.opp_lp || ours.opp_lp !== theirs.lp || ours.lp === theirs.lp) return false;
+    return count(db, match, me, opponent, ours.lp > theirs.lp ? 'win' : 'loss', now);
+  }
   if (theirs?.result !== OPPOSITE[result]) return false;
   // the primary key on matches makes sure two reports arriving together count the duel once
   return count(db, match, me, opponent, result, now);

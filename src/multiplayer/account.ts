@@ -64,11 +64,11 @@ export async function reportStart(seed: readonly string[], opponent: string) {
 }
 
 /** Tell the server how a duel ended for you; it counts once your opponent's report agrees. */
-export async function reportResult(seed: readonly string[], opponent: string, result: Result) {
+export async function reportResult(seed: readonly string[], opponent: string, result: Result, lp: [mine: number, theirs: number]) {
   try {
     await fetch('/api/result', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true, signal: timeoutSignal(8000),
-      body: JSON.stringify({ match: await matchId(seed), opponent, result }),
+      body: JSON.stringify({ match: await matchId(seed), opponent, result, lp }),
     });
   } catch { /* offline: this duel goes uncounted */ }
 }

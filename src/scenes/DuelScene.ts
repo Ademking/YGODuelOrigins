@@ -3123,7 +3123,7 @@ export class DuelScene extends Phaser.Scene {
     const m = this.init0.multiplayer;
     if (this.reported || !m?.account || !m.opponentAccount) return;
     this.reported = true;
-    void reportResult(m.network.seed, m.opponentAccount, result);
+    void reportResult(m.network.seed, m.opponentAccount, result, [this.duel.players[this.me].lp, this.duel.players[opp(this.me)].lp]);
   }
 
   private showEnd(winner: Side | -1, reason: string) {
