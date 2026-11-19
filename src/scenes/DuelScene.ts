@@ -322,15 +322,23 @@ export class DuelScene extends Phaser.Scene {
       // opponent's win counts at once instead of after the server's grace time
       const quit = () => { if (!this.ended && !this.dead) this.reportOnline('loss'); };
       window.addEventListener('pagehide', quit);
+      // when the connection drops, both sides see the other vanish: the side whose page was in the background (a phone
+      // switching apps freezes the game) or offline is the one that dropped, so it takes the loss
+      let backAt = 0;
+      const away = () => { if (document.hidden || !navigator.onLine) backAt = Infinity; else if (backAt === Infinity) backAt = Date.now(); };
+      document.addEventListener('visibilitychange', away); window.addEventListener('offline', away); window.addEventListener('online', away);
+      const dropped = () => document.hidden || !navigator.onLine || Date.now() - backAt < 20_000;
       // an opponent who surrenders, times out, leaves or disconnects loses
       session.onEnd = (reason, won) => {
         if (this.dead || this.ended) return;
         duel.stop();
         this.pending?.resolve(SURRENDER);
-        this.showEnd(won ? this.me : -1, reason);
+        if (won && session.dropped && dropped()) this.showEnd(opp(this.me), t('You lost the connection.'));
+        else this.showEnd(won ? this.me : -1, reason);
       };
       this.events.once('shutdown', () => {
         window.removeEventListener('pagehide', quit);
+        document.removeEventListener('visibilitychange', away); window.removeEventListener('offline', away); window.removeEventListener('online', away);
         removeChat(); session.onEnd = () => {};
         if (!this.rematching) { void session.leave(); d.lobby?.close(); }
       });
