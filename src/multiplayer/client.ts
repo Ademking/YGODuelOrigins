@@ -146,6 +146,7 @@ export class PrivateRoom {
       if (!cleanName(m.name) || !validDeck(m.deck, false) || typeof m.ready !== 'boolean') throw new Error(t('Opponent sent invalid deck or profile data.'));
       // an opponent on an older build can still bring a deck that breaks the banlist
       if (!validDeck(m.deck)) throw new Error(t("Your opponent's deck breaks the banlist, so it can't be used online."));
+      if (this.hello.account && cleanAccount(m.account) === this.hello.account) throw new Error(t("You can't duel your own account."));
       const firstHello = !this.peer;
       this.peer = peer;
       this.opponent = { ...m, name: cleanName(m.name), avatar: cleanSeed(m.avatar), country: cleanCountry(m.country), team: cleanTeam(m.team), account: cleanAccount(m.account) } as Hello;
