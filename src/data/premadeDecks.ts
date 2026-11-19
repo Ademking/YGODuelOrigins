@@ -1,7 +1,7 @@
 import type { Difficulty } from '../engine/ai';
 import type { DeckList } from '../engine/duel';
 import { CARDS, copyLimit } from '../ocgcore/catalog';
-import { GOAT_BANLIST } from './banlist';
+import { CUSTOM_V1_0_BANLIST, GOAT_BANLIST } from './banlist';
 
 interface Recipe {
   id: string;
@@ -450,5 +450,11 @@ const GOAT_LEGAL = recipes.map(({ main, extra, ...opponent }, index) => {
   return { ...opponent, art: '*', deck: { main: legalize(deck.main, GOAT_BANLIST), extra: legalize(deck.extra, GOAT_BANLIST) } };
 }).filter((opponent, index) => JSON.stringify(opponent.deck) !== JSON.stringify(PREMADE[index].deck));
 
+/** Starters as first released under the Custom GX list (1.4.4), with Ring of Destruction Forbidden and Giant Trunade Limited. */
+const CUSTOM_V1_0_LEGAL = recipes.map(({ main, extra, ...opponent }, index) => {
+  const deck = recipeDeck(recipes[index]);
+  return { ...opponent, art: '*', deck: { main: legalize(deck.main, CUSTOM_V1_0_BANLIST, SUBSTITUTES), extra: legalize(deck.extra, CUSTOM_V1_0_BANLIST, SUBSTITUTES) } };
+}).filter((opponent, index) => JSON.stringify(opponent.deck) !== JSON.stringify(PREMADE[index].deck));
+
 /** Every earlier version of a starter: a saved copy still equal to one is replaced with the current starter (decks.ts). */
-export const PREVIOUS_PREMADE = [...OLDER_PREMADE, ...PRE_BANLIST, ...GOAT_LEGAL];
+export const PREVIOUS_PREMADE = [...OLDER_PREMADE, ...PRE_BANLIST, ...GOAT_LEGAL, ...CUSTOM_V1_0_LEGAL];

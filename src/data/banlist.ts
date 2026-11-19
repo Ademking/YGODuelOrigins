@@ -8,15 +8,16 @@ const FORBIDDEN = [
   'Butterfly Dagger - Elma', 'Change of Heart', 'Chaos Emperor Dragon - Envoy of the End', 'Dark Hole',
   'Exchange of the Spirit', 'Fiber Jar', 'Imperial Order', 'Magical Scientist', 'Makyura the Destructor',
   'Mirage of Nightmare', 'Painful Choice', 'Raigeki', 'The Forceful Sentry', 'Victory Dragon', 'Yata-Garasu',
-  'Card of Safe Return', 'Destiny HERO - Disk Commander', 'Mind Crush', 'Monster Reborn', 'Ring of Destruction',
+  'Card of Safe Return', 'Destiny HERO - Disk Commander', 'Mind Crush', 'Monster Reborn',
 ];
 const LIMITED = [
+  'Ring of Destruction',
   'Black Luster Soldier - Envoy of the Beginning', 'Chaos Sorcerer', 'Confiscation', 'Cyber Jar', 'Delinquent Duo',
   'Dimension Fusion', 'Graceful Charity', "Harpie's Feather Duster", 'Last Will', 'Pot of Greed', 'Sinister Serpent',
   'Snatch Steal', 'Time Seal', 'Tribe-Infecting Virus', 'Tsukuyomi', 'Witch of the Black Forest', 'Brain Control',
   'Breaker the Magical Warrior', 'Call of the Haunted', 'Card Destruction', 'Chain Strike', 'Crush Card',
   'D.D. Warrior Lady', 'Dark Armed Dragon', 'Dark Magician of Chaos', 'Elemental HERO Stratos',
-  'Exodia the Forbidden One', 'Future Fusion', 'Giant Trunade', 'Green Baboon, Defender of the Forest',
+  'Exodia the Forbidden One', 'Future Fusion', 'Green Baboon, Defender of the Forest',
   'Heavy Storm', 'Left Arm of the Forbidden One', 'Left Leg of the Forbidden One', 'Magic Cylinder',
   'Magical Stone Excavation', 'Marshmallon', 'Mirror Force', 'Morphing Jar', 'Mystical Space Typhoon',
   'Neo-Spacian Grand Mole', 'Night Assailant', 'Overload Fusion', 'Premature Burial',
@@ -26,12 +27,19 @@ const LIMITED = [
   'Mask of Darkness', 'Reinforcement of the Army', 'Royal Decree',
 ];
 const SEMI_LIMITED = [
+  'Giant Trunade',
   'Last Turn', 'Book of Moon', 'Ceasefire', 'Gold Sarcophagus', 'Gravity Bind', 'Level Limit - Area B', 'Mage Power',
   'Magician of Faith', 'Destiny Draw', 'Destiny HERO - Malicious', 'Jinzo', 'Nobleman of Crossout',
 ];
 export const BANLIST = new Map<string, 0 | 1 | 2>([
   ...FORBIDDEN.map(n => [n.toLowerCase(), 0] as const), ...LIMITED.map(n => [n.toLowerCase(), 1] as const), ...SEMI_LIMITED.map(n => [n.toLowerCase(), 2] as const),
 ]);
+
+/**
+ * The list as first released (1.4.4), before Ring of Destruction became Limited and Giant Trunade Semi-Limited. Only
+ * used to recognise starter decks saved under it, so an unedited one is brought up to the current list (decks.ts).
+ */
+export const CUSTOM_V1_0_BANLIST = new Map<string, 0 | 1 | 2>([...BANLIST, ['ring of destruction', 0], ['giant trunade', 1]]);
 
 /**
  * The April 2005 "GOAT" list the game used before (version 1.4.3). Only used to recognise starter decks saved under

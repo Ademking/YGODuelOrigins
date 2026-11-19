@@ -35,7 +35,7 @@ test('online, a deck that breaks the banlist is refused', () => {
 test('the YGO Duel Origins - Custom GX v1.0 list', () => {
   const limit = (name: string) => copyLimit(CARDS.find((card) => card.name.toLowerCase() === name.toLowerCase())!);
   const expect: Record<string, number> = {
-    'Dark Hole': 0, 'Card of Safe Return': 0, 'Mind Crush': 0, 'Destiny HERO - Disk Commander': 0, 'Monster Reborn': 0, 'Ring of Destruction': 0,
+    'Dark Hole': 0, 'Card of Safe Return': 0, 'Mind Crush': 0, 'Destiny HERO - Disk Commander': 0, 'Monster Reborn': 0, 'Ring of Destruction': 1, 'Giant Trunade': 2,
     'Black Luster Soldier - Envoy of the Beginning': 1, 'Cyber Jar': 1, 'Pot of Greed': 1, 'Crush Card': 1, 'Future Fusion': 1, 'Royal Decree': 1,
     'Last Turn': 2, 'Book of Moon': 2, 'Magician of Faith': 2, 'Jinzo': 2, 'Nobleman of Crossout': 2,
     // marked 3, or unmarked in the list
