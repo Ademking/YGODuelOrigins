@@ -318,6 +318,10 @@ export class DuelScene extends Phaser.Scene {
       session.onStart = match => { this.rematching = true; this.scene.restart({ ...this.init0, multiplayer: match }); };
       // signed in on both sides: the server hears the duel began, so leaving it without a result loses it
       if (d.multiplayer.account && d.multiplayer.opponentAccount) void reportStart(d.multiplayer.network.seed, d.multiplayer.opponentAccount);
+      // closing the tab or the browser mid-duel loses it: the report goes out as the page closes (keepalive), so the
+      // opponent's win counts at once instead of after the server's grace time
+      const quit = () => { if (!this.ended && !this.dead) this.reportOnline('loss'); };
+      window.addEventListener('pagehide', quit);
       // an opponent who surrenders, times out, leaves or disconnects loses
       session.onEnd = (reason, won) => {
         if (this.dead || this.ended) return;
@@ -326,6 +330,7 @@ export class DuelScene extends Phaser.Scene {
         this.showEnd(won ? this.me : -1, reason);
       };
       this.events.once('shutdown', () => {
+        window.removeEventListener('pagehide', quit);
         removeChat(); session.onEnd = () => {};
         if (!this.rematching) { void session.leave(); d.lobby?.close(); }
       });

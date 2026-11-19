@@ -11,7 +11,7 @@ import { canJoin, giveRole, joinServer, postDuel } from './discord.js';
 
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 /** How long a claimed win waits for the opponent's own report before a player who left loses by default. */
-export const GRACE_MS = 10 * 60_000;
+export const GRACE_MS = 3 * 60_000;
 const OPPOSITE = { win: 'loss', loss: 'win', draw: 'draw' };
 const LP = (n) => Number.isInteger(n) && n >= 0 && n <= 1e6;
 const MATCH = /^[0-9a-f]{64}$/, USER = /^\d{1,20}$/, AVATAR = /^(a_)?[0-9a-f]{32}$/;

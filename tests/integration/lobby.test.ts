@@ -89,7 +89,8 @@ test('nostr lobby lists each Discord account once and never your own', async () 
     const a2 = new Lobby('Yugi', { avatar: 'discord:111' }, relay.transport());
     try {
       await new Promise(r => setTimeout(r, 4000));
-      assert.deepEqual([...a.peers.keys()], [b2.id], 'the newer Kaiba replaces the older one');
+      // both Kaiba sessions are still open: whichever spoke last is listed, never both
+      assert.deepEqual([...a.peers.values()].map(p => p.name), ['Kaiba'], 'one entry for Kaiba');
       assert.deepEqual([...a2.peers.values()].map(p => p.name), ['Kaiba'], 'Yugi does not see Yugi');
     } finally { b2.close(); a2.close(); }
   } finally { a.close(); b.close(); }
