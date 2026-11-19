@@ -6,7 +6,7 @@ import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
 import { artSrc, go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { avatarFor, avatarURL, discordAvatar, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
+import { AVATAR_COUNT, avatarFor, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
@@ -102,6 +102,11 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <div class="mt-4 flex justify-end"><button type="button" class="mp-btn small" id="mp-name-back"><span>${h('Back')}</span></button></div>
       </form></dialog>
       <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
+      <dialog autofocus class="mp-modal w-[min(760px,calc(100vw-24px))]" id="mp-avatar-modal"><div class="mp-sheet">
+        <h2>${h('Choose your avatar')}</h2>
+        <div class="mp-scroll mt-4 grid max-h-[min(460px,60svh)] grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2 p-1 sm:grid-cols-[repeat(auto-fill,minmax(76px,1fr))]" id="mp-avatar-grid" role="listbox" aria-label="${h('Avatars')}"></div>
+        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-avatar-random"><span>${h('Random')}</span></button><button type="button" class="mp-btn primary" id="mp-avatar-close"><span>${h('Done')}</span></button></div>
+      </div></dialog>
 `;
     app.append(root);
     // phones and tablets: tabs pick the panel on show
@@ -148,7 +153,18 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     };
     /** Your duelist card: portrait, dorm and the dorm's tint behind it. */
     const renderLooks = () => {
-      q('lic-art').replaceChildren(...(seed ? [portrait(seed, country, t('Your avatar'), false, team)] : []));
+      const art = seed ? portrait(seed, country, t('Your avatar'), false, team) : undefined;
+      if (art && guest) {
+        // a guest picks their portrait: click it for the grid, or roll the dice for a random one
+        const choose = el('button', '', 'block size-full cursor-pointer rounded-2xl border border-white/10 p-0 transition hover:brightness-110 ' + RING); choose.type = 'button';
+        choose.title = t('Choose avatar'); choose.setAttribute('aria-label', t('Choose avatar'));
+        choose.append(art); choose.onclick = openAvatars;
+        const shuffle = el('button', '', 'absolute -right-2 -bottom-2 grid size-8 cursor-pointer place-items-center rounded-full border border-[#fff1c9] bg-brass p-0 text-[#1d1505] shadow-lg shadow-black/60 transition hover:scale-110 hover:-rotate-12 hover:bg-brass-lit ' + RING); shuffle.type = 'button';
+        shuffle.title = t('New avatar'); shuffle.setAttribute('aria-label', t('New avatar'));
+        shuffle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M12 12h.01M9 15h.01M15 15h.01" stroke-width="2.8"/></svg>';
+        shuffle.onclick = () => setAvatar(randomSeed());
+        q('lic-art').replaceChildren(choose, shuffle);
+      } else q('lic-art').replaceChildren(...(art ? [art] : []));
       const colors = team ? TEAMS[team] : undefined;
       q('lic-glow').style.background = colors ? `radial-gradient(130% 100% at 0% 0%, ${colors.color}38, transparent 62%)` : '';
       if (!colors) { q('lic-dorm').replaceChildren(); return; }
@@ -156,6 +172,33 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       const label = el('span', colors.name); label.style.color = colors.light;
       q('lic-dorm').replaceChildren(dot, label);
     };
+    const setAvatar = (next: string) => { seed = next; saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
+    const avatarModal = q<HTMLDialogElement>('avatar-modal'), avatarGrid = q('avatar-grid');
+    const mark = () => {
+      for (const b of Array.from(avatarGrid.children) as HTMLElement[]) {
+        const on = b.dataset.id === seed; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+      }
+    };
+    /** Grid of every portrait; images load lazily as the grid scrolls. */
+    function openAvatars() {
+      if (!avatarGrid.childElementCount) {
+        for (let n = 1; n <= AVATAR_COUNT; n++) {
+          const b = el('button', '', 'aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-transparent bg-raised p-0 hover:border-brass/50 [&.on]:border-brass [&.on]:ring-2 [&.on]:ring-brass/30 ' + RING); b.type = 'button'; b.dataset.id = String(n);
+          b.setAttribute('role', 'option'); b.setAttribute('aria-label', t('Avatar {n}', { n }));
+          const img = el('img', '', 'size-full object-cover'); img.src = avatarURL(String(n)); img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+          b.append(img);
+          b.onclick = () => { setAvatar(String(n)); mark(); };
+          avatarGrid.append(b);
+        }
+      }
+      mark();
+      avatarModal.showModal();
+      avatarGrid.querySelector<HTMLElement>('.on')?.scrollIntoView({ block: 'center' });
+      avatarGrid.querySelector<HTMLElement>('.on')?.focus();
+    }
+    q<HTMLButtonElement>('avatar-random').onclick = () => { setAvatar(randomSeed()); mark(); avatarGrid.querySelector('.on')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+    q<HTMLButtonElement>('avatar-close').onclick = () => avatarModal.close();
+    avatarModal.addEventListener('click', e => { if (e.target === avatarModal) avatarModal.close(); });
     void lookupCountry().then(found => {
       if (!alive || !found) return;
       country = found; renderLooks(); lobby?.setLook({ country });
@@ -544,7 +587,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       const name = cleanName(raw);
       if (!name || lobby || account) return;
       try { localStorage.setItem(NAME_KEY, name); } catch {}
-      guest = true; seed = avatarFor(undefined, name); team = undefined;
+      guest = true; seed = savedSeed(); team = undefined;
       q('lic-name').textContent = name;
       renderLooks(); renderAccount();
       join(name);

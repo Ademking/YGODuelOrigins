@@ -637,4 +637,10 @@ export const FR: Dictionary = {
   "Your name": "Votre nom",
   "Play as guest": "Jouer en invité",
   "Guest duels are not counted and guests are not on the leaderboard.": "Les duels des invités ne sont pas comptés et les invités ne sont pas au classement.",
+  "Choose your avatar": "Choisissez votre avatar",
+  "Avatars": "Avatars",
+  "Done": "Terminé",
+  "Choose avatar": "Choisir l'avatar",
+  "New avatar": "Nouvel avatar",
+  "Avatar {n}": "Avatar {n}",
 };

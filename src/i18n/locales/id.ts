@@ -637,4 +637,10 @@ export const ID: Dictionary = {
   "Your name": "Namamu",
   "Play as guest": "Main sebagai tamu",
   "Guest duels are not counted and guests are not on the leaderboard.": "Duel tamu tidak dihitung, dan tamu tidak masuk papan peringkat.",
+  "Choose your avatar": "Pilih avatarmu",
+  "Avatars": "Avatar",
+  "Done": "Selesai",
+  "Choose avatar": "Pilih avatar",
+  "New avatar": "Avatar baru",
+  "Avatar {n}": "Avatar {n}",
 };

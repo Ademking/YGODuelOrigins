@@ -637,4 +637,10 @@ export const RU: Dictionary = {
   "Your name": "Ваше имя",
   "Play as guest": "Играть как гость",
   "Guest duels are not counted and guests are not on the leaderboard.": "Дуэли гостей не засчитываются, и гостей нет в таблице лидеров.",
+  "Choose your avatar": "Выберите аватар",
+  "Avatars": "Аватары",
+  "Done": "Готово",
+  "Choose avatar": "Выбрать аватар",
+  "New avatar": "Новый аватар",
+  "Avatar {n}": "Аватар {n}",
 };

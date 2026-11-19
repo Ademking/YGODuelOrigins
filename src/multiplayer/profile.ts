@@ -7,6 +7,18 @@
 import { timeoutSignal } from '../timeoutSignal';
 const COUNTRY_KEY = 'duel-origins.multiplayer.country';
 export const AVATAR_COUNT = 346;
+const SEED_KEY = 'duel-origins.multiplayer.avatar';
+export function randomSeed() {
+  return String(crypto.getRandomValues(new Uint32Array(1))[0] % AVATAR_COUNT + 1);
+}
+export function saveSeed(seed: string) { try { localStorage.setItem(SEED_KEY, seed); } catch { /* private mode */ } }
+/** A guest's stored portrait, or a new random one (saved) on first visit. */
+export function savedSeed() {
+  let seed: string | undefined;
+  try { seed = cleanSeed(localStorage.getItem(SEED_KEY)); } catch { /* private mode */ }
+  if (!seed || seed.startsWith('discord:')) { seed = randomSeed(); saveSeed(seed); }
+  return seed;
+}
 export const COUNTRY = /^[A-Z]{2}$/;
 const DISCORD_AVATAR = /^discord:(\d{1,20})(?::((?:a_)?[0-9a-f]{32}))?$/;
 /** The dorms (as in Yu-Gi-Oh! GX): chosen once on first sign-in, worn as the avatar's frame colour. */

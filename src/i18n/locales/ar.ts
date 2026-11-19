@@ -637,4 +637,10 @@ export const AR: Dictionary = {
   "Your name": "اسمك",
   "Play as guest": "العب كضيف",
   "Guest duels are not counted and guests are not on the leaderboard.": "لا تُحتسب مبارزات الضيوف، ولا يظهر الضيوف في لوحة المتصدرين.",
+  "Choose your avatar": "اختر صورتك الرمزية",
+  "Avatars": "الصور الرمزية",
+  "Done": "تم",
+  "Choose avatar": "اختر الصورة الرمزية",
+  "New avatar": "صورة رمزية جديدة",
+  "Avatar {n}": "صورة رمزية {n}",
 };

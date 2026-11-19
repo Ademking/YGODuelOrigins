@@ -637,4 +637,10 @@ export const DE: Dictionary = {
   "Your name": "Dein Name",
   "Play as guest": "Als Gast spielen",
   "Guest duels are not counted and guests are not on the leaderboard.": "Gast-Duelle werden nicht gezählt, und Gäste stehen nicht in der Bestenliste.",
+  "Choose your avatar": "Wähle deinen Avatar",
+  "Avatars": "Avatare",
+  "Done": "Fertig",
+  "Choose avatar": "Avatar wählen",
+  "New avatar": "Neuer Avatar",
+  "Avatar {n}": "Avatar {n}",
 };
