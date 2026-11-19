@@ -188,8 +188,6 @@ export const ID: Dictionary = {
   "End Phase": "End Phase",
   "End turn": "Akhiri giliran",
   "Enter a 12-character room code or a valid invite link.": "Masukkan kode ruang 12 karakter atau tautan undangan yang valid.",
-  "Enter lobby": "Masuk lobi",
-  "Enter the lobby": "Masuk ke lobi",
   "Equip": "Perlengkapan",
   "Equipped to: {card}": "Dipasang ke: {card}",
   "Equipped: {cards}": "Perlengkapan: {cards}",
@@ -457,7 +455,6 @@ export const ID: Dictionary = {
   "The lobby is quiet? Post your room link on our Discord and someone will join.": "Lobi sepi? Bagikan tautan ruangmu di Discord kami dan seseorang akan bergabung.",
   "The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.": "Menu ditata ulang: Duel Online, Duel solo, Editor deck, Tayangan ulang.",
   "This card has not been revealed.": "Kartu ini belum diungkap.",
-  "This is how other duelists will see you.": "Begini duelist lain akan melihatmu.",
   "This room already has a host. Join using their code.": "Ruang ini sudah punya host. Gabung dengan kodenya.",
   "Thunder": "Thunder",
   "Toon": "Toon",
@@ -633,4 +630,5 @@ export const ID: Dictionary = {
   "Draws": "Seri",
   "{n}% win rate": "{n}% menang",
   "No online duels yet": "Belum ada duel online",
+  "Your duelist card": "Kartu duelist kamu",
 };

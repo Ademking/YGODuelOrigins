@@ -188,8 +188,6 @@ export const AR: Dictionary = {
   "End Phase": "مرحلة النهاية",
   "End turn": "إنهاء الدور",
   "Enter a 12-character room code or a valid invite link.": "أدخل رمز غرفة من 12 حرفاً أو رابط دعوة صالحاً.",
-  "Enter lobby": "دخول الردهة",
-  "Enter the lobby": "ادخل الردهة",
   "Equip": "تجهيز",
   "Equipped to: {card}": "مجهّزة على: {card}",
   "Equipped: {cards}": "التجهيزات: {cards}",
@@ -457,7 +455,6 @@ export const AR: Dictionary = {
   "The lobby is quiet? Post your room link on our Discord and someone will join.": "الردهة هادئة؟ انشر رابط غرفتك على Discord وسينضم إليك أحد.",
   "The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.": "أُعيد تنظيم القائمة: مبارزة عبر الإنترنت، مبارزة فردية، محرر المجموعات، مشاهدة المبارزات.",
   "This card has not been revealed.": "لم تُكشف هذه البطاقة.",
-  "This is how other duelists will see you.": "هكذا سيراك المبارزون الآخرون.",
   "This room already has a host. Join using their code.": "لهذه الغرفة مضيف بالفعل. انضم باستخدام رمزه.",
   "Thunder": "رعد",
   "Toon": "كرتوني",
@@ -633,4 +630,5 @@ export const AR: Dictionary = {
   "Draws": "تعادلات",
   "{n}% win rate": "نسبة الفوز {n}%",
   "No online duels yet": "لا توجد مبارزات عبر الإنترنت بعد",
+  "Your duelist card": "بطاقتك كمبارز",
 };

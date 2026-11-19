@@ -11,7 +11,7 @@ import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
 import { clockOffset } from '../../multiplayer/clock';
-import { chooseTeam, loadAccount, signOut, type Account } from '../../multiplayer/account';
+import { chooseTeam, loadAccount, signedIn, signOut, type Account } from '../../multiplayer/account';
 import { RETURN_KEY } from '../returnHash';
 
 /** Translate for HTML: the text is escaped. */
@@ -22,11 +22,6 @@ const ROW = 'mt-5 flex gap-3 *:flex-1';
 const INVITE = 'mx-4 mb-2 border-brass/50 bg-[#241d14]/95 animate-pop sm:mx-5';
 const INVITE_INNER = 'flex flex-wrap items-center gap-2 p-4';
 const INVITE_TEXT = 'mb-1 basis-full text-brass-txt';
-/** The Duelist license: your avatar beside your name and deck. The one loud card on the screen. */
-const LICENSE = (artId: string, body: string, below = '') => `<div class="relative grid grid-cols-[96px_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[112px_minmax(0,1fr)] rounded-3xl border border-brass/40 bg-[linear-gradient(155deg,#2a2250_0%,#15112c_55%,#0c0a18_100%)] p-4 shadow-xl shadow-black/40 sm:grid-cols-[104px_minmax(0,1fr)]">
-    <div class="relative aspect-square" id="mp-${artId}"></div>
-    <div class="flex min-w-0 flex-col gap-2.5">${body}</div>${below}
-  </div>`;
 
 /** An unanswered challenge cancels itself after this long. */
 const CHALLENGE_MS = 30000;
@@ -54,7 +49,19 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       <div class="grid min-h-0 flex-1 gap-4 sm:gap-5 max-lg:grid-rows-[minmax(0,1fr)] max-lg:[&>*:not(.on)]:hidden lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1.2fr)_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,.8fr)_minmax(0,1.2fr)] xl:grid-rows-1">
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
-          ${LICENSE('lic-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-lic-name">…</b><div id="mp-lic-deck"></div>`, `<div class="col-span-2 flex flex-col gap-1.5 empty:hidden" id="mp-account"></div>`)}
+          <section class="relative flex-none overflow-hidden rounded-3xl border border-white/10 bg-[#130f24] shadow-xl shadow-black/40" aria-label="${h('Your duelist card')}">
+            <div class="pointer-events-none absolute inset-0" id="mp-lic-glow"></div>
+            <span class="absolute top-3 right-3 z-10" id="mp-lic-out"></span>
+            <div class="relative flex items-center gap-4 p-4 pr-16">
+              <div class="relative size-[84px] flex-none sm:size-24" id="mp-lic-art"></div>
+              <div class="flex min-w-0 flex-col gap-1.5">
+                <b class="block truncate font-display text-lg leading-tight text-brass-txt sm:text-xl" id="mp-lic-name">…</b>
+                <span class="flex items-center gap-2 text-xs font-semibold tracking-wide empty:hidden" id="mp-lic-dorm"></span>
+              </div>
+            </div>
+            <div class="relative px-4 pb-4"><div id="mp-lic-deck"></div></div>
+            <div class="relative border-t border-white/[.07] bg-black/25 px-4 py-3 empty:hidden" id="mp-account"></div>
+          </section>
           <section class="mp-panel flex-none">
             <h2>${icon('online', 'size-4 text-brass')}${h('Play a friend')}</h2>
             <p class="max-w-[46ch] px-5 pb-3 text-[13px] text-dim">${h('Make a room and send the link, or join with their code.')}</p>
@@ -81,12 +88,11 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       </div>
       </div>
       <dialog autofocus class="mp-modal" id="mp-name-modal"><form method="dialog" id="mp-name-form" class="mp-sheet">
-        <h2 id="mp-entry-title">${h('Enter the lobby')}</h2>
-        <p id="mp-entry-text">${h('Connecting…')}</p>
+        <h2 id="mp-entry-title"></h2>
+        <p id="mp-entry-text"></p>
         <div id="mp-entry"></div>
-        <div id="mp-ready" hidden>${LICENSE('name-art', `<b class="block truncate border-b border-brass/30 pb-2 font-display text-base text-brass-txt sm:text-lg" id="mp-name-show"></b><div id="mp-deck"></div>`)}</div>
         <div class="mt-2.5 min-h-[18px] text-xs text-bad" id="mp-name-err" role="alert"></div>
-        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button><button class="mp-btn primary" id="mp-enter" hidden><span>${h('Enter lobby')}</span></button></div>
+        <div class="${ROW}"><button type="button" class="mp-btn" id="mp-name-back"><span>${h('Back')}</span></button></div>
       </form></dialog>
       <dialog autofocus class="mp-modal" id="mp-room-modal"></dialog>
 `;
@@ -105,7 +111,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     // online duels follow the banlist (data/banlist.ts): decks that break it are fixed in the Deck Builder first
     const select = picker(Object.entries(decks).filter(([, deck]) => !validateDeck(deck).length)
       .map(([title, deck]) => ({ value: title, label: title, detail: t('{n} cards', { n: deck.main.length }) })), selectedDeck(), t('Deck'));
-    q('deck').replaceWith(select.el);
+    q('lic-deck').replaceWith(select.el);
     /** Your Discord picture and dorm, once the account has loaded. */
     let seed = '', country: string | undefined, team: Team | undefined;
     /** Avatar framed in its dorm colour, with an optional flag badge. */
@@ -120,25 +126,28 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         if (flag) { const f = el('img', '', 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
         return art;
       }
-      // the license portrait: a bevelled frame in the dorm's colours, a gold hairline inside, the dorm's name on a tab
+      // the license portrait: a slim frame in the dorm's colours with a soft glow
       const art = el('div', '', 'relative size-full rounded-2xl bg-raised');
       const well = el('div', '', 'relative size-full overflow-hidden rounded-[13px]');
       well.append(img);
       if (colors) {
-        art.classList.add('p-[5px]');
-        art.style.background = `linear-gradient(150deg, ${colors.light} 0%, ${colors.color} 38%, ${colors.dark} 100%)`;
-        art.style.boxShadow = `0 0 0 1px ${colors.dark}, 0 10px 30px -8px ${colors.color}aa`;
-        well.style.boxShadow = 'inset 0 0 0 1px #f5d77a99, inset 0 0 18px #0009';
-        const tab = el('span', colors.name, 'absolute -bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border px-2 py-0.5 font-display text-[9px] leading-none tracking-[.12em] uppercase shadow-lg shadow-black/50');
-        tab.style.background = `linear-gradient(180deg, ${colors.color}, ${colors.dark})`; tab.style.borderColor = colors.light; tab.style.color = '#fff';
-        art.append(well, tab);
-      } else art.append(well);
+        art.classList.add('p-[3px]');
+        art.style.background = `linear-gradient(150deg, ${colors.light}, ${colors.color} 45%, ${colors.dark})`;
+        art.style.boxShadow = `0 8px 26px -8px ${colors.color}`;
+      }
+      art.append(well);
       if (flag) { const f = el('img', '', 'absolute top-2 left-2 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; well.append(f); }
       return art;
     };
-    /** Your portrait on both licenses (popup and lobby). */
+    /** Your duelist card: portrait, dorm and the dorm's tint behind it. */
     const renderLooks = () => {
-      for (const id of ['name-art', 'lic-art']) q(id).replaceChildren(...(seed ? [portrait(seed, country, t('Your avatar'), false, team)] : []));
+      q('lic-art').replaceChildren(...(seed ? [portrait(seed, country, t('Your avatar'), false, team)] : []));
+      const colors = team ? TEAMS[team] : undefined;
+      q('lic-glow').style.background = colors ? `radial-gradient(130% 100% at 0% 0%, ${colors.color}38, transparent 62%)` : '';
+      if (!colors) { q('lic-dorm').replaceChildren(); return; }
+      const dot = el('span', '', 'size-2.5 flex-none rounded-full'); dot.style.background = colors.color; dot.style.boxShadow = `0 0 10px ${colors.color}`;
+      const label = el('span', colors.name); label.style.color = colors.light;
+      q('lic-dorm').replaceChildren(dot, label);
     };
     void lookupCountry().then(found => {
       if (!alive || !found) return;
@@ -381,7 +390,6 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
     const connect = (chosen: string) => {
       lobby = new Lobby(chosen, { avatar: seed, country, team });
       q('lic-name').textContent = chosen;
-      root.querySelector('#mp-lic-deck')?.replaceWith(select.el);
       q('reconnect').hidden = true;
       lobby.onChange = () => { renderRoster(); renderChat(q('messages'), lobby!.chat); };
       lobby.onError = (message, code) => {
@@ -413,12 +421,6 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       renderRoster(); renderChat(q('messages'), lobby.chat);
       if (fromLink && !linkUsed) { linkUsed = true; history.replaceState(null, '', location.pathname + location.search); void startRoom(fromLink, false); }
     };
-    q<HTMLFormElement>('name-form').onsubmit = e => {
-      const err = q('name-err');
-      if (!account?.team) { e.preventDefault(); return; }
-      if (!window.RTCPeerConnection || !crypto.subtle) { e.preventDefault(); err.textContent = t('Multiplayer needs a browser with WebRTC over HTTPS.'); return; }
-      try { connect(cleanName(account.name) || 'Duelist'); } catch (x) { e.preventDefault(); lobby = undefined; err.textContent = x instanceof Error ? x.message : t('Connection failed.'); }
-    };
     q<HTMLButtonElement>('reconnect').onclick = () => {
       if (!lobby || session) return;
       const me = lobby.name; lobby.close(); lobby = undefined;
@@ -439,28 +441,33 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
      * Online play needs a Discord account (worker/accounts.js): its name and picture are what other duelists see, its
      * stats count your online duels. On first sign-in the player picks a dorm, for good.
      */
-    let account: Account | null = null, accountLoading = true;
+    let account: Account | null = null;
     const renderAccount = () => {
-      if (!account) { q('account').replaceChildren(); return; }
+      if (!account) { q('account').replaceChildren(); q('lic-out').replaceChildren(); return; }
       const out = el('button', t('Sign out'), 'cursor-pointer text-xs text-dim underline underline-offset-2 hover:text-ink ' + RING); out.type = 'button';
       out.onclick = () => void signOut().then(() => go('Title'));
-      // online record: three tiles, and the win rate once there is a duel to count
-      const tiles = el('div', '', 'grid grid-cols-3 gap-1.5');
-      for (const [count, label, colour] of [[account.wins, t('Wins'), 'text-ok'], [account.losses, t('Losses'), 'text-bad'], [account.draws, t('Draws'), 'text-ink']] as const) {
-        const tile = el('div', '', 'rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-center');
-        tile.append(el('b', String(count), `block font-display text-lg leading-tight tabular-nums ${colour}`), el('small', label, 'block truncate text-[11px] text-dim'));
-        tiles.append(tile);
+      q('lic-out').replaceChildren(out);
+      // online record: three numbers, then a bar split by wins, losses and draws with the win rate
+      const { wins, losses, draws } = account, played = wins + losses + draws;
+      const row = el('div', '', 'grid grid-cols-3 divide-x divide-white/10 text-center');
+      for (const [count, label, colour] of [[wins, t('Wins'), 'text-ok'], [losses, t('Losses'), 'text-bad'], [draws, t('Draws'), 'text-ink']] as const) {
+        const cell = el('div', '', 'min-w-0 px-1');
+        cell.append(el('b', String(count), `block font-display text-2xl leading-none tabular-nums ${played ? colour : 'text-faint'}`), el('small', label, 'mt-1 block truncate text-[11px] text-dim'));
+        row.append(cell);
       }
-      const played = account.wins + account.losses + account.draws;
-      const foot = el('div', '', 'flex items-center justify-between gap-2 text-xs text-dim');
-      foot.append(el('span', played ? t('{n}% win rate', { n: Math.round(account.wins / played * 100) }) : t('No online duels yet')), out);
-      q('account').replaceChildren(tiles, foot);
+      const foot = el('div', '', 'mt-3 flex items-center gap-3 text-xs');
+      if (played) {
+        const bar = el('div', '', 'flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10');
+        for (const [count, colour] of [[wins, 'bg-ok'], [losses, 'bg-bad'], [draws, 'bg-dim']] as const) {
+          if (!count) continue;
+          const part = el('span', '', colour); part.style.width = `${count / played * 100}%`; bar.append(part);
+        }
+        foot.append(bar, el('span', t('{n}% win rate', { n: Math.round(wins / played * 100) }), 'flex-none font-semibold text-ink tabular-nums'));
+      } else foot.append(el('span', t('No online duels yet'), 'text-dim'));
+      q('account').replaceChildren(row, foot);
     };
     const renderEntry = () => {
       const title = q('entry-title'), text = q('entry-text'), entry = q('entry');
-      const ready = !!account?.team;
-      q('ready').hidden = !ready; q('enter').hidden = !ready;
-      if (accountLoading) { title.textContent = t('Enter the lobby'); text.textContent = t('Connecting…'); entry.replaceChildren(); return; }
       if (!account) {
         title.textContent = t('Sign in to duel online');
         text.textContent = t('Online duels need a Discord account. Other duelists see your Discord name and picture.');
@@ -469,7 +476,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         login.onclick = () => { if (location.hash.startsWith('#duel=')) try { sessionStorage.setItem(RETURN_KEY, location.hash); } catch {} };
         login.append(el('span', t('Sign in with Discord')));
         entry.replaceChildren(login);
-      } else if (!ready) {
+      } else {
         title.textContent = t('Choose your dorm');
         text.textContent = t('Pick the dorm you duel for. Your avatar wears its colour, and the choice is for good.');
         // each dorm is shown by its Egyptian God's artwork, framed in the dorm's colours
@@ -496,22 +503,28 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
           grid.append(pick);
         }
         entry.replaceChildren(grid);
-      } else {
-        title.textContent = t('Enter the lobby'); text.textContent = t('This is how other duelists will see you.');
-        entry.replaceChildren();
       }
     };
-    const applyAccount = () => {
-      if (account) { seed = discordAvatar(account.id, account.avatar); team = account.team ?? undefined; q('name-show').textContent = cleanName(account.name) || 'Duelist'; }
-      renderLooks(); renderAccount(); renderEntry();
+    /** Into the lobby as your Discord account; the entry dialog only shows to sign in or pick a dorm. */
+    const enterLobby = () => {
+      if (lobby || !account?.team) return;
+      if (nameModal.open) nameModal.close();
+      if (!window.RTCPeerConnection || !crypto.subtle) { status(t('Multiplayer needs a browser with WebRTC over HTTPS.')); return; }
+      try { connect(cleanName(account.name) || 'Duelist'); } catch (x) { lobby = undefined; error(x); }
     };
-    nameModal.showModal();
-    renderEntry();
+    const applyAccount = () => {
+      if (account) { seed = discordAvatar(account.id, account.avatar); team = account.team ?? undefined; if (!lobby) q('lic-name').textContent = cleanName(account.name) || 'Duelist'; }
+      renderLooks(); renderAccount();
+      if (account?.team) enterLobby();
+      else { renderEntry(); if (!nameModal.open) nameModal.showModal(); }
+    };
+    // the account main.ts loaded at start opens the lobby at once; the fresh copy then updates the record
+    account = signedIn();
+    if (account?.team) applyAccount();
     void loadAccount().then(found => {
       if (!alive) return;
-      accountLoading = false; account = found; applyAccount();
-      // back from a duel: straight into the lobby
-      if (data.rejoin && account?.team && !lobby) { nameModal.close(); connect(cleanName(account.name) || 'Duelist'); }
+      if (lobby && !found) { void go('Title'); return; } // signed out elsewhere
+      account = found; applyAccount();
     });
     return () => {
       clearInterval(relayTimer);

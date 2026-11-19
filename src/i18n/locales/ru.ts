@@ -188,8 +188,6 @@ export const RU: Dictionary = {
   "End Phase": "Конечная фаза",
   "End turn": "Закончить ход",
   "Enter a 12-character room code or a valid invite link.": "Введите 12-значный код комнаты или действующую ссылку-приглашение.",
-  "Enter lobby": "Войти в лобби",
-  "Enter the lobby": "Вход в лобби",
   "Equip": "Снаряжение",
   "Equipped to: {card}": "Снаряжена к: {card}",
   "Equipped: {cards}": "Снаряжение: {cards}",
@@ -457,7 +455,6 @@ export const RU: Dictionary = {
   "The lobby is quiet? Post your room link on our Discord and someone will join.": "В лобби тихо? Опубликуйте ссылку на комнату в нашем Discord — кто-нибудь присоединится.",
   "The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.": "Меню перестроено: Сетевая дуэль, Одиночная дуэль, Редактор колод, Повторы.",
   "This card has not been revealed.": "Эта карта не была открыта.",
-  "This is how other duelists will see you.": "Так вас будут видеть другие дуэлянты.",
   "This room already has a host. Join using their code.": "У этой комнаты уже есть хозяин. Войдите по его коду.",
   "Thunder": "Гром",
   "Toon": "Мультяшка",
@@ -633,4 +630,5 @@ export const RU: Dictionary = {
   "Draws": "Ничьи",
   "{n}% win rate": "{n}% побед",
   "No online duels yet": "Онлайн-дуэлей пока нет",
+  "Your duelist card": "Ваша карточка дуэлянта",
 };

@@ -188,8 +188,6 @@ export const PT_BR: Dictionary = {
   "End Phase": "Fase Final",
   "End turn": "Encerrar turno",
   "Enter a 12-character room code or a valid invite link.": "Digite um código de sala de 12 caracteres ou um link de convite válido.",
-  "Enter lobby": "Entrar no lobby",
-  "Enter the lobby": "Entrar no lobby",
   "Equip": "Equipamento",
   "Equipped to: {card}": "Equipada em: {card}",
   "Equipped: {cards}": "Equipamentos: {cards}",
@@ -457,7 +455,6 @@ export const PT_BR: Dictionary = {
   "The lobby is quiet? Post your room link on our Discord and someone will join.": "O lobby está vazio? Poste o link da sua sala no nosso Discord e alguém vai entrar.",
   "The menu is reorganised: Online Duel, Solo Duel, Deck Builder, Replays.": "O menu foi reorganizado: Duelo online, Duelo solo, Montar deck, Replays.",
   "This card has not been revealed.": "Esta carta não foi revelada.",
-  "This is how other duelists will see you.": "É assim que os outros duelistas vão ver você.",
   "This room already has a host. Join using their code.": "Esta sala já tem um anfitrião. Entre usando o código dele.",
   "Thunder": "Trovão",
   "Toon": "Toon",
@@ -633,4 +630,5 @@ export const PT_BR: Dictionary = {
   "Draws": "Empates",
   "{n}% win rate": "{n}% de vitórias",
   "No online duels yet": "Nenhum duelo online ainda",
+  "Your duelist card": "Seu cartão de duelista",
 };
