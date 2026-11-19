@@ -25,7 +25,8 @@ export const LOBBY_RELAYS = [GAME_RELAY, 'wss://relay.primal.net', 'wss://relay.
 /** Ephemeral kind (20000-29999): relays forward these to subscribers and do not store them. */
 export const LOBBY_KIND = 25050;
 export const LOBBY_TAG = 'duelorigins-lobby-v1';
-const HEARTBEAT_MS = 25000, EXPIRE_MS = 70000, MAX_AGE_S = 120, MAX_PEERS = 1000;
+// ponytail: 60 s heartbeat keeps relay traffic low; a tab that dies without its "leave" lingers up to 150 s
+const HEARTBEAT_MS = 60000, EXPIRE_MS = 150000, MAX_AGE_S = 120, MAX_PEERS = 1000;
 const CODE = /^[A-HJ-NP-Z2-9]{12}$/;
 /** Seconds on the server's clock: the device's own clock may be minutes off (clock.ts). */
 const now = () => Math.floor(serverNow() / 1000);
