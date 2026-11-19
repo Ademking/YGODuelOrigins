@@ -1,12 +1,13 @@
 // Cloudflare deploy: the built game in dist/ served as static files, plus worker/index.js for the /turn relay logins
 // and the /relay lobby relay.
-// `previews` (empty) lets branch builds make a preview copy with `npx wrangler preview`.
+// `previews` lets branch builds make a preview copy with `npx wrangler preview`; previews use their own database,
+// so testing never touches real players' stats.
 {
   "name": "ygoduelorigins",
   "compatibility_date": "2026-10-01",
   "main": "worker/index.js",
   "assets": { "directory": "./dist", "binding": "ASSETS" },
-  "previews": {},
+  "previews": { "d1_databases": [{ "binding": "DB", "database_name": "ygoduelorigins-dev", "database_id": "f5fa504d-fcfe-4125-a82b-b3d76b9b7ef9" }] },
   // the game's own Nostr relay at /relay: one Durable Object holds every connection (worker/relay.js)
   "durable_objects": { "bindings": [{ "name": "RELAY", "class_name": "GameRelay" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRelay"] }],
