@@ -204,7 +204,7 @@ export const ES: Dictionary = {
   "Face-down monster": "Monstruo boca abajo",
   "Face-up Attack": "Ataque boca arriba",
   "Face-up Defense": "Defensa boca arriba",
-  "Fairies, Graveyard setup and deck reversal": "Hadas, preparación del Cementerio y deck invertido",
+  "Fairies and Graveyard setup": "Hadas y preparación del Cementerio",
   "Fairy": "Hada",
   "Fan-made duel simulator": "Simulador de duelos hecho por fans",
   "Field": "de Campo",

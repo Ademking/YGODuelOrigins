@@ -1,6 +1,7 @@
 import type { Difficulty } from '../engine/ai';
 import type { DeckList } from '../engine/duel';
 import { CARDS, copyLimit } from '../ocgcore/catalog';
+import { GOAT_BANLIST } from './banlist';
 
 interface Recipe {
   id: string;
@@ -268,7 +269,7 @@ const recipes: Recipe[] = [
     },
   },
   {
-    id: 'ishizu', name: 'Ishizu Ishtar', title: 'Gravekeeper of the Pharaoh', ace: 'Exchange of the Spirit', style: 'Fairies, Graveyard setup and deck reversal', suggested: 'hard',
+    id: 'ishizu', name: 'Ishizu Ishtar', title: 'Gravekeeper of the Pharaoh', ace: 'Mudora', style: 'Fairies and Graveyard setup', suggested: 'hard',
     main: {
       'Keldo': 3, 'Mudora': 3, 'Agido': 3, 'Kelbek': 3,
       'Zolga': 3, 'Shining Angel': 3, 'Magician of Faith': 2, 'Gravekeeper\'s Spy': 2,
@@ -389,8 +390,12 @@ const SUBSTITUTES: Record<string, string[]> = {
   'Jinzo': ['Jinzo #7'],
   'Reflect Bounder': ['Big Shield Gardna', 'Spirit Reaper'],
 };
-export function legalize(ids: string[]): string[] {
-  const limit = (id: string) => copyLimit(byId.get(id)!);
+/** Bring a deck within the banlist (`list`: an earlier one instead of the current). */
+export function legalize(ids: string[], list?: Map<string, 0 | 1 | 2>): string[] {
+  const limit = (id: string) => {
+    const card = byId.get(id)!;
+    return list ? card.limit ?? list.get(card.name.toLowerCase()) ?? 3 : copyLimit(card);
+  };
   // the copies each card keeps come first, so a substitute never pushes a card the deck already holds over its limit
   const count = new Map<string, number>();
   for (const id of ids) count.set(id, Math.min(limit(id), (count.get(id) ?? 0) + 1));
@@ -423,5 +428,11 @@ export const PREMADE = recipes.map((recipe) => {
 const PRE_BANLIST = recipes.map(({ main, extra, ...opponent }, index) => ({ ...opponent, art: '*', deck: recipeDeck(recipes[index]) }))
   .filter((opponent, index) => JSON.stringify(opponent.deck) !== JSON.stringify(PREMADE[index].deck));
 
+/** Starters as they were under the GOAT list (1.4.3): unedited saved copies follow the current list instead. */
+const GOAT_LEGAL = recipes.map(({ main, extra, ...opponent }, index) => {
+  const deck = recipeDeck(recipes[index]);
+  return { ...opponent, art: '*', deck: { main: legalize(deck.main, GOAT_BANLIST), extra: legalize(deck.extra, GOAT_BANLIST) } };
+}).filter((opponent, index) => JSON.stringify(opponent.deck) !== JSON.stringify(PREMADE[index].deck));
+
 /** Every earlier version of a starter: a saved copy still equal to one is replaced with the current starter (decks.ts). */
-export const PREVIOUS_PREMADE = [...OLDER_PREMADE, ...PRE_BANLIST];
+export const PREVIOUS_PREMADE = [...OLDER_PREMADE, ...PRE_BANLIST, ...GOAT_LEGAL];

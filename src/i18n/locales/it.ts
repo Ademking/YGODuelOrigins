@@ -204,7 +204,7 @@ export const IT: Dictionary = {
   "Face-down monster": "Mostro coperto",
   "Face-up Attack": "Attacco scoperto",
   "Face-up Defense": "Difesa scoperta",
-  "Fairies, Graveyard setup and deck reversal": "Fate, preparazione del Cimitero e deck capovolto",
+  "Fairies and Graveyard setup": "Fate e preparazione del Cimitero",
   "Fairy": "Fata",
   "Fan-made duel simulator": "Simulatore di duelli fatto da fan",
   "Field": "Terreno",

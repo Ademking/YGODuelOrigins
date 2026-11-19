@@ -204,7 +204,7 @@ export const ID: Dictionary = {
   "Face-down monster": "Monster tertutup",
   "Face-up Attack": "Serang terbuka",
   "Face-up Defense": "Bertahan terbuka",
-  "Fairies, Graveyard setup and deck reversal": "Fairy, persiapan Kuburan dan deck terbalik",
+  "Fairies and Graveyard setup": "Peri dan persiapan Kuburan",
   "Fairy": "Fairy",
   "Fan-made duel simulator": "Simulator duel buatan penggemar",
   "Field": "Lapangan",

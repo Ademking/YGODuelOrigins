@@ -204,7 +204,7 @@ export const AR: Dictionary = {
   "Face-down monster": "وحش مقلوب",
   "Face-up Attack": "هجوم مكشوف",
   "Face-up Defense": "دفاع مكشوف",
-  "Fairies, Graveyard setup and deck reversal": "الجنيات وتجهيز المقبرة وقلب المجموعة",
+  "Fairies and Graveyard setup": "الجنيات وتجهيز المقبرة",
   "Fairy": "جنية",
   "Fan-made duel simulator": "محاكي مبارزات من صنع المعجبين",
   "Field": "ميدان",

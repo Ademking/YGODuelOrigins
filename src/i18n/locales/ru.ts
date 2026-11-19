@@ -204,7 +204,7 @@ export const RU: Dictionary = {
   "Face-down monster": "Монстр рубашкой вверх",
   "Face-up Attack": "Атака лицом вверх",
   "Face-up Defense": "Защита лицом вверх",
-  "Fairies, Graveyard setup and deck reversal": "Феи, подготовка Кладбища и перевёрнутая колода",
+  "Fairies and Graveyard setup": "Феи и подготовка Кладбища",
   "Fairy": "Фея",
   "Fan-made duel simulator": "Фанатский симулятор дуэлей",
   "Field": "Поле",

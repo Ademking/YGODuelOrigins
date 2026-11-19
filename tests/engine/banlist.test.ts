@@ -31,3 +31,24 @@ test('online, a deck that breaks the banlist is refused', () => {
   assert.equal(validDeck(banned), false);
   assert.equal(validDeck(banned, false), true, 'well formed apart from the banlist');
 });
+
+test('the YGO Duel Origins - Custom GX v1.0 list', () => {
+  const limit = (name: string) => copyLimit(CARDS.find((card) => card.name.toLowerCase() === name.toLowerCase())!);
+  const expect: Record<string, number> = {
+    'Dark Hole': 0, 'Card of Safe Return': 0, 'Mind Crush': 0, 'Destiny HERO - Disk Commander': 0, 'Monster Reborn': 0, 'Ring of Destruction': 0,
+    'Black Luster Soldier - Envoy of the Beginning': 1, 'Cyber Jar': 1, 'Pot of Greed': 1, 'Crush Card': 1, 'Future Fusion': 1, 'Royal Decree': 1,
+    'Last Turn': 2, 'Book of Moon': 2, 'Magician of Faith': 2, 'Jinzo': 2, 'Nobleman of Crossout': 2,
+    // marked 3, or unmarked in the list
+    'Cyber-Stein': 3, 'Metamorphosis': 3, 'Thousand-Eyes Restrict': 3, 'Scapegoat': 3, 'Apprentice Magician': 3, 'Green Gadget': 3,
+  };
+  for (const [name, count] of Object.entries(expect)) assert.equal(limit(name), count, name);
+});
+
+test('a starter saved under the GOAT list and never edited follows the current list', async () => {
+  const { PREVIOUS_PREMADE } = await import('../../src/data/premadeDecks');
+  for (const [name, deck] of Object.entries(STARTERS)) {
+    // every earlier version of this starter is upgraded to the current one, which is legal
+    for (const previous of PREVIOUS_PREMADE.filter((opponent) => opponent.name === name)) assert.ok(previous.deck.main.length, name);
+    assert.deepEqual(validateDeck(deck), [], name);
+  }
+});
