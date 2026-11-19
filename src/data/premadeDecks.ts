@@ -374,7 +374,8 @@ const OLDER_PREMADE = recipes.filter(recipe => recipe.id in additions || recipe.
  * The recipes predate the banlist (data/banlist.ts). Each copy over a card's limit becomes the first of these similar
  * cards that still has room under its own limit (then FALLBACKS), so every starter is legal online.
  */
-const SUBSTITUTES: Record<string, string[]> = {
+/** Swaps for over-limit copies under the GOAT list (1.4.3), kept so decks saved then are recognised. */
+const GOAT_SUBSTITUTES: Record<string, string[]> = {
   'Monster Reborn': ['Premature Burial', 'Dust Tornado'],
   'Mystical Space Typhoon': ['Dust Tornado'],
   "Harpie's Feather Duster": ['Heavy Storm', 'Dust Tornado'],
@@ -391,7 +392,22 @@ const SUBSTITUTES: Record<string, string[]> = {
   'Reflect Bounder': ['Big Shield Gardna', 'Spirit Reaper'],
 };
 /** Bring a deck within the banlist (`list`: an earlier one instead of the current). */
-export function legalize(ids: string[], list?: Map<string, 0 | 1 | 2>): string[] {
+/** Swaps under the current list: on-theme cards for those its new limits take out. */
+const SUBSTITUTES: Record<string, string[]> = {
+  ...GOAT_SUBSTITUTES,
+  'Ring of Destruction': ['Sakuretsu Armor', 'Dust Tornado'],
+  'Destiny Draw': ['Reckless Greed', 'Upstart Goblin'],
+  'Neo-Spacian Grand Mole': ['Neo-Spacian Air Hummingbird', 'Neo-Spacian Dark Panther', 'Neo-Spacian Aqua Dolphin', 'Neo-Spacian Flare Scarab'],
+  'Exchange of the Spirit': ['Monster Reincarnation', "Gravekeeper's Spy"],
+  'Sangan': ['Mystic Tomato', 'Card Trooper', 'Upstart Goblin'],
+  'Witch of the Black Forest': ['Sangan', 'Mystic Tomato', 'Card Trooper', 'Upstart Goblin'],
+  'Spirit Reaper': ['Pyramid Turtle', 'Ryu Kokki', 'Vampire Lady'],
+  'Creature Swap': ['Enemy Controller', 'Book of Moon'],
+  'Magician of Faith': ['Apprentice Magician', 'Old Vindictive Magician'],
+  'Reinforcement of the Army': ['Marauding Captain', 'Command Knight'],
+  'Giant Trunade': ['Heavy Storm', 'Dust Tornado'],
+};
+export function legalize(ids: string[], list?: Map<string, 0 | 1 | 2>, substitutes = list ? GOAT_SUBSTITUTES : SUBSTITUTES): string[] {
   const limit = (id: string) => {
     const card = byId.get(id)!;
     return list ? card.limit ?? list.get(card.name.toLowerCase()) ?? 3 : copyLimit(card);
@@ -404,7 +420,7 @@ export function legalize(ids: string[], list?: Map<string, 0 | 1 | 2>): string[]
   return ids.map((id) => {
     kept.set(id, (kept.get(id) ?? 0) + 1);
     if (kept.get(id)! <= limit(id)) return id;
-    const options = [...(SUBSTITUTES[byId.get(id)!.name] ?? []), ...FALLBACKS].map((name) => byName.get(name)?.id).filter((x): x is string => !!x);
+    const options = [...(substitutes[byId.get(id)!.name] ?? []), ...FALLBACKS].map((name) => byName.get(name)?.id).filter((x): x is string => !!x);
     const pick = options.find(room);
     if (!pick) throw new Error(`No legal substitute for ${byId.get(id)!.name}`);
     count.set(pick, (count.get(pick) ?? 0) + 1);
