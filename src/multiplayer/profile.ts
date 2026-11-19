@@ -44,9 +44,11 @@ export const avatarURL = (id: string) => {
 };
 /** ygopro.online sends no CORS header, so the game canvas (WebGL needs CORS) loads avatars through the wsrv.nl proxy the card art already uses. */
 export const avatarCanvasURL = (id: string) => `https://wsrv.nl/?url=${encodeURIComponent(avatarURL(id))}&w=128&h=128&fit=cover`;
-export const flagURL = (country: string) => `https://flagsapi.com/${country}/flat/64.png`;
+/** The flag shown for a country code: players located in IL show the Palestinian flag. */
+export const flagCode = (country: string) => country === 'IL' ? 'PS' : country;
+export const flagURL = (country: string) => `https://flagsapi.com/${flagCode(country)}/flat/64.png`;
 /** flagsapi.com sends no CORS header, so the game canvas draws flags from flagcdn.com instead. */
-export const flagCanvasURL = (country: string) => `https://flagcdn.com/w80/${country.toLowerCase()}.png`;
+export const flagCanvasURL = (country: string) => `https://flagcdn.com/w80/${flagCode(country).toLowerCase()}.png`;
 /** A Discord avatar id, or an avatar number from 1 to AVATAR_COUNT as a string without leading zeros. */
 export const cleanSeed = (value: unknown) => {
   if (typeof value === 'string' && DISCORD_AVATAR.test(value)) return value;

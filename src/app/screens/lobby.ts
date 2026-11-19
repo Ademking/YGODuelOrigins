@@ -6,7 +6,7 @@ import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
 import { artSrc, go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { AVATAR_COUNT, avatarFor, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
+import { AVATAR_COUNT, avatarFor, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagCode, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
@@ -135,7 +135,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         // a thin gradient ring in the dorm's colours
         if (colors) { art.classList.add('p-[2px]'); art.style.background = `linear-gradient(145deg, ${colors.light}, ${colors.color} 50%, ${colors.dark})`; }
         art.append(img);
-        if (flag) { const f = el('img', '', 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; art.append(f); }
+        if (flag) { const f = el('img', '', 'absolute -bottom-1 -left-1 h-auto w-5 drop-shadow'); f.src = flagURL(flag); f.alt = f.title = flagCode(flag); f.referrerPolicy = 'no-referrer'; art.append(f); }
         return art;
       }
       // the license portrait: a slim frame in the dorm's colours with a soft glow
@@ -148,7 +148,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         art.style.boxShadow = `0 8px 26px -8px ${colors.color}`;
       }
       art.append(well);
-      if (flag) { const f = el('img', '', 'absolute top-2 left-2 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = flag; f.title = flag; f.referrerPolicy = 'no-referrer'; well.append(f); }
+      if (flag) { const f = el('img', '', 'absolute top-2 left-2 h-auto w-6 drop-shadow'); f.src = flagURL(flag); f.alt = f.title = flagCode(flag); f.referrerPolicy = 'no-referrer'; well.append(f); }
       return art;
     };
     /** Your duelist card: portrait, dorm and the dorm's tint behind it. */

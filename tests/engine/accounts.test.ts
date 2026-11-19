@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { abandoned, chooseTeam, GRACE_MS, leaderboard, readSession, start, report, signSession } from '../../worker/accounts.js';
 // @ts-expect-error plain JavaScript Worker module
 import { joinServer, postDuel } from '../../worker/discord.js';
-import { avatarURL, cleanSeed, cleanTeam } from '../../src/multiplayer/profile';
+import { avatarURL, cleanSeed, cleanTeam, flagCanvasURL, flagURL } from '../../src/multiplayer/profile';
 
 function d1() {
   const sql = new DatabaseSync(':memory:');
@@ -155,4 +155,10 @@ test('a lone win claim counts for nothing unless the opponent started that duel,
   assert.deepEqual(await abandoned(db, GRACE_MS), [], 'both claim the win: a dispute, not an abandoned duel');
   assert.deepEqual({ ...user(db, '111') }, { wins: 0, losses: 0, draws: 0 });
   assert.equal(await start(db, '111', { match: 'x', opponent: '222' }), false);
+});
+
+test('players located in IL show the Palestinian flag', () => {
+  assert.equal(flagURL('IL'), 'https://flagsapi.com/PS/flat/64.png');
+  assert.equal(flagCanvasURL('IL'), 'https://flagcdn.com/w80/ps.png');
+  assert.equal(flagURL('TN'), 'https://flagsapi.com/TN/flat/64.png');
 });
