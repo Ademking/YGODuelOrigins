@@ -1834,7 +1834,11 @@ export class DuelScene extends Phaser.Scene {
         }.bind(this)); break;
         case 'position': this.showPosition(p.card); break;
         case 'zones': this.showZoneSelection(p); break;
-        case 'option': this.showOptions(p.text, p.options); break;
+        case 'option':
+          // a card's effect choice: its picture beside the options, like the yes/no prompts
+          if (p.card && p.options.length <= 6) this.showDialog(t('Choose'), p.text, p.options.map((label, i) => ({ label, run: () => this.choose(i) })), true, p.card);
+          else this.showOptions(p.text, p.options);
+          break;
         case 'replay':
           this.showDialog(t('Attack replay'), t('The battle field changed. Choose a new target for {card}, or stop the attack.', { card: cardName(p.attacker.def) }), [
             ...p.targets.map((target) => ({ label: attackTargetLabel(target), run: () => this.choose(target), hover: target?.faceUp ? target : undefined })),
@@ -2447,13 +2451,16 @@ export class DuelScene extends Phaser.Scene {
       case 'equip': sfx.equip(); return;
       case 'flip': return this.flipFx(e.card);
       case 'activate': return this.activateFx(e.card, e.link);
+      case 'target': return this.targetFx(e.cards);
       case 'resolve':
         if (e.link > 1 || e.negated) await this.banner(t(e.negated ? 'Chain {n}: negated' : 'Chain {n} resolves', { n: e.link }), 380 * s, 24);
+        if (e.link === 1) this.clearTargets();
         return;
       case 'attack': return this.attackFx(e.attacker, e.target);
       case 'destroy': return this.destroyFx(e.card, e.by);
       case 'lp': return this.lpFx(e.player, e.delta, e.lp);
       case 'end':
+        this.clearTargets();
         this.layout();
         await wait(this, 400);
         if (e.reason === 'Exodia the Forbidden One' && e.winner !== -1) await this.exodiaFx(e.winner);
@@ -2904,6 +2911,31 @@ export class DuelScene extends Phaser.Scene {
     this.layout();
     this.hover(this.hoverAny ?? c);
     await wait(this, 220 * this.spd);
+  }
+
+  /** Red crosshairs on the targeted cards until the chain resolves, and their names (a Set card stays unnamed). */
+  private targetMarks: Phaser.GameObjects.Container[] = [];
+  private clearTargets() { for (const m of this.targetMarks) m.destroy(); this.targetMarks = []; }
+  private async targetFx(cards: Card[]) {
+    for (const c of cards) {
+      const sprite = this.sprites.get(c.uid);
+      if (!sprite) continue;
+      const r = Math.max(26, Math.min(sprite.displayWidth, sprite.displayHeight) * 0.42);
+      const g = this.add.graphics();
+      g.lineStyle(4, 0xff3b4e, 1).strokeCircle(0, 0, r).lineStyle(3, 0xff3b4e, 1);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) g.lineBetween(dx * r * 0.55, dy * r * 0.55, dx * r * 1.25, dy * r * 1.25);
+      const mark = this.add.container(sprite.x, sprite.y, [g]).setDepth(Math.max(70, sprite.depth + 1)).setScale(1.8).setAlpha(0);
+      // follows its card while the board lays out again
+      const follow = () => { if (sprite.active) mark.setPosition(sprite.x, sprite.y); };
+      this.events.on('update', follow);
+      mark.once('destroy', () => this.events.off('update', follow));
+      this.tweens.add({ targets: mark, scale: 1, alpha: 1, duration: 260 * this.spd, ease: 'Back.out' });
+      this.tweens.add({ targets: g, alpha: 0.55, duration: 650, yoyo: true, repeat: -1, delay: 260 * this.spd });
+      this.targetMarks.push(mark);
+    }
+    sfx.activate();
+    const names = cards.map((c) => c.faceUp || c.zone === 'gy' || c.zone === 'banished' ? cardName(c.def) : t('a Set card'));
+    await this.banner(t('Target: {card}', { card: [...new Set(names)].join(', ') }), 700 * this.spd, 26, 0xff3b4e);
   }
 
   private async activateFx(c: Card, link: number) {

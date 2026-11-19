@@ -641,4 +641,6 @@ export const RU: Dictionary = {
   "Ra Yellow": "Ra Yellow",
   "Obelisk Blue": "Obelisk Blue",
   "You can't duel your own account.": "Нельзя играть против своего же аккаунта.",
+  "Target: {card}": "Цель: {card}",
+  "a Set card": "выставленная карта",
 };
