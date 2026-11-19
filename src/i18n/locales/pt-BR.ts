@@ -647,4 +647,7 @@ export const PT_BR: Dictionary = {
   "Pick a dorm, Slifer Red, Ra Yellow or Obelisk Blue: its colours frame your avatar in the lobby and in duels.": "Escolha um dormitório, Slifer Red, Ra Yellow ou Obelisk Blue: as cores dele emolduram seu avatar no lobby e nos duelos.",
   "Signing in adds you to our Discord server with your dorm role, and finished duels are posted there.": "Ao entrar, você é adicionado ao nosso servidor do Discord com o cargo do seu dormitório, e os duelos terminados são publicados lá.",
   "Leaving an online duel loses it. Guests can still duel online; their duels are not counted.": "Sair de um duelo online conta como derrota. Convidados ainda podem duelar online; os duelos deles não são contados.",
+  "Slifer Red": "Slifer Red",
+  "Ra Yellow": "Ra Yellow",
+  "Obelisk Blue": "Obelisk Blue",
 };

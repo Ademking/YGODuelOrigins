@@ -6,7 +6,7 @@ import { spectateInit } from '../../multiplayer/spectate';
 import { btn, chatComposer, element as el, frame, MESSAGES, picker, renderChat } from '../../multiplayer/ui';
 import { artSrc, go, type Screen } from '../dom';
 import { sfx } from '../../ui/sfx';
-import { AVATAR_COUNT, avatarFor, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagCode, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
+import { AVATAR_COUNT, avatarFor, dormName, avatarURL, discordAvatar, randomSeed, savedSeed, saveSeed, flagCode, flagURL, lookupCountry, TEAMS, type Team } from '../../multiplayer/profile';
 import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
@@ -53,8 +53,8 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         <aside class="on flex min-h-0 flex-col gap-3 overflow-y-auto sm:gap-4 lg:row-span-2 xl:row-span-1" data-pane>
           <section class="relative flex-none overflow-hidden rounded-3xl border border-white/10 bg-[#130f24] shadow-xl shadow-black/40" aria-label="${h('Your duelist card')}">
             <div class="pointer-events-none absolute inset-0" id="mp-lic-glow"></div>
-            <span class="absolute top-3 right-3 z-10" id="mp-lic-out"></span>
-            <div class="relative flex items-center gap-4 p-4 pr-16">
+            <span class="absolute top-3 end-3 z-10" id="mp-lic-out"></span>
+            <div class="relative flex items-center gap-4 p-4 pe-16">
               <div class="relative size-[84px] flex-none sm:size-24" id="mp-lic-art"></div>
               <div class="flex min-w-0 flex-col gap-1.5">
                 <b class="block truncate font-display text-lg leading-tight text-brass-txt sm:text-xl" id="mp-lic-name">…</b>
@@ -169,7 +169,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       q('lic-glow').style.background = colors ? `radial-gradient(130% 100% at 0% 0%, ${colors.color}38, transparent 62%)` : '';
       if (!colors) { q('lic-dorm').replaceChildren(); return; }
       const dot = el('span', '', 'size-2.5 flex-none rounded-full'); dot.style.background = colors.color; dot.style.boxShadow = `0 0 10px ${colors.color}`;
-      const label = el('span', colors.name); label.style.color = colors.light;
+      const label = el('span', dormName(team!)); label.style.color = colors.light;
       q('lic-dorm').replaceChildren(dot, label);
     };
     const setAvatar = (next: string) => { seed = next; saveSeed(seed); lobby?.setLook({ avatar: seed }); renderLooks(); };
@@ -557,10 +557,10 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
           const well = el('span', '', 'relative block size-full overflow-hidden rounded-[13px] bg-raised');
           const art = el('img', '', 'size-full object-cover transition duration-300 group-hover/god:scale-105'); art.src = artSrc(dorm.god); art.alt = ''; art.draggable = false; art.referrerPolicy = 'no-referrer';
           const shade = el('span', '', 'absolute inset-0'); shade.style.background = `linear-gradient(180deg, transparent 45%, ${dorm.dark}f2 100%)`;
-          const label = el('span', dorm.name, 'absolute inset-x-1 bottom-2 text-center font-display text-[11px] leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-sm');
+          const label = el('span', dormName(id), 'absolute inset-x-1 bottom-2 text-center font-display text-[11px] leading-tight text-white drop-shadow-[0_2px_4px_#000] sm:text-sm');
           well.append(art, shade, label);
           pick.append(well);
-          pick.setAttribute('aria-label', dorm.name);
+          pick.setAttribute('aria-label', dormName(id));
           pick.onclick = async () => {
             grid.querySelectorAll('button').forEach((b) => { b.disabled = true; });
             const chosen = await chooseTeam(id);
@@ -608,7 +608,7 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
         const rank = el('b', String(i + 1), 'w-5 flex-none text-center font-display tabular-nums ' + (['text-[#f5d77a]', 'text-[#d6dbe6]', 'text-[#e0a06a]'][i] ?? 'text-faint'));
         const img = el('img', '', 'size-7 flex-none rounded-lg object-cover'); img.src = avatarURL(discordAvatar(player.id, player.avatar)); img.alt = ''; img.referrerPolicy = 'no-referrer'; img.draggable = false;
         if (dorm) img.style.boxShadow = `0 0 0 2px ${dorm.color}`;
-        const name = el('span', cleanName(player.name) || 'Duelist', 'min-w-0 flex-1 truncate font-semibold text-ink'); if (dorm) name.title = dorm.name;
+        const name = el('span', cleanName(player.name) || 'Duelist', 'min-w-0 flex-1 truncate font-semibold text-ink'); if (player.team) name.title = dormName(player.team);
         const score = el('span', '', 'flex-none text-xs tabular-nums');
         score.append(el('b', String(player.wins), 'text-ok'), el('span', ` / ${player.losses}`, 'text-dim'));
         score.title = `${t('Wins')}: ${player.wins} · ${t('Losses')}: ${player.losses} · ${t('Draws')}: ${player.draws}`;

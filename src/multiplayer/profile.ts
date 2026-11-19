@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Player look shared in the lobby: an avatar, a country code and a dorm. The avatar is the player's Discord picture
  * (`discord:<user id>:<hash>`, or `discord:<user id>` for Discord's default one); players on older builds send an
@@ -29,6 +30,8 @@ export const TEAMS = {
   obelisk: { name: 'Obelisk Blue', color: '#2f6fe4', light: '#9cc2ff', dark: '#0c2a6b', god: 'god_obelisk' },
 } as const;
 export type Team = keyof typeof TEAMS;
+/** A dorm's name in the player's language. */
+export const dormName = (team: Team) => ({ slifer: t('Slifer Red'), ra: t('Ra Yellow'), obelisk: t('Obelisk Blue') })[team];
 export const cleanTeam = (value: unknown): Team | undefined => typeof value === 'string' && Object.keys(TEAMS).includes(value) ? value as Team : undefined;
 export const teamColor = (team: Team | undefined) => team ? TEAMS[team].color : undefined;
 export type Look = { avatar: string; country?: string; team?: Team };

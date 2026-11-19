@@ -208,7 +208,7 @@ export interface Button extends Phaser.GameObjects.Container {
  */
 export function button(
   scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
-  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean; wrap?: boolean } = {},
+  opts: { size?: number; danger?: boolean; primary?: boolean; tab?: boolean; wrap?: boolean; icon?: string; lead?: Phaser.GameObjects.Image } = {},
 ): Button {
   const c = scene.add.container(x, y) as Button;
   const g = scene.add.graphics();
@@ -217,6 +217,18 @@ export function button(
     wordWrap: opts.wrap ? { width: w - 24, useAdvancedWrap: true } : undefined,
   }).setOrigin(0.5);
   c.add([g, t]);
+  // before the label: an icon (`ticon_<name>`, BootScene), tinted like the label, or a picture such as a card
+  const iconSize = Math.round(Math.min(h - 10, (opts.size ?? 15) + 3));
+  const lead = opts.lead ?? (opts.icon && scene.textures.exists(`ticon_${opts.icon}`) ? scene.add.image(0, 0, `ticon_${opts.icon}`).setDisplaySize(iconSize, iconSize) : undefined);
+  const tinted = !opts.lead;
+  if (lead) c.add(lead);
+  const GAP = 8;
+  const place = () => {
+    if (!lead) return;
+    const full = lead.displayWidth + GAP + t.displayWidth;
+    lead.setPosition(-full / 2 + lead.displayWidth / 2, 0);
+    t.setX(-full / 2 + lead.displayWidth + GAP + t.displayWidth / 2);
+  };
   let hover = false, selected = false;
   c.enabled = true;
   const cut = Math.min(7, h / 3.2);
@@ -229,15 +241,22 @@ export function button(
     if (solid) {
       g.fillStyle(lit ? COL.goldLit : COL.gold, a).fillPoints(shape(0), true);
       g.lineStyle(1, 0xfff1c9, 0.9 * a).strokePoints(shape(0.5), true);
+    } else if (opts.danger) {
+      // a filled red button: "No", "Surrender"
+      g.fillStyle(lit ? 0xa3122a : 0x86101f, a).fillPoints(shape(0), true);
+      g.lineStyle(1, lit ? 0xff8a9a : 0xc23146, a).strokePoints(shape(0.5), true);
     } else {
-      const edge = opts.danger ? COL.red : selected || lit ? COL.gold : COL.line;
+      const edge = selected || lit ? COL.gold : COL.line;
       g.fillStyle(selected ? 0x2b2540 : lit ? 0x242039 : 0x14121f, 0.96 * a).fillPoints(shape(0), true);
       if (lit) g.fillStyle(COL.gold, 0.07).fillPoints(shape(0), true);
       g.lineStyle(selected ? 1.5 : 1, edge, (opts.danger && !lit ? 0.7 : 1) * a).strokePoints(shape(0.5), true);
     }
-    t.setColor(!c.enabled ? '#6a657c' : solid ? '#1d1505' : selected || lit ? COL.goldTxt : opts.danger ? '#ffb3c0' : COL.text);
+    const color = !c.enabled ? '#6a657c' : solid ? '#1d1505' : opts.danger ? '#ffffff' : selected || lit ? COL.goldTxt : COL.text;
+    t.setColor(color);
+    if (lead && tinted) lead.setTint(Phaser.Display.Color.HexStringToColor(color).color);
+    if (lead && !tinted) lead.setAlpha(c.enabled ? 1 : 0.4);
   };
-  const fitLabel = () => t.setScale(Math.min(1, Math.max(1, w - 16) / t.width, Math.max(1, h - 6) / t.height));
+  const fitLabel = () => { t.setScale(Math.min(1, Math.max(1, w - 16 - (lead ? lead.displayWidth + GAP : 0)) / t.width, Math.max(1, h - 6) / t.height)); place(); };
   const press = (scale: number) => { if (c.active) scene.tweens.add({ targets: c, scale, duration: 90, ease: 'Sine.out' }); };
   fitLabel();
   draw();
