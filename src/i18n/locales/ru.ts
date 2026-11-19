@@ -631,4 +631,6 @@ export const RU: Dictionary = {
   "{n}% win rate": "{n}% побед",
   "No online duels yet": "Онлайн-дуэлей пока нет",
   "Your duelist card": "Ваша карточка дуэлянта",
+  "Top duelists": "Лучшие дуэлянты",
+  "No online duels won yet. Be the first.": "Онлайн-дуэлей ещё никто не выиграл. Станьте первым.",
 };

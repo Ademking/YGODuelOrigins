@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 // @ts-expect-error plain JavaScript Worker module
-import { chooseTeam, readSession, report, signSession } from '../../worker/accounts.js';
+import { chooseTeam, leaderboard, readSession, report, signSession } from '../../worker/accounts.js';
 // @ts-expect-error plain JavaScript Worker module
 import { joinServer, postDuel } from '../../worker/discord.js';
 import { avatarURL, cleanSeed, cleanTeam } from '../../src/multiplayer/profile';
@@ -18,6 +18,7 @@ function d1() {
     const statement = {
       bind(...values: unknown[]) { args = values; return statement; },
       async run() { return { meta: { changes: Number(sql.prepare(query).run(...(args as never[])).changes) } }; },
+      async all() { return { results: sql.prepare(query).all(...(args as never[])) }; },
       async first() { return sql.prepare(query).get(...(args as never[])) ?? null; },
     };
     return statement;
@@ -122,4 +123,10 @@ test('Discord: joining adds the dorm role, and a counted duel posts without ping
     assert.equal(post.content, '⚔️ **p222** defeated **@everyone** (Slifer Red)!');
     assert.deepEqual(post.allowed_mentions, { parse: [] });
   } finally { globalThis.fetch = real; }
+});
+
+test('the leaderboard ranks by wins, fewer losses first on a tie, and skips players without a win', async () => {
+  const db = setup();
+  db.sql.exec("UPDATE users SET wins = 5, losses = 4 WHERE id = '111'; UPDATE users SET wins = 5, losses = 1 WHERE id = '222'");
+  assert.deepEqual((await leaderboard(db)).map((u: { id: string }) => u.id), ['222', '111']);
 });

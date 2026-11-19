@@ -32,6 +32,16 @@ export async function chooseTeam(team: Team): Promise<Team | null> {
   } catch { return null; }
 }
 
+/** The top duelists by wins (worker/accounts.js); empty when the server can't be reached. */
+export async function loadLeaderboard(): Promise<Account[]> {
+  try {
+    const response = await fetch('/api/leaderboard', { signal: timeoutSignal(6000) });
+    if (!response.ok || !response.headers.get('Content-Type')?.includes('json')) return [];
+    const rows = await response.json() as Account[];
+    return Array.isArray(rows) ? rows.filter(a => cleanAccount(a.id)).map(a => ({ ...a, team: cleanTeam(a.team) ?? null })) : [];
+  } catch { return []; }
+}
+
 export async function signOut() {
   latest = null;
   try { await fetch('/auth/logout', { method: 'POST', signal: timeoutSignal(6000) }); } catch { /* offline: the cookie stays */ }

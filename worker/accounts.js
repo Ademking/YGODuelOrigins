@@ -68,6 +68,12 @@ export async function chooseTeam(db, me, team) {
   return (await db.prepare('SELECT team FROM users WHERE id = ?').bind(me).first())?.team ?? null;
 }
 
+/** The top duelists by wins (fewer losses breaks a tie); players without a win aren't listed. */
+export async function leaderboard(db, limit = 10) {
+  const { results } = await db.prepare('SELECT id, name, avatar, team, wins, losses, draws FROM users WHERE wins > 0 ORDER BY wins DESC, losses ASC, id LIMIT ?').bind(limit).all();
+  return results;
+}
+
 /** /auth/* and /api/* routes; null for any other path. */
 export async function accounts(request, env, path, ctx) {
   const url = new URL(request.url);
@@ -103,6 +109,8 @@ export async function accounts(request, env, path, ctx) {
   if (path === '/auth/logout' && request.method === 'POST') {
     return new Response(null, { status: 204, headers: { 'Set-Cookie': setCookie(SESSION, '', 0) } });
   }
+  // public, and the same for everyone: browsers may keep it a minute
+  if (path === '/api/leaderboard') return Response.json(await leaderboard(env.DB), { headers: { 'Cache-Control': 'public, max-age=60' } });
   if (path === '/api/me' || path === '/api/result' || path === '/api/team') {
     const me = await readSession(env.SESSION_SECRET, cookie(request, SESSION));
     if (!me) return json({ error: 'signed out' }, 401);

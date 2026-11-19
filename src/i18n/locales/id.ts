@@ -631,4 +631,6 @@ export const ID: Dictionary = {
   "{n}% win rate": "{n}% menang",
   "No online duels yet": "Belum ada duel online",
   "Your duelist card": "Kartu duelist kamu",
+  "Top duelists": "Duelist teratas",
+  "No online duels won yet. Be the first.": "Belum ada yang memenangkan duel online. Jadilah yang pertama.",
 };

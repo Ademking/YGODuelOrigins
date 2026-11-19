@@ -631,4 +631,6 @@ export const ES: Dictionary = {
   "{n}% win rate": "{n}% de victorias",
   "No online duels yet": "Aún no hay duelos en línea",
   "Your duelist card": "Tu tarjeta de duelista",
+  "Top duelists": "Mejores duelistas",
+  "No online duels won yet. Be the first.": "Nadie ha ganado un duelo en línea todavía. Sé el primero.",
 };

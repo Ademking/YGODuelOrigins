@@ -631,4 +631,6 @@ export const AR: Dictionary = {
   "{n}% win rate": "نسبة الفوز {n}%",
   "No online duels yet": "لا توجد مبارزات عبر الإنترنت بعد",
   "Your duelist card": "بطاقتك كمبارز",
+  "Top duelists": "أفضل المبارزين",
+  "No online duels won yet. Be the first.": "لم يفز أحد بمبارزة عبر الإنترنت بعد. كن الأول.",
 };

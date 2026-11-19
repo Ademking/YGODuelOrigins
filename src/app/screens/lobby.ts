@@ -11,7 +11,7 @@ import { loadRuntime } from '../../ocgcore/runtime';
 import { t } from '../../i18n';
 import { reportLobbyClock, reportLobbyUnreachable } from '../../monitoring';
 import { clockOffset } from '../../multiplayer/clock';
-import { chooseTeam, loadAccount, signedIn, signOut, type Account } from '../../multiplayer/account';
+import { chooseTeam, loadAccount, loadLeaderboard, signedIn, signOut, type Account } from '../../multiplayer/account';
 import { RETURN_KEY } from '../returnHash';
 
 /** Translate for HTML: the text is escaped. */
@@ -69,6 +69,11 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
               <button class="mp-btn primary w-full" id="mp-create">${icon('plus', 'size-4')}<span>${h('Create room')}</span></button>
               <div class="flex gap-2"><input class="mp-field min-w-0 flex-1 [&:not(:placeholder-shown)]:tracking-wider [&:not(:placeholder-shown)]:uppercase" id="mp-code" placeholder="${h('Room code or link')}" aria-label="${h('Room code or invite link')}" autocomplete="off" autocapitalize="characters"><button class="mp-btn" id="mp-join">${icon('next', 'size-4')}<span>${h('Join')}</span></button></div>
             </div>
+          </section>
+          <section class="mp-panel flex-none">
+            <h2>${icon('solo', 'size-4 text-brass')}${h('Top duelists')}</h2>
+            <ol class="flex flex-col gap-1 px-3 pb-4 text-sm empty:hidden sm:px-4" id="mp-top"></ol>
+            <p class="px-5 pb-5 text-[13px] text-dim" id="mp-top-empty" hidden>${h('No online duels won yet. Be the first.')}</p>
           </section>
           <a class="flex flex-none items-center gap-3.5 rounded-2xl border border-discord/60 bg-[linear-gradient(135deg,#2a2b6b,#191a45)] p-4 text-ink no-underline transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-glow" href="https://discord.gg/VYfWyXyRuf" target="_blank" rel="noopener noreferrer">
             <svg class="flex-none text-[#b9bfff]" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
@@ -520,6 +525,24 @@ const lobbyScreen: Screen<{ rejoin?: boolean } | undefined> = (app, data = {}) =
       if (account?.team) enterLobby();
       else { renderEntry(); if (!nameModal.open) nameModal.showModal(); }
     };
+    // top duelists by wins: medal colours for the first three, your own row lit
+    void loadLeaderboard().then(top => {
+      if (!alive) return;
+      q('top-empty').hidden = top.length > 0;
+      q('top').replaceChildren(...top.map((player, i) => {
+        const mine = player.id === account?.id, dorm = player.team ? TEAMS[player.team] : undefined;
+        const row = el('li', '', 'flex items-center gap-2.5 rounded-xl px-2 py-1.5 ' + (mine ? 'bg-brass/10 ring-1 ring-brass/40' : 'odd:bg-white/[.03]'));
+        const rank = el('b', String(i + 1), 'w-5 flex-none text-center font-display tabular-nums ' + (['text-[#f5d77a]', 'text-[#d6dbe6]', 'text-[#e0a06a]'][i] ?? 'text-faint'));
+        const img = el('img', '', 'size-7 flex-none rounded-lg object-cover'); img.src = avatarURL(discordAvatar(player.id, player.avatar)); img.alt = ''; img.referrerPolicy = 'no-referrer'; img.draggable = false;
+        if (dorm) img.style.boxShadow = `0 0 0 2px ${dorm.color}`;
+        const name = el('span', cleanName(player.name) || 'Duelist', 'min-w-0 flex-1 truncate font-semibold text-ink'); if (dorm) name.title = dorm.name;
+        const score = el('span', '', 'flex-none text-xs tabular-nums');
+        score.append(el('b', String(player.wins), 'text-ok'), el('span', ` / ${player.losses}`, 'text-dim'));
+        score.title = `${t('Wins')}: ${player.wins} · ${t('Losses')}: ${player.losses} · ${t('Draws')}: ${player.draws}`;
+        row.append(rank, img, name, score);
+        return row;
+      }));
+    });
     // the account main.ts loaded at start opens the lobby at once; the fresh copy then updates the record
     account = signedIn();
     if (account?.team) applyAccount();
