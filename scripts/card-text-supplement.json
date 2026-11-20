@@ -387,6 +387,56 @@
     "عتاد السادة الفتاكين",
     "لا يمكن استدعاء هذه البطاقة بشكل خاص. يجب استدعاء هذه البطاقة بالتضحية بتقديم 3 وحوش من نوع محارب في ملعبك كتضحيات. إذا هاجمت هذه البطاقة نقاط حياة خصمك مباشرة وجعلتهم 0، يفوز المُتحكِم بهذه البطاقة بالمباراة."
    ]
+  },
+  "vi": {
+   "3285552": [
+    "Token Nhà thám hiểm",
+    "Lá bài này có thể được dùng làm \"Adventurer Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "10000110": [
+    "Không rõ",
+    ""
+   ],
+   "10000120": [
+    "Hoàng tử Tiên",
+    ""
+   ],
+   "11738490": [
+    "Token @Ignister",
+    "Lá bài này có thể được dùng làm \"@Ignister Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "20001444": [
+    "Token Swordsoul",
+    "Lá bài này có thể được dùng làm \"Swordsoul Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "22411610": [
+    "Token Bom",
+    "Lá bài này có thể được dùng làm \"Bomb Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "30765616": [
+    "Token Trăm quả táo",
+    "Lá bài này có thể được dùng làm \"Hundred Apples Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "37654624": [
+    "Token Thú máy",
+    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Hideout in the Sky, Coulomb\"."
+   ],
+   "48068379": [
+    "Token Link",
+    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Link Devotee\"."
+   ],
+   "51208047": [
+    "Token Trickstar",
+    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Trickstar Live Stage\"."
+   ],
+   "87669905": [
+    "Token Linh hồn Dual Avatar",
+    "Lá bài này có thể được dùng làm \"Dual Avatar Spirit Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
+   ],
+   "ygo_106959": [
+    "Vũ khí của các Lãnh chúa Tử thần",
+    "Lá bài này không thể được Triệu hồi Đặc biệt. Lá bài này phải được Triệu hồi Hiến tế bằng cách Hiến tế 3 quái thú Warrior trên sân của bạn. Nếu lá bài này tấn công trực tiếp Điểm sinh mệnh của đối thủ và đưa chúng về 0, người điều khiển lá bài này thắng cả Match."
+   ]
   }
  },
  "olderText": {
@@ -419,6 +469,11 @@
    "83555666": "دمّر بطاقة وحش 1 مكشوفة وألحق ضرراً مباشراً يساوي نقاط هجوم البطاقة المدمَّرة بنقاط حياتك ونقاط حياة خصمك.",
    "77565204": "أرسل من مجموعتك إلى المقبرة وحوش مواد الدمج المذكورة على بطاقة وحش دمج، واختر وحش الدمج ذلك من مجموعة الدمج الخاصة بك. استدعِ بشكل خاص وحش الدمج المختار أثناء مرحلة استعدادك الثانية بعد تفعيل هذه البطاقة. (يُعامل هذا الاستدعاء الخاص كاستدعاء بالدمج.) عندما تُزال هذه البطاقة من الملعب، دمّر ذلك الوحش. عندما يُدمَّر ذلك الوحش، دمّر هذه البطاقة.",
    "8131171": "خلال مرحلة استعدادك، إذا كانت هذه البطاقة في مقبرتك، يمكنك إعادتها إلى يدك."
+  },
+  "vi": {
+   "83555666": "Phá huỷ 1 quái thú ngửa và gây sát thương lên Điểm sinh mệnh của cả hai người chơi bằng với ATK của lá bài bị phá huỷ.",
+   "77565204": "Gửi từ Deck của bạn vào Mộ các Nguyên liệu Fusion được liệt kê trên một lá bài quái thú Fusion, và chọn 1 quái thú Fusion đó từ Fusion Deck của bạn. Triệu hồi Đặc biệt quái thú Fusion đã chọn trong Standby Phase thứ 2 của bạn sau khi kích hoạt lá bài này. (Lần Triệu hồi Đặc biệt này được xem như Triệu hồi Fusion.) Khi lá bài này rời khỏi sân, phá huỷ quái thú đó. Khi quái thú đó bị phá huỷ, phá huỷ lá bài này.",
+   "8131171": "Trong Standby Phase của bạn, nếu lá bài này ở trong Mộ của bạn, bạn có thể đưa nó trở lại tay."
   }
  }
 }
