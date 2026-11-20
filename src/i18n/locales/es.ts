@@ -643,4 +643,8 @@ export const ES: Dictionary = {
   "You can't duel your own account.": "No puedes duelar contra tu propia cuenta.",
   "Target: {card}": "Objetivo: {card}",
   "a Set card": "una carta colocada",
+  "You are banned": "Estás baneado",
+  "You are timed out": "Estás aislado temporalmente",
+  "Your Discord account is banned from the game's server, so you can't play.": "Tu cuenta de Discord está baneada del servidor del juego, así que no puedes jugar.",
+  "You are timed out on the game's Discord server, so you can't play until {time}.": "Estás aislado temporalmente en el servidor de Discord del juego, así que no puedes jugar hasta {time}.",
 };

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Discord bans
+
+- A player banned from the game's Discord server, or timed out there, can't play: the game shows only a screen saying so (with the time a timeout ends, when the game comes back on its own).
+
 ### Vietnamese
 
 - The game speaks Vietnamese (Tiếng Việt): pick it with the flag button on the title screen.

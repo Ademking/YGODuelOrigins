@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 // @ts-expect-error plain JavaScript Worker module
 import { abandoned, chooseTeam, GRACE_MS, leaderboard, readSession, start, report, signSession } from '../../worker/accounts.js';
 // @ts-expect-error plain JavaScript Worker module
-import { joinServer, postDuel } from '../../worker/discord.js';
+import { blocked, joinServer, postDuel } from '../../worker/discord.js';
 import { avatarURL, cleanSeed, cleanTeam, flagCanvasURL, flagURL } from '../../src/multiplayer/profile';
 
 function d1() {
@@ -182,4 +182,25 @@ test('players located in IL show the Palestinian flag', () => {
   assert.equal(flagURL('IL'), 'https://flagsapi.com/PS/flat/64.png');
   assert.equal(flagCanvasURL('IL'), 'https://flagcdn.com/w80/ps.png');
   assert.equal(flagURL('TN'), 'https://flagsapi.com/TN/flat/64.png');
+});
+
+test('a player banned or timed out on the Discord server is blocked; Discord down or not set up lets them in', async () => {
+  const env = { DISCORD_BOT_TOKEN: 'bot', DISCORD_GUILD_ID: 'g' };
+  const now = Date.parse('2026-01-01T00:00:00Z');
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const user = url.split('/').pop();
+    if (url.includes('/bans/')) return new Response(null, { status: user === '901' ? 200 : 404 });
+    if (user === '904') throw new Error('offline');
+    const until = user === '902' ? '2026-01-01T01:00:00Z' : user === '903' ? '2025-12-31T00:00:00Z' : null;
+    return Response.json({ user: { id: user }, communication_disabled_until: until });
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await blocked(env, '901', now), { banned: true });
+    assert.deepEqual(await blocked(env, '902', now), { until: Date.parse('2026-01-01T01:00:00Z') });
+    assert.equal(await blocked(env, '902', now + 2 * 3600_000), null, 'the timeout is over');
+    assert.equal(await blocked(env, '903', now), null, 'an old timeout');
+    assert.equal(await blocked(env, '904', now), null, 'Discord unreachable');
+    assert.equal(await blocked({}, '901', now), null, 'no server set up');
+  } finally { globalThis.fetch = real; }
 });

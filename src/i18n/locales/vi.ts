@@ -644,4 +644,8 @@ export const VI: Dictionary = {
   "{player}'s Graveyard ({n})": "Mộ của {player} ({n})",
   "{player}'s Turn": "Lượt của {player}",
   "‹ Previous": "‹ Trước",
+  "You are banned": "Bạn đã bị cấm",
+  "You are timed out": "Bạn đang bị tạm khóa",
+  "Your Discord account is banned from the game's server, so you can't play.": "Tài khoản Discord của bạn đã bị cấm khỏi máy chủ của game, nên bạn không thể chơi.",
+  "You are timed out on the game's Discord server, so you can't play until {time}.": "Bạn đang bị tạm khóa trên máy chủ Discord của game, nên bạn không thể chơi cho đến {time}.",
 };

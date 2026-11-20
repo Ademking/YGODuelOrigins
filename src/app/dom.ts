@@ -5,6 +5,7 @@ import { translatedPicture } from '../i18n/cards';
 import { sfx } from '../ui/sfx';
 import { animeAssets, animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from '../ui/animeCard';
 import { getCard } from '../ocgcore/catalog';
+import { banned } from '../multiplayer/account';
 
 export const esc = (value: unknown) => String(value).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
@@ -40,6 +41,7 @@ const SCREENS = {
   Debug: () => import('./screens/debug'),
   Multiplayer: () => import('./screens/lobby'),
   Duel: () => import('./screens/duel'),
+  Banned: () => import('./screens/banned'),
 };
 export type ScreenName = keyof typeof SCREENS;
 let leave: (() => void) | void;
@@ -47,6 +49,8 @@ let navigation = 0;
 
 /** Show another screen. Screens are separate chunks, so the title loads without the duel or the deck editor. */
 export async function go(name: ScreenName, data?: unknown) {
+  // a player banned or timed out on the Discord server sees nothing else (account.ts)
+  if (banned()) { name = 'Banned'; data = banned(); }
   const id = ++navigation;
   // undefined when the screen's file is from an older deploy: the page is already reloading (main.ts)
   const loaded = await SCREENS[name]() as { default: Screen<unknown> } | undefined;
