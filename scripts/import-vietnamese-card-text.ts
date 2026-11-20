@@ -2,8 +2,8 @@
 // Konami prints no Vietnamese cards. Writes assets/i18n/cards/vi.json in the same shape as scripts/import-card-text.ts
 // ({ cards: { passcode: [name, text] } }) plus `images` ({ passcode: file }): the site's Vietnamese card picture
 // (https://cdn.ygovietnam.com/storage/CardVietSub/<file>) for the passcode, tried as .jpg, then .webp, then .png.
-// Effect-choice labels and engine prompts stay English. Cards the site lacks are filled from
-// scripts/card-text-supplement.json (our own translations).
+// Effect-choice labels and engine prompts stay English, and so do the few cards the site lacks (Tokens and placeholders):
+// they show their English name, text and picture.
 //
 // The site's card pages are addressed by English name (ygovietnam.com/card/<name>); the site uses today's names, so a
 // card the game knows by an older name is looked up again by its current name on YGOProDeck. Four requests at a time with a pause
@@ -134,8 +134,10 @@ if (process.argv.includes('--report')) {
   console.log(`\nNo Vietnamese picture (${noPicture.length}):\n${list(noPicture)}`);
 }
 const data: { cards: Record<string, [string, string]>; olderText?: Record<string, string>; images?: Record<string, string> } = { cards };
-const missing = supplement('vi', data, english); // cards the site lacks: our own translations (scripts/card-text-supplement.json)
-if (missing.length) console.warn(`vi: untranslated ${missing.join(' ')}; add them to scripts/card-text-supplement.json`);
+// a card printed under several passcodes takes its sibling's text, and the cards played by older text get our translation
+// of it (scripts/card-text-supplement.json); the cards the site lacks stay in English
+const missing = supplement('vi', data, english);
+if (missing.length) console.log(`vi: in English (not on the site): ${missing.join(' ')}`);
 data.images = images;
 mkdirSync('assets/i18n/cards', { recursive: true });
 writeFileSync('assets/i18n/cards/vi.json', JSON.stringify(data));

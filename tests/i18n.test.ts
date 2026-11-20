@@ -78,6 +78,11 @@ test('Vietnamese card text (Yu-Gi-Oh! Việt Nam) feeds names, text and card pic
     assert.match(translatedPicture('46986414')!, /cdn\.ygovietnam\.com\/storage\/CardVietSub\/46986414\.(jpg|webp|png)/);
     // Ring of Destruction plays by its 2004 English text, so it keeps the English picture
     assert.equal(translatedPicture('83555666'), undefined);
+    // a card the site lacks (a Token) shows its English name, text and picture
+    const token = CARDS.find((card) => card.id === 'ocg_22411610') ?? { id: 'ocg_22411610', name: 'Bomb Token', text: 'English text' } as typeof darkMagician;
+    assert.equal(cardName(token), token.name);
+    assert.equal(cardText(token), token.text);
+    assert.equal(translatedPicture('22411610'), undefined);
   } finally {
     setCardTexts(undefined);
   }
@@ -87,7 +92,7 @@ test('Every card the game can show is translated in every language with card tex
   const { readFileSync } = await import('node:fs');
   const { englishCards } = await import('../scripts/card-text-supplement');
   const english = englishCards();
-  for (const file of ['fr', 'de', 'it', 'pt', 'es', 'ar', 'vi']) {
+  for (const file of ['fr', 'de', 'it', 'pt', 'es', 'ar']) { // Vietnamese leaves the cards Yu-Gi-Oh! Việt Nam lacks in English
     const { cards } = JSON.parse(readFileSync(`assets/i18n/cards/${file}.json`, 'utf8'));
     const missing = [...english.keys()].filter((code) => !cards[code]?.[0]);
     assert.deepEqual(missing, [], `${file} has untranslated cards; add them to scripts/card-text-supplement.json`);

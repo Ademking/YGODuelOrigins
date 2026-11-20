@@ -3,7 +3,7 @@
 //   - French, German, Italian, Portuguese, Spanish: Konami's official translations (scripts/import-card-text.ts);
 //   - Arabic: the community translations of Arab Duelists (scripts/import-arabic-card-text.ts), names and text only;
 //   - Vietnamese: the community translations of Yu-Gi-Oh! Việt Nam (scripts/import-vietnamese-card-text.ts), names, text
-//     and Vietnamese card pictures;
+//     and Vietnamese card pictures; the few cards the site lacks (Tokens) stay in English;
 //   - the few cards no source has: our own translations (scripts/card-text-supplement.ts), so every card is translated.
 // Russian and Indonesian cards stay in English.
 import type { CardDef } from '../engine/types';

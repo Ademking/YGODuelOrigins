@@ -387,56 +387,6 @@
     "عتاد السادة الفتاكين",
     "لا يمكن استدعاء هذه البطاقة بشكل خاص. يجب استدعاء هذه البطاقة بالتضحية بتقديم 3 وحوش من نوع محارب في ملعبك كتضحيات. إذا هاجمت هذه البطاقة نقاط حياة خصمك مباشرة وجعلتهم 0، يفوز المُتحكِم بهذه البطاقة بالمباراة."
    ]
-  },
-  "vi": {
-   "3285552": [
-    "Token Nhà thám hiểm",
-    "Lá bài này có thể được dùng làm \"Adventurer Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "10000110": [
-    "Không rõ",
-    ""
-   ],
-   "10000120": [
-    "Hoàng tử Tiên",
-    ""
-   ],
-   "11738490": [
-    "Token @Ignister",
-    "Lá bài này có thể được dùng làm \"@Ignister Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "20001444": [
-    "Token Swordsoul",
-    "Lá bài này có thể được dùng làm \"Swordsoul Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "22411610": [
-    "Token Bom",
-    "Lá bài này có thể được dùng làm \"Bomb Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "30765616": [
-    "Token Trăm quả táo",
-    "Lá bài này có thể được dùng làm \"Hundred Apples Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "37654624": [
-    "Token Thú máy",
-    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Hideout in the Sky, Coulomb\"."
-   ],
-   "48068379": [
-    "Token Link",
-    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Link Devotee\"."
-   ],
-   "51208047": [
-    "Token Trickstar",
-    "Được Triệu hồi Đặc biệt bởi hiệu ứng của \"Trickstar Live Stage\"."
-   ],
-   "87669905": [
-    "Token Linh hồn Dual Avatar",
-    "Lá bài này có thể được dùng làm \"Dual Avatar Spirit Token\".\n\n* Nếu dùng cho Token khác, áp dụng Loại/Thuộc tính/Cấp/ATK/DEF của Token đó."
-   ],
-   "ygo_106959": [
-    "Vũ khí của các Lãnh chúa Tử thần",
-    "Lá bài này không thể được Triệu hồi Đặc biệt. Lá bài này phải được Triệu hồi Hiến tế bằng cách Hiến tế 3 quái thú Warrior trên sân của bạn. Nếu lá bài này tấn công trực tiếp Điểm sinh mệnh của đối thủ và đưa chúng về 0, người điều khiển lá bài này thắng cả Match."
-   ]
   }
  },
  "olderText": {
