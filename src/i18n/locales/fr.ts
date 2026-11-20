@@ -645,6 +645,6 @@ export const FR: Dictionary = {
   "a Set card": "une carte posée",
   "You are banned": "Vous êtes banni",
   "You are timed out": "Vous êtes exclu temporairement",
-  "Your Discord account is banned from the game's server, so you can't play.": "Votre compte Discord est banni du serveur du jeu, vous ne pouvez donc pas jouer.",
-  "You are timed out on the game's Discord server, so you can't play until {time}.": "Vous êtes exclu temporairement du serveur Discord du jeu, vous ne pouvez donc pas jouer avant {time}.",
+  "Your Discord account is banned from the game's server, so you can't play online. You can still duel the CPU.": "Votre compte Discord est banni du serveur du jeu, vous ne pouvez donc pas jouer en ligne. Vous pouvez toujours affronter le CPU.",
+  "You are timed out on the game's Discord server, so you can't play online until {time}. You can still duel the CPU.": "Vous êtes exclu temporairement du serveur Discord du jeu, vous ne pouvez donc pas jouer en ligne avant {time}. Vous pouvez toujours affronter le CPU.",
 };

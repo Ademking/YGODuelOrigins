@@ -4,7 +4,7 @@
 
 ### Discord bans
 
-- A player banned from the game's Discord server, or timed out there, can't play: the game shows only a screen saying so (with the time a timeout ends, when the game comes back on its own).
+- A player banned from the game's Discord server, or timed out there, can't play online: the online lobby shows a screen saying so instead (with the time a timeout ends, when the lobby opens again on its own). Duels against the CPU stay open.
 
 ### Vietnamese
 

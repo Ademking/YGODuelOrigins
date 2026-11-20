@@ -18,7 +18,7 @@ export const signedIn = () => latest;
 /** Banned from the game's Discord server (`until` absent), or timed out there until `until` (ms). */
 export type Ban = { until?: number };
 let ban: Ban | null = null;
-/** Set once the server says this account is banned or timed out: the game then shows only the Banned screen. */
+/** Set once the server says this account is banned or timed out: the online lobby then shows the Banned screen. */
 export const banned = () => ban;
 const banListeners: ((ban: Ban) => void)[] = [];
 export const onBan = (listener: (ban: Ban) => void) => { banListeners.push(listener); };

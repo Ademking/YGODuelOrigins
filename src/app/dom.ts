@@ -49,8 +49,8 @@ let navigation = 0;
 
 /** Show another screen. Screens are separate chunks, so the title loads without the duel or the deck editor. */
 export async function go(name: ScreenName, data?: unknown) {
-  // a player banned or timed out on the Discord server sees nothing else (account.ts)
-  if (banned()) { name = 'Banned'; data = banned(); }
+  // a player banned or timed out on the Discord server can't go online (account.ts); playing the CPU stays open
+  if (name === 'Multiplayer' && banned()) { name = 'Banned'; data = banned(); }
   const id = ++navigation;
   // undefined when the screen's file is from an older deploy: the page is already reloading (main.ts)
   const loaded = await SCREENS[name]() as { default: Screen<unknown> } | undefined;
