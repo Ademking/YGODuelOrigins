@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Discord bans
+
+- A player banned from the game's Discord server, or timed out there, can't play online: the online lobby shows a screen saying so instead (with the time a timeout ends, when the lobby opens again on its own). Duels against the CPU stay open.
+
 ### Vietnamese
 
 - The game speaks Vietnamese (Tiếng Việt): pick it with the flag button on the title screen.

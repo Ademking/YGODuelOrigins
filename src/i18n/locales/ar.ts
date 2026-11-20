@@ -643,4 +643,8 @@ export const AR: Dictionary = {
   "You can't duel your own account.": "لا يمكنك مبارزة حسابك نفسه.",
   "Target: {card}": "الهدف: {card}",
   "a Set card": "بطاقة مخفية",
+  "You are banned": "أنت محظور",
+  "You are timed out": "أنت في مهلة مؤقتة",
+  "Your Discord account is banned from the game's server, so you can't play online. You can still duel the CPU.": "حسابك على Discord محظور من خادم اللعبة، لذا لا يمكنك اللعب عبر الإنترنت. لا يزال بإمكانك مبارزة الكمبيوتر.",
+  "You are timed out on the game's Discord server, so you can't play online until {time}. You can still duel the CPU.": "أنت في مهلة مؤقتة على خادم Discord الخاص باللعبة، لذا لا يمكنك اللعب عبر الإنترنت حتى {time}. لا يزال بإمكانك مبارزة الكمبيوتر.",
 };

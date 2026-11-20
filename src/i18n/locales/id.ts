@@ -643,4 +643,8 @@ export const ID: Dictionary = {
   "You can't duel your own account.": "Kamu tidak bisa duel melawan akunmu sendiri.",
   "Target: {card}": "Target: {card}",
   "a Set card": "kartu yang di-Set",
+  "You are banned": "Kamu diblokir",
+  "You are timed out": "Kamu sedang di-timeout",
+  "Your Discord account is banned from the game's server, so you can't play online. You can still duel the CPU.": "Akun Discord-mu diblokir dari server game, jadi kamu tidak bisa bermain online. Kamu tetap bisa berduel melawan CPU.",
+  "You are timed out on the game's Discord server, so you can't play online until {time}. You can still duel the CPU.": "Kamu sedang di-timeout di server Discord game, jadi kamu tidak bisa bermain online sampai {time}. Kamu tetap bisa berduel melawan CPU.",
 };

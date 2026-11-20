@@ -7,7 +7,7 @@
 // when both players' reports name each other and agree. A player who started the duel (start()) and then left without
 // a result loses it once the opponent has claimed the win and GRACE_MS has passed (abandoned(), on the cron).
 
-import { canJoin, giveRole, joinServer, postDuel } from './discord.js';
+import { blocked, canJoin, giveRole, joinServer, postDuel } from './discord.js';
 
 const SESSION = 'session', STATE = 'oauth_state', MONTH_S = 30 * 86400;
 /** How long a claimed win waits for the opponent's own report before a player who left loses by default. */
@@ -162,6 +162,9 @@ export async function accounts(request, env, path, ctx) {
   if (path === '/api/me' || path === '/api/result' || path === '/api/team' || path === '/api/start') {
     const me = await readSession(env.SESSION_SECRET, cookie(request, SESSION));
     if (!me) return json({ error: 'signed out' }, 401);
+    // banned or timed out on the Discord server: no playing until that ends (the game shows why)
+    const block = await blocked(env, me);
+    if (block) return json({ error: 'banned', ...block }, 403);
     if (path === '/api/me') {
       const user = await env.DB.prepare('SELECT id, name, avatar, team, wins, losses, draws FROM users WHERE id = ?').bind(me).first();
       return user ? json(user) : json({ error: 'signed out' }, 401);

@@ -15,9 +15,25 @@ let latest: Account | null = null;
 /** The account as last loaded (main.ts loads it at start, the lobby again on each visit): for screens that can't wait. */
 export const signedIn = () => latest;
 
+/** Banned from the game's Discord server (`until` absent), or timed out there until `until` (ms). */
+export type Ban = { until?: number };
+let ban: Ban | null = null;
+/** Set once the server says this account is banned or timed out: the online lobby then shows the Banned screen. */
+export const banned = () => ban;
+const banListeners: ((ban: Ban) => void)[] = [];
+export const onBan = (listener: (ban: Ban) => void) => { banListeners.push(listener); };
+
 export async function loadAccount(): Promise<Account | null> {
   try {
     const response = await fetch('/api/me', { cache: 'no-store', signal: timeoutSignal(6000) });
+    if (response.status === 403) {
+      const body = await response.json().catch(() => null) as { error?: unknown; banned?: unknown; until?: unknown } | null;
+      if (body?.error === 'banned') {
+        ban = body.banned === true || typeof body.until !== 'number' ? {} : { until: body.until };
+        for (const listener of banListeners) listener(ban);
+      }
+      return latest = null;
+    }
     if (!response.ok || !response.headers.get('Content-Type')?.includes('json')) return latest = null;
     const a = await response.json() as Account;
     return latest = cleanAccount(a.id) ? { ...a, team: cleanTeam(a.team) ?? null } : null;
