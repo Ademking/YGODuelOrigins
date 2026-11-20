@@ -11,6 +11,7 @@
     "import:ygo": "tsx scripts/import-ygo.ts",
     "import:card-text": "tsx scripts/import-card-text.ts",
     "import:card-text:ar": "tsx scripts/import-arabic-card-text.ts",
+    "import:card-text:vi": "tsx scripts/import-vietnamese-card-text.ts",
     "card-text:supplement": "tsx scripts/card-text-supplement.ts",
     "verify:original": "node scripts/verify-original.mjs",
     "test": "tsx --test \"tests/**/*.test.ts\"",

@@ -2,6 +2,8 @@
 // assets/i18n/cards/<locale>.json, loaded at boot:
 //   - French, German, Italian, Portuguese, Spanish: Konami's official translations (scripts/import-card-text.ts);
 //   - Arabic: the community translations of Arab Duelists (scripts/import-arabic-card-text.ts), names and text only;
+//   - Vietnamese: the community translations of Yu-Gi-Oh! Việt Nam (scripts/import-vietnamese-card-text.ts), names, text
+//     and Vietnamese card pictures; the few cards the site lacks (Tokens) stay in English;
 //   - the few cards no source has: our own translations (scripts/card-text-supplement.ts), so every card is translated.
 // Russian and Indonesian cards stay in English.
 import type { CardDef } from '../engine/types';
@@ -11,7 +13,7 @@ import { OVERRIDES } from '../ocgcore/overrides';
 import { timeoutSignal } from '../timeoutSignal';
 
 /** Languages with translated card text: the file name for each. */
-export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it', ar: 'ar' };
+export const CARD_TEXT_FILES: Partial<Record<Locale, string>> = { 'pt-BR': 'pt', fr: 'fr', es: 'es', de: 'de', it: 'it', ar: 'ar', vi: 'vi' };
 
 /** The file's shape: names and text, effect-choice labels by index (str1 = 0), engine prompts by id. */
 export interface CardTextFile {
@@ -20,13 +22,19 @@ export interface CardTextFile {
   system?: Record<string, string>;
   /** Translations of the older English text the game plays some cards by (src/ocgcore/overrides.ts). */
   olderText?: Record<string, string>;
+  /** Card pictures printed in this language, by passcode: a file under PICTURE_BASE (Vietnamese only). */
+  images?: Record<string, string>;
 }
+
+/** Where the translated card pictures are (Yu-Gi-Oh! Việt Nam's CDN), through the same resizing proxy as the English ones. */
+const PICTURE_BASE = 'https://wsrv.nl/?url=cdn.ygovietnam.com/storage/CardVietSub/';
 
 /** passcode → [name, text] for the current language. */
 let texts = new Map<string, [string, string]>();
 let labels: CardTextFile['strings'] = {};
 let system: CardTextFile['system'] = {};
 let olderText: CardTextFile['olderText'] = {};
+let pictures: CardTextFile['images'] = {};
 /** Passcodes whose text the game plays differently from the official current text (src/ocgcore/overrides.ts). */
 const keepEnglishText = new Set<string>();
 
@@ -36,6 +44,7 @@ export function setCardTexts(data: CardTextFile | undefined, englishTextFor: num
   labels = data?.strings ?? {};
   system = data?.system ?? {};
   olderText = data?.olderText ?? {};
+  pictures = data?.images ?? {};
   keepEnglishText.clear();
   for (const code of englishTextFor) keepEnglishText.add(String(code));
 }
@@ -95,4 +104,17 @@ export function cardText(card: CardDef): string {
 export function matchesTranslated(card: CardDef, query: string): boolean {
   const entry = texts.get(passcodeOf(card));
   return !!entry && (entry[0].toLowerCase().includes(query) || entry[1].toLowerCase().includes(query));
+}
+
+/** Does the current language have its own card pictures? (Card textures are cached per picture language.) */
+export const hasTranslatedPictures = () => Object.keys(pictures ?? {}).length > 0;
+
+/**
+ * The card picture printed in the interface language for this artwork passcode, `width` pixels wide, or undefined
+ * when there is none (then the English picture shows). Cards played by older text keep their English picture.
+ */
+export function translatedPicture(passcode: string, width = 421): string | undefined {
+  const file = pictures?.[passcode];
+  if (!file || keepEnglishText.has(passcode)) return undefined;
+  return `${PICTURE_BASE}${file}&w=${width}&output=webp`;
 }

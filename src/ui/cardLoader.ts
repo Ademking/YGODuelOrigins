@@ -3,6 +3,7 @@ import { cardImagePasscode } from '../data/cardImages';
 import { BACK, CH, CW, cardKey } from './cardArt';
 import { animeAssets, animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from './animeCard';
 import { getCard } from '../ocgcore/catalog';
+import { translatedPicture } from '../i18n/cards';
 
 // Card faces are fetched only when a screen shows them. Newest requests go first (LIFO), so paging through the
 // deck editor loads the page you are looking at before the ones you skipped past.
@@ -57,8 +58,11 @@ export function loadCard(textures: Phaser.Textures.TextureManager, id: string): 
             console.warn('Could not prepare card artwork', id, error);
           } finally { done(); }
         };
-        img.onerror = done;
-        img.src = `${anime ? CROPPED_BASE : CARD_BASE}${pass}.jpg`;
+        const english = `${anime ? CROPPED_BASE : CARD_BASE}${pass}.jpg`;
+        const translated = anime ? undefined : translatedPicture(pass);
+        // the picture printed in the interface language (Vietnamese), else, or if it fails, the English one
+        img.onerror = () => { if (translated && img.src !== english) img.src = english; else done(); };
+        img.src = translated ?? english;
       });
       next();
     });

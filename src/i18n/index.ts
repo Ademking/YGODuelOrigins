@@ -9,8 +9,9 @@ import { ID } from './locales/id';
 import { IT } from './locales/it';
 import { PT_BR } from './locales/pt-BR';
 import { RU } from './locales/ru';
+import { VI } from './locales/vi';
 
-export type Locale = 'en' | 'pt-BR' | 'fr' | 'es' | 'de' | 'it' | 'ru' | 'ar' | 'id';
+export type Locale = 'en' | 'pt-BR' | 'fr' | 'es' | 'de' | 'it' | 'ru' | 'ar' | 'id' | 'vi';
 /** Every language, named in itself, with the flag shown beside it (assets/flags/<flag>.png, rendered from the .svg), in menu order. */
 export const LOCALES: { code: Locale; name: string; flag: string }[] = [
   { code: 'en', name: 'English', flag: 'gb' },
@@ -22,9 +23,10 @@ export const LOCALES: { code: Locale; name: string; flag: string }[] = [
   { code: 'ru', name: 'Русский', flag: 'ru' },
   { code: 'ar', name: 'العربية', flag: 'sa' },
   { code: 'id', name: 'Bahasa Indonesia', flag: 'id' },
+  { code: 'vi', name: 'Tiếng Việt', flag: 'vn' },
 ];
 export type Dictionary = Record<string, string>;
-export const DICTIONARIES: Record<Exclude<Locale, 'en'>, Dictionary> = { 'pt-BR': PT_BR, fr: FR, es: ES, de: DE, it: IT, ru: RU, ar: AR, id: ID };
+export const DICTIONARIES: Record<Exclude<Locale, 'en'>, Dictionary> = { 'pt-BR': PT_BR, fr: FR, es: ES, de: DE, it: IT, ru: RU, ar: AR, id: ID, vi: VI };
 
 const KEY = 'arcana-duel.locale';
 

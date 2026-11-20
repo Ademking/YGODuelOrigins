@@ -419,6 +419,11 @@
    "83555666": "دمّر بطاقة وحش 1 مكشوفة وألحق ضرراً مباشراً يساوي نقاط هجوم البطاقة المدمَّرة بنقاط حياتك ونقاط حياة خصمك.",
    "77565204": "أرسل من مجموعتك إلى المقبرة وحوش مواد الدمج المذكورة على بطاقة وحش دمج، واختر وحش الدمج ذلك من مجموعة الدمج الخاصة بك. استدعِ بشكل خاص وحش الدمج المختار أثناء مرحلة استعدادك الثانية بعد تفعيل هذه البطاقة. (يُعامل هذا الاستدعاء الخاص كاستدعاء بالدمج.) عندما تُزال هذه البطاقة من الملعب، دمّر ذلك الوحش. عندما يُدمَّر ذلك الوحش، دمّر هذه البطاقة.",
    "8131171": "خلال مرحلة استعدادك، إذا كانت هذه البطاقة في مقبرتك، يمكنك إعادتها إلى يدك."
+  },
+  "vi": {
+   "83555666": "Phá huỷ 1 quái thú ngửa và gây sát thương lên Điểm sinh mệnh của cả hai người chơi bằng với ATK của lá bài bị phá huỷ.",
+   "77565204": "Gửi từ Deck của bạn vào Mộ các Nguyên liệu Fusion được liệt kê trên một lá bài quái thú Fusion, và chọn 1 quái thú Fusion đó từ Fusion Deck của bạn. Triệu hồi Đặc biệt quái thú Fusion đã chọn trong Standby Phase thứ 2 của bạn sau khi kích hoạt lá bài này. (Lần Triệu hồi Đặc biệt này được xem như Triệu hồi Fusion.) Khi lá bài này rời khỏi sân, phá huỷ quái thú đó. Khi quái thú đó bị phá huỷ, phá huỷ lá bài này.",
+   "8131171": "Trong Standby Phase của bạn, nếu lá bài này ở trong Mộ của bạn, bạn có thể đưa nó trở lại tay."
   }
  }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Vietnamese
+
+- The game speaks Vietnamese (Tiếng Việt): pick it with the flag button on the title screen.
+- Card names and text in Vietnamese from the Yu-Gi-Oh! Việt Nam community (ygovietnam.com), using their terms (Mộ, Phép, Bẫy, Hiến tế, Triệu hồi Đặc biệt).
+- With the official card style, cards show the community's Vietnamese card pictures; a card without one shows the English picture.
+- The few cards the community hasn't translated (Tokens) show in English.
+
 ## 1.5.0 — 2026-11-19
 
 Discord accounts, online stats, dorms and a leaderboard.
