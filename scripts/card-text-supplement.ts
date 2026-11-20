@@ -5,7 +5,7 @@
 //      our own translations, written in each source's established terms;
 //   3. `olderText` ({ lang: { passcode: text } }): our translation of the older English text the game plays some cards by
 //      (src/ocgcore/overrides.ts), shown instead of the current official text.
-// The importers (import-card-text.ts, import-arabic-card-text.ts) run this last. On its own: npm run card-text:supplement
+// The importers (import-card-text.ts, import-arabic-card-text.ts, import-vietnamese-card-text.ts) run this last. On its own: npm run card-text:supplement
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -15,7 +15,7 @@ import { cardImagePasscode } from '../src/data/cardImages';
 
 type Entry = [string, string];
 const SUPPLEMENT = resolve('scripts/card-text-supplement.json');
-const FILES = ['fr', 'de', 'it', 'pt', 'es', 'ar'];
+const FILES = ['fr', 'de', 'it', 'pt', 'es', 'ar', 'vi'];
 
 /** Every card the game can show, by the key src/i18n/cards.ts looks it up with, and its English [name, text]. */
 export function englishCards(): Map<string, Entry> {

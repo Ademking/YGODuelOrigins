@@ -17,6 +17,7 @@ const about = (): [string, string][] => [
   [t('It is a fan project and is not associated with Konami.'), ''],
   [t('The literal and graphical information presented in this game about Yu-Gi-Oh!, including card images, the attribute, level/rank and type symbols, and card text, is copyright 4K Media Inc, a subsidiary of Konami Digital Entertainment, Inc. This game is not produced by, endorsed by, supported by, or affiliated with 4K Media or Konami Digital Entertainment.'), 'text-dim text-xs'],
   ...(locale() === 'ar' ? [['نصوص البطاقات العربية من ترجمة مجتمع المبارزين العرب (arab-duelists.com).', 'text-dim text-xs'] as [string, string]] : []),
+  ...(locale() === 'vi' ? [['Tên, hiệu ứng và hình ảnh lá bài tiếng Việt theo bản dịch của cộng đồng Yu-Gi-Oh! Việt Nam (ygovietnam.com).', 'text-dim text-xs'] as [string, string]] : []),
   [t('Questions, bug reports and duel partners: join the Discord server.'), ''],
   [t('Version {v}', { v: __APP_VERSION__ }), 'text-dim text-xs'],
 ];

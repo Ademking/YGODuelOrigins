@@ -1,6 +1,7 @@
 // Small DOM toolkit shared by every screen: HTML building, the screen router, dialogs, and card images.
 import { cardImagePasscode } from '../data/cardImages';
 import { t } from '../i18n';
+import { translatedPicture } from '../i18n/cards';
 import { sfx } from '../ui/sfx';
 import { animeAssets, animeCards, CARD_BASE, CROPPED_BASE, paintAnimeCard } from '../ui/animeCard';
 import { getCard } from '../ocgcore/catalog';
@@ -158,6 +159,12 @@ const painted = new Map<string, string>();
 export function cardSrc(id: string) {
   if (animeCards()) return painted.get(id) ?? artSrc(id);
   const pass = cardImagePasscode(id);
+  return pass ? translatedPicture(pass, 320) ?? `${CARD_BASE}${pass}.jpg${SIZED}` : '';
+}
+
+/** The English picture to fall back to when a card's picture in the interface language (Vietnamese) fails to load. */
+function englishSrc(id: string) {
+  const pass = cardImagePasscode(id);
   return pass ? `${CARD_BASE}${pass}.jpg${SIZED}` : '';
 }
 
@@ -166,15 +173,27 @@ export function cardHtml(id: string | null, className = '', eager = false) {
   const src = id ? cardSrc(id) : '';
   // anime style: the bare art loads first, then is painted into a card frame (see the load listener below)
   const paint = id && animeCards() && !painted.has(id) ? ` data-paint="${esc(id)}" crossorigin="anonymous"` : '';
-  return `<div class="card ${className}">${src ? `<img src="${esc(src)}" alt="" draggable="false" decoding="async"${paint}${eager ? '' : ' loading="lazy"'}>` : ''}</div>`;
+  const fallback = id && src !== englishSrc(id) ? ` data-english="${esc(englishSrc(id))}"` : '';
+  return `<div class="card ${className}">${src ? `<img src="${esc(src)}" alt="" draggable="false" decoding="async"${paint}${fallback}${eager ? '' : ' loading="lazy"'}>` : ''}</div>`;
 }
 
 /** Point an existing card image at another card. */
 export function setCardImage(img: HTMLImageElement, id: string) {
   if (animeCards() && !painted.has(id)) { img.crossOrigin = 'anonymous'; img.dataset.paint = id; }
   else delete img.dataset.paint;
-  img.src = cardSrc(id);
+  const src = cardSrc(id);
+  if (src !== englishSrc(id)) img.dataset.english = englishSrc(id); else delete img.dataset.english;
+  img.src = src;
 }
+
+// a card picture in the interface language that fails to load falls back to the English picture
+document.addEventListener('error', (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.english) return;
+  const english = img.dataset.english;
+  delete img.dataset.english;
+  img.src = english;
+}, true);
 
 document.addEventListener('load', (event) => {
   const img = event.target;

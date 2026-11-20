@@ -64,11 +64,30 @@ test('Arabic card text (Arab Duelists) feeds names and text, and leaves effect l
   }
 });
 
+test('Vietnamese card text (Yu-Gi-Oh! Việt Nam) feeds names, text and card pictures, and leaves effect labels in English', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { setCardTexts, cardName, cardText, translatedDescription, translatedPicture } = await import('../src/i18n/cards');
+  const { CARDS } = await import('../src/ocgcore/catalog');
+  const vietnamese = JSON.parse(readFileSync('assets/i18n/cards/vi.json', 'utf8'));
+  setCardTexts(vietnamese, [83555666]);
+  try {
+    const darkMagician = CARDS.find((card) => card.name === 'Dark Magician')!;
+    assert.equal(cardName(darkMagician), 'Pháp sư bóng tối');
+    assert.match(cardText(darkMagician), /[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i);
+    assert.equal(translatedDescription((62121n << 20n) | 0n), undefined);
+    assert.match(translatedPicture('46986414')!, /cdn\.ygovietnam\.com\/storage\/CardVietSub\/46986414\.(jpg|webp|png)/);
+    // Ring of Destruction plays by its 2004 English text, so it keeps the English picture
+    assert.equal(translatedPicture('83555666'), undefined);
+  } finally {
+    setCardTexts(undefined);
+  }
+});
+
 test('Every card the game can show is translated in every language with card text', async () => {
   const { readFileSync } = await import('node:fs');
   const { englishCards } = await import('../scripts/card-text-supplement');
   const english = englishCards();
-  for (const file of ['fr', 'de', 'it', 'pt', 'es', 'ar']) {
+  for (const file of ['fr', 'de', 'it', 'pt', 'es', 'ar', 'vi']) {
     const { cards } = JSON.parse(readFileSync(`assets/i18n/cards/${file}.json`, 'utf8'));
     const missing = [...english.keys()].filter((code) => !cards[code]?.[0]);
     assert.deepEqual(missing, [], `${file} has untranslated cards; add them to scripts/card-text-supplement.json`);

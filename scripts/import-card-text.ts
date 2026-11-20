@@ -8,7 +8,8 @@
 //   1. YGOProDeck (fr, de, it, pt): names and text as first printed, which suits the game's 2004 era.
 //   2. mycard/ygopro-database (es, fr, de, it, pt): fills cards YGOProDeck lacks, all of Spanish (YGOProDeck has none),
 //      and the effect-choice labels and engine prompts. Pinned to one commit so the output is reproducible.
-// Konami prints no Russian, Arabic or Indonesian cards. Arabic uses community text (scripts/import-arabic-card-text.ts).
+// Konami prints no Russian, Arabic, Indonesian or Vietnamese cards. Arabic and Vietnamese use community text
+// (scripts/import-arabic-card-text.ts, scripts/import-vietnamese-card-text.ts).
 //
 // Cards neither source has are filled from scripts/card-text-supplement.json (our own translations).
 //
