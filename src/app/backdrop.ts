@@ -1,5 +1,5 @@
 // The animated shadow-realm smoke behind every menu screen: the duel's own background shader on a small canvas stretched
-// to the window (the smoke is soft, so 320x180 is plenty). Paused while the Phaser duel covers it or the tab is hidden.
+// to the window (the smoke is soft, so 320x180 is plenty). Paused while the duel covers it or the tab is hidden.
 import { arenaFragment } from '../ui/arenaShader';
 
 const VERTEX = `attribute vec2 p; uniform vec2 resolution; varying vec2 fragCoord;
@@ -48,7 +48,7 @@ export function mountBackdrop() {
   let last = 0;
   const frame = (ms: number) => {
     requestAnimationFrame(frame);
-    if (ms - last < 1000 / 30 || document.querySelector('.phaser-duel')) return;
+    if (ms - last < 1000 / 30 || document.querySelector('.duel-root')) return;
     last = ms;
     draw(ms);
   };

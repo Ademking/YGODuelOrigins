@@ -136,35 +136,8 @@ const CROPPED_BASE = (import.meta.env?.VITE_CARD_IMAGE_BASE ?? 'https://wsrv.nl/
 
 const passcodeOf = (name: FieldMatName) => (FIELD_MATS[name] as { passcode?: string }).passcode;
 
-/** Texture key of a field's artwork, or null for procedural mats. */
-export const fieldArtKey = (name: FieldMatName) => (passcodeOf(name) ? `field-art-${passcodeOf(name)}` : null);
-
-/** Load a field's cropped artwork as a softened 512×512 texture (power of two so WebGL1 can sample it). True when the mat can
- * be drawn: art loaded, or a procedural mat that needs none. */
-export function loadFieldArt(textures: Phaser.Textures.TextureManager, name: FieldMatName): Promise<boolean> {
-  const key = fieldArtKey(name);
-  if (!key || textures.exists(key)) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      if (!textures.exists(key)) {
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 512;
-        const ctx = canvas.getContext('2d')!;
-        // The crop is small and JPEG-compressed, and the mat stretches it across the duel area, so it is blurred
-        // once here: it reads as an out-of-focus backdrop instead of blocky pixels. Drawn slightly oversized so the
-        // blur does not fade the edges. ponytail: ctx.filter; a browser without it (Safari < 18) shows the art unblurred.
-        ctx.filter = 'blur(3px)';
-        ctx.drawImage(img, -10, -10, 532, 532);
-        textures.addCanvas(key, canvas);
-      }
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
-    img.src = `${CROPPED_BASE}${passcodeOf(name)}.jpg`;
-  });
-}
+/** The URL of a field's cropped artwork, or null for procedural mats (they need no picture). */
+export const fieldArtUrl = (name: FieldMatName) => (passcodeOf(name) ? `${CROPPED_BASE}${passcodeOf(name)}.jpg` : null);
 
 const FX: Record<Fx, string> = {
   heat: 'a.x += sin(a.y * 45.0 - t * 6.0) * 0.0025 * smoothstep(0.3, 1.0, a.y);',

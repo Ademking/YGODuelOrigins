@@ -22,7 +22,7 @@ export const reducedMotionPreferred = () => window.matchMedia('(prefers-reduced-
 export const coarsePointer = () => window.matchMedia('(pointer: coarse)').matches;
 
 /**
- * Phaser also hears mouse and touch presses on the whole window, so a press on a panel over the duel would land on the
+ * The duel canvas also hears mouse and touch presses on the whole window, so a press on a panel over the duel would land on the
  * card under it. Presses inside `el` stop here (pointer and click events still reach the page).
  */
 export function shieldFromCanvas(el: HTMLElement) {

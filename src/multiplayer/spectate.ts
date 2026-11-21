@@ -13,7 +13,7 @@ import { cleanCountry, cleanSeed, cleanTeam, type Look } from './profile';
 import type { DecisionPacket, DuelNetwork, Lockstep } from './lockstep';
 import { DUEL_ENDED } from './lockstep';
 import { t } from '../i18n';
-import type { DuelInit } from '../scenes/DuelScene';
+import type { DuelInit } from '../duel/DuelView';
 import type { Opponent } from '../data/decks';
 import type { ChatLine, Lobby } from './lobby';
 

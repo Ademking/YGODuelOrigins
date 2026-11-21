@@ -1,38 +1,25 @@
-// The duel itself is the original Phaser game; the menus around it are HTML. Boot loads the game's textures and fonts,
-// then starts the duel scene with this screen's data.
-import Phaser from 'phaser';
-import { BootScene } from '../../scenes/BootScene';
-import { DuelScene, type DuelInit } from '../../scenes/DuelScene';
-import { CANVAS_SIDE } from '../../ui/theme';
+// The duel is drawn with PixiJS (src/duel); the menus around it are HTML. A rematch builds a fresh view in the same root.
+import { DuelView, type DuelInit } from '../../duel/DuelView';
+import { loadFonts } from '../../duel/fonts';
 import type { Screen } from '../dom';
 
 export type { DuelInit };
 
 const duelScreen: Screen<DuelInit> = (root, init) => {
-  root.className = 'phaser-duel fixed inset-0 bg-void';
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    parent: root,
-    width: CANVAS_SIDE,
-    height: CANVAS_SIDE,
-    backgroundColor: '#06050d',
-    antialias: true,
-    powerPreference: 'high-performance',
-    dom: { createContainer: true },
-    scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
-    input: { mouse: { preventDefaultWheel: false } },
-    disableContextMenu: true,
-    // sounds play through src/ui/sfx.ts; Phaser's own audio context only fails to start on some iPhones
-    audio: { noAudio: true },
-    callbacks: { preBoot: (g) => g.registry.set('duelInit', init) },
-    scene: [BootScene, DuelScene],
-  });
-  if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
-  return () => {
-    // the scene's shutdown handlers stop the engine, leave the online room and silence the music
-    const scene = game.scene.getScene('Duel');
-    if (scene?.sys.isActive()) scene.sys.shutdown();
-    game.destroy(true);
+  root.className = 'duel-root fixed inset-0 bg-void';
+  let view: DuelView | null = null;
+  const open = (data: DuelInit) => {
+    view?.destroy();
+    root.replaceChildren();
+    const next = new DuelView(root, data, open);
+    view = next;
+    if (import.meta.env.DEV) (window as unknown as { __duel: DuelView }).__duel = next;
+    void loadFonts().then(() => next.start()).catch((error: unknown) => {
+      console.error(error);
+      document.dispatchEvent(new Event('duel-origins:boot-error'));
+    });
   };
+  open(init);
+  return () => { view?.destroy(); view = null; };
 };
 export default duelScreen;

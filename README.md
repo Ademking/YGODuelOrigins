@@ -7,12 +7,16 @@
 Build your deck, pick a duelist, and play against the CPU with a rules engine modelled on 2004-era rules.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
-![Phaser](https://img.shields.io/badge/Phaser-3.90-FF4F00)
+![PixiJS](https://img.shields.io/badge/PixiJS-8.22-E72264)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 
 **[Play now](https://duelorigins.online)** · [Discord](https://discord.gg/VYfWyXyRuf) · [Trailer](https://github.com/Ademking/YGODuelOrigins/raw/main/docs/media/trailer.mp4) · [YouTube](https://www.youtube.com/watch?v=HZ72t1aUXQE) · [Getting started](#getting-started) · [Scripts](#scripts) · [Changelog](CHANGELOG.md)
 
 </div>
+
+## PixiJS duel
+
+The duel is redrawn with PixiJS 8. Cards sit on the board in true perspective, and you can drag a card from your hand onto a zone (valid zones light up) or drag an attacker onto its target, following an arrow. Attacks lunge and shake the board, destroyed cards shatter, summons drop in with a shockwave, and chain links are numbered on the cards. The LP plates, card details, prompts and menus are now crisp HTML. Space moves on to the next phase and Esc opens the menu.
 
 ## Version 1.4.0 — Nine languages
 
@@ -30,7 +34,7 @@ The lobby (players, chat, challenges) runs on public Nostr relays with no player
 
 ## Version 1.1.0 — OCGCore duels
 
-Duel Setup and CPU versus CPU use OCGCore WebAssembly through the original Phaser duel scene. Project Ignis Lua handles card effects and legal actions in the browser. Decks retain their existing saved IDs and are mapped to Project Ignis passcodes on duel entry. Duels use the core's GOAT rules flags with Duel Origins' existing deck pool. Card text and rulings come from the pinned Project Ignis revisions, so historical errata can differ from the original simulator.
+Duel Setup and CPU versus CPU use OCGCore WebAssembly through the duel view. Project Ignis Lua handles card effects and legal actions in the browser. Decks retain their existing saved IDs and are mapped to Project Ignis passcodes on duel entry. Duels use the core's GOAT rules flags with Duel Origins' existing deck pool. Card text and rulings come from the pinned Project Ignis revisions, so historical errata can differ from the original simulator.
 
 The original board, card controls, and debug setup are connected to OCGCore through a state and event adapter. The legacy simulator remains in the source tree for its existing tests.
 
@@ -100,8 +104,8 @@ scripts/             Card importers, coverage and verification scripts
 src/
   engine/            Duel rules, AI, and self-test
   data/              Card catalog, card effects, and premade decks
-  scenes/            Phaser scenes (title, setup, deck editor, duel, watch)
-  ui/                Board, card panel, effects, sound, and theme
+  duel/              The duel, drawn with PixiJS: board, cards, animations, shaders, and its HTML HUD
+  ui/                Card art, effect shaders, sound, and shared duel helpers
 tests/               Engine, card, and integration tests
 ```
 
