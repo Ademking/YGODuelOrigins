@@ -39,6 +39,7 @@ import type { DebugSetup } from '../engine/debug';
 import { RPS_CHOICES, rpsResult, type RpsChoice } from '../engine/rockPaperScissors';
 import { portraitURL } from '../ui/portraits';
 import { godSummonShader } from '../ui/godSummonShader';
+import { evolveColor } from '../ui/evolveEffect';
 import { exodiaBlastShader, exodiaFireShader, exodiaShader } from '../ui/exodiaShader';
 import { Board, CY, EDGE_U, EDGE_W, FIELD_SCALE, H, inPoly, UNIT_X, UNIT_Y, W, ZONE_HU, ZONE_HW, ZW, depth, flatPts, type Pt } from './geometry';
 import { CardView } from './cardView';
@@ -62,8 +63,12 @@ export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; 
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
 const GOLD = 0xd8b25e, GOLD_LIT = 0xf2d48c, RED = 0xe5536b, HOVER_GLOW = 0x7fdcea, EQUIP_TARGET_GLOW = 0xd9a2ff, SET_ONLY_GLOW = 0x8f9fd0;
 const PICK = 0xffcf48, PICKED = 0x53ffad;
-/** Line colours: your attack, the opponent's attack. */
-const ATTACK_MINE = 0x3d82ff, ATTACK_THEIRS = 0xff3347;
+const ATTACK_LINE = 0xff3347;
+/** Target lines by the kind of card whose effect targets. */
+const TARGET_LINE = { spell: 0x3fe08a, trap: 0xb46bff, monster: 0xff9a3c } as const;
+/** Where a card was: lines and marks find it again by uid, or by this place if the engine replaced the card. */
+type Ref = { uid: number; side: Side; zone: Zone; slot: number };
+const refOf = (c: Card): Ref => ({ uid: c.uid, side: c.ctrl, zone: c.zone, slot: c.slot });
 const hexColor = (css: string) => Number.parseInt(css.replace('#', '').slice(0, 6), 16);
 
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
@@ -111,7 +116,9 @@ export class DuelView {
   private chainSources = new Map<number, { uid: number; player: Side }>();
   private lastLink = 0;
   /** Lines from a card to what it targets, kept until its chain link resolves. */
-  private links: { from: number; to: number; color: number; link: number }[] = [];
+  private links: { from: Ref; to: Ref; color: number; link: number }[] = [];
+  /** While the attack beam flies, the attack line waits. */
+  private beaming = false;
   private linkG = new Graphics();
   private previewBox: Container | null = null;
   private marks = new Graphics();
@@ -130,7 +137,7 @@ export class DuelView {
   private fieldMatName: FieldMatName | null = null;
   private fieldMat: ShaderQuad | Graphics | null = null;
   private background: { sprite: Sprite; quad: ShaderQuad | null; rt: RenderTexture | null; last: number } | null = null;
-  private targetMarks: { uid: number; g: Graphics; born: number }[] = [];
+  private targetMarks: { ref: Ref; g: Graphics; born: number }[] = [];
   private pulse = 1;
   // ---- state
   init0: DuelInit;
@@ -696,28 +703,44 @@ export class DuelView {
 
   /**
    * Lines linking a card to what it acts on, held until the attack or chain link resolves (they stay through chain
-   * prompts and while the prompt is hidden): blue your attack, red the opponent's, cyan your effect's target,
-   * magenta the opponent's. A light runs along each from source to target.
+   * prompts and while the prompt is hidden): red for an attack, and for a target the kind of card that targets,
+   * green a Spell, purple a Trap, orange a monster's effect. A light runs along each from source to target.
    */
+  /** The card a ref points at now: the same card wherever it went, else whatever took its place. */
+  private live(ref: Ref): Card | undefined {
+    const same = this.duel.byUid(ref.uid);
+    const P = this.duel.players[ref.side];
+    const inZone = (c: Card | null | undefined) => !!c && (c.zone === 'hand' || c.zone === 'deck' ? P.hand.includes(c) || P.deck.includes(c) : true);
+    if (same && inZone(same)) { Object.assign(ref, { side: same.ctrl, zone: same.zone, slot: same.slot }); return same; }
+    const there = ref.zone === 'mzone' ? P.m[ref.slot] : ref.zone === 'szone' ? P.s[ref.slot] : ref.zone === 'fzone' ? P.f
+      : ref.zone === 'gy' ? P.gy[P.gy.length - 1] : ref.zone === 'banished' ? this.duel.banishedFor(ref.side).slice(-1)[0] : undefined;
+    if (there) { ref.uid = there.uid; return there; }
+    return undefined;
+  }
+
   private drawLinks() {
     const g = this.linkG.clear();
     if (this.ended) return;
     const lines: { a: Pt; b: Pt; color: number; from: Pt[] | null; to: Pt[] | null }[] = [];
-    const quad = (uid: number) => { const v = this.cards.get(uid); return v?.visible ? v.corners(4) : null; };
-    const centre = (uid: number) => {
-      const v = this.cards.get(uid), c = this.duel.byUid(uid);
-      return v?.visible && c && c.zone !== 'deck' ? { x: v.x, y: v.y - v.lift } : null;
+    // read from the card's current sprite every frame, so a line follows its cards wherever they move
+    const quad = (card: Card | undefined) => { const v = card && this.cards.get(card.uid); return v?.visible ? v.corners(4) : null; };
+    const centre = (card: Card | undefined) => {
+      const v = card && this.cards.get(card.uid);
+      return v?.visible && card!.zone !== 'deck' ? { x: v.x, y: v.y - v.lift } : null;
     };
     const attack = this.duel.activeAttack;
-    if (attack && this.duel.onField(attack.attacker)) {
-      const a = centre(attack.attacker.uid);
+    if (attack && !this.beaming) {
+      const attacker = this.live(refOf(attack.attacker));
+      const target = attack.target ? this.live(refOf(attack.target)) : undefined;
       const mine = attack.attacker.ctrl === this.me;
-      const b = attack.target ? centre(attack.target.uid) : { x: this.board.CX, y: mine ? this.board.Y.oppHand + 50 : this.board.Y.myHand - 60 };
-      if (a && b) lines.push({ a, b, color: mine ? ATTACK_MINE : ATTACK_THEIRS, from: quad(attack.attacker.uid), to: attack.target ? quad(attack.target.uid) : null });
+      const a = attacker && this.duel.onField(attacker) ? centre(attacker) : null;
+      const b = attack.target ? centre(target) : { x: this.board.CX, y: mine ? this.board.Y.oppHand + 50 : this.board.Y.myHand - 60 };
+      if (a && b) lines.push({ a, b, color: ATTACK_LINE, from: quad(attacker), to: attack.target ? quad(target) : null });
     }
     for (const link of this.links) {
-      const a = centre(link.from), b = centre(link.to);
-      if (a && b) lines.push({ a, b, color: link.color, from: quad(link.from), to: quad(link.to) });
+      const from = this.live(link.from), to = this.live(link.to);
+      const a = centre(from), b = centre(to);
+      if (a && b) lines.push({ a, b, color: link.color, from: quad(from), to: quad(to) });
     }
     for (const { a, b, color, from, to } of lines) {
       const len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -771,18 +794,19 @@ export class DuelView {
       const attacker = this.cards.get(attack.attacker.uid);
       const target = attack.target ? this.cards.get(attack.target.uid) : undefined;
       if (attacker?.visible && this.duel.onField(attack.attacker) && (!attack.target || (target?.visible && this.duel.onField(attack.target)))) {
-        const color = attack.attacker.ctrl === this.me ? ATTACK_MINE : ATTACK_THEIRS;
+        const color = ATTACK_LINE;
         g.poly(flatPts(attacker.corners(10))).stroke({ width: 3, color, alpha: 0.9 });
         if (target) g.poly(flatPts(target.corners(10))).stroke({ width: 3, color, alpha: 0.9 });
       }
     }
     for (const mark of this.targetMarks) {
-      const view = this.cards.get(mark.uid);
+      const card = this.live(mark.ref);
+      const view = card && this.cards.get(card.uid);
       const c = mark.g.clear();
       if (!view?.visible) continue;
       const age = this.tw.now - mark.born;
       const k = clamp(age / 320, 0, 1), inK = ease.backOut(k);
-      const color = this.links.find((l) => l.to === mark.uid)?.color ?? 0xff3b4e;
+      const color = this.links.find((l) => l.to.uid === mark.ref.uid)?.color ?? 0xff3b4e;
       const pulse = 0.5 + 0.5 * Math.cos((age / 900) * Math.PI);
       // brackets close in on the card, then breathe
       const q = view.corners(14 + (1 - inK) * 26 + pulse * 3);
@@ -2093,6 +2117,7 @@ export class DuelView {
         sfx.set();
         this.layout();
         await this.tw.wait(240 * s);
+        this.landRing(e.card, false);
         await this.tw.wait(220 * s);
         return;
       case 'shuffle': await this.shuffleFx(e.player); return;
@@ -2175,6 +2200,15 @@ export class DuelView {
     layer.destroy({ children: true });
   }
 
+  /** A card lands on the field: a ring spreads over the ground around its zone (no particles). */
+  private landRing(card: Card, big: boolean) {
+    if (!this.duel.onField(card) || this.reducedMotion) return;
+    const at = this.board.zonePos(card.ctrl, card.zone, Math.max(0, card.slot));
+    const color = evolveColor(card.def, card.faceUp);
+    this.fx.ring(at.x, at.y, color, { from: 14, to: big ? 90 : 62, ms: 560 * this.spd, squash: 0.55, width: 3, z: 0 });
+    if (big) this.fx.ring(at.x, at.y, color, { from: 8, to: 60, ms: 720 * this.spd, squash: 0.55, width: 1.5, z: 0 });
+  }
+
   private async summonFx(c: Card, how: Extract<UIEvent, { t: 'summon' }>['how']) {
     if (how !== 'flip') {
       const alreadyRevealed = this.revealedGods.delete(c.uid);
@@ -2195,6 +2229,7 @@ export class DuelView {
       shake(this.tw, this.stage.shaker, 140, how === 'normal' ? 2 : 3.5);
     }
     if (this.dead) return;
+    if (how !== 'flip') this.landRing(c, how !== 'normal');
     await this.tw.wait(120 * this.spd);
     await this.tw.wait(380 * this.spd);
   }
@@ -2239,15 +2274,17 @@ export class DuelView {
 
   private async targetFx(cards: Card[]) {
     // a line from the card whose effect targets, to each target: cyan for yours, magenta for the opponent's
+    // the line's colour says what targets: a Spell green, a Trap purple, a monster's effect orange
     const source = this.chainSources.get(this.lastLink);
-    if (source) for (const c of cards) if (c.uid !== source.uid) this.links.push({ from: source.uid, to: c.uid, color: source.player === this.me ? 0x38e6ff : 0xff4fd8, link: this.lastLink });
+    const card = source && this.duel.byUid(source.uid);
+    if (source && card) for (const c of cards) if (c.uid !== source.uid) this.links.push({ from: refOf(card), to: refOf(c), color: TARGET_LINE[card.def.kind as keyof typeof TARGET_LINE] ?? TARGET_LINE.monster, link: this.lastLink });
     for (const c of cards) {
       const view = this.cards.get(c.uid);
       if (!view) continue;
       const g = new Graphics();
       this.layers.ui.addChild(g);
       g.zIndex = 2;
-      this.targetMarks.push({ uid: c.uid, g, born: this.tw.now });
+      this.targetMarks.push({ ref: refOf(c), g, born: this.tw.now });
     }
     sfx.activate();
     const names = cards.map((c) => c.faceUp || c.zone === 'gy' || c.zone === 'banished' ? cardName(c.def) : t('a Set card'));
@@ -2259,6 +2296,7 @@ export class DuelView {
     this.layout();
     if (c.def.kind !== 'monster') {
       await this.tw.wait(240 * this.spd);
+      this.landRing(c, false);
     }
     this.chainSources.set(link, { uid: c.uid, player });
     this.lastLink = link;
@@ -2315,6 +2353,11 @@ export class DuelView {
     const z = view.z;
     view.z = 450;
     sfx.attack();
+    const beam = new Graphics();
+    beam.blendMode = 'add';
+    beam.zIndex = 610;
+    this.layers.fx.addChild(beam);
+    this.beaming = true;
     try {
       await this.tw.to(view, { x: home.x - (dx / dist) * 10, y: home.y - (dy / dist) * 10, lift: 10 }, { duration: 110 * speed, ease: ease.sineOut });
       const flight = { p: 0 };
@@ -2324,9 +2367,16 @@ export class DuelView {
         onUpdate: () => {
           view.x = home.x + dx * reach * flight.p;
           view.y = home.y + dy * reach * flight.p;
+          const x = lerp(home.x, destination.x, flight.p), y = lerp(home.y, destination.y, flight.p);
+          beam.clear()
+            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 20, color: 0xff182f, alpha: 0.1 })
+            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 9, color: 0xff182f, alpha: 0.3 })
+            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 4, color: 0xff2639, alpha: 0.85 })
+            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 1.5, color: 0xffd0c8, alpha: 1 });
         },
       });
       if (this.dead) return;
+      this.tw.add(beam, { alpha: 0 }, { duration: 240 * speed, onComplete: () => { this.beaming = false; } });
       sfx.hit();
       this.fx.flash(destination.x, destination.y, 0xff3344, 60, 260 * speed, 611);
       if (target) this.fx.ring(destination.x, destination.y, 0xff4654, { from: 8, to: 60, ms: 260 * speed });
@@ -2345,6 +2395,7 @@ export class DuelView {
       view.lift = 0;
       view.z = z;
       this.busy.delete(view);
+      this.tw.later(260 * speed, () => { beam.destroy(); this.beaming = false; });
     }
   }
 
