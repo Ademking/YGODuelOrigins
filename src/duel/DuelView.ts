@@ -1034,6 +1034,7 @@ export class DuelView {
   private place(c: Card, x: number, y: number, angle: number, scale: number, face: boolean, z: number, dur: number, visible: boolean, field: boolean) {
     const v = this.view(c);
     if (this.busy.has(v)) return;
+    if (this.held === v) { if (c.zone === 'hand') return; this.held = null; }
     v.visible = visible && c.uid !== this.revealingGod;
     if (face) {
       if (v.faceId !== c.def.id) { v.faceId = c.def.id; v.setTexture(faceTex(c.def.id)); }
@@ -1289,10 +1290,10 @@ export class DuelView {
     const acts = this.actionsByCard.get(c.uid) ?? [];
     if (c.zone === 'hand') {
       for (let i = 0; i < 5; i++) {
-        if (this.board.hitZone(x, y, this.me, 'mzone', i)) return this.pickFrom(c, acts.filter((a) => a.a === 'summon' || a.a === 'mset' || a.a === 'ss').map((a) => ({ ...a, slot: i } as Action)));
-        if (this.board.hitZone(x, y, this.me, 'szone', i)) return this.pickFrom(c, acts.filter((a) => (a.a === 'act' && c.def.stype !== 'field') || a.a === 'sset').map((a) => ({ ...a, slot: i } as Action)));
+        if (this.board.hitZone(x, y, this.me, 'mzone', i)) return this.pickFrom(c, acts.filter((a) => a.a === 'summon' || a.a === 'mset' || a.a === 'ss').map((a) => ({ ...a, slot: i } as Action)), true);
+        if (this.board.hitZone(x, y, this.me, 'szone', i)) return this.pickFrom(c, acts.filter((a) => (a.a === 'act' && c.def.stype !== 'field') || a.a === 'sset').map((a) => ({ ...a, slot: i } as Action)), true);
       }
-      if (this.board.hitZone(x, y, this.me, 'fzone')) return this.pickFrom(c, acts.filter((a) => a.a === 'act' && c.def.stype === 'field'));
+      if (this.board.hitZone(x, y, this.me, 'fzone')) return this.pickFrom(c, acts.filter((a) => a.a === 'act' && c.def.stype === 'field'), true);
     } else if (c.zone === 'mzone') {
       const target = this.attackAt(c, x, y);
       if (target !== undefined) {
@@ -1303,11 +1304,23 @@ export class DuelView {
     this.layout();
   }
 
-  private pickFrom(c: Card, opts: Action[]) {
+  private pickFrom(c: Card, opts: Action[], dropped = false) {
     if (!opts.length) { sfx.deny(); this.layout(); return; }
+    // a card dropped on a zone waits there for the engine to move it, instead of flying back to the hand first
+    const view = dropped && c.zone === 'hand' ? this.cards.get(c.uid) : undefined;
+    if (view) this.hold(view);
     if (opts.length === 1) return this.choose(opts[0]);
     this.layout();
-    this.actionMenu(c, opts);
+    this.actionMenu(c, opts, false, view ? () => { if (this.held === view && this.pending) { this.held = null; this.layout(); } } : undefined);
+  }
+
+  /** The card the player just dropped on a zone: layout leaves it there until it leaves the hand. */
+  private held: CardView | null = null;
+  private hold(view: CardView) {
+    this.held = view;
+    view.z = 500;
+    // the engine answers at once; if it does not move the card (a cancelled choice), it goes home
+    this.tw.later(2500, () => { if (this.held === view) { this.held = null; this.layout(); } });
   }
 
   private clickCard(c: Card) {
@@ -1373,7 +1386,7 @@ export class DuelView {
     }
   }
 
-  private actionMenu(c: Card, acts: Action[], details = false) {
+  private actionMenu(c: Card, acts: Action[], details = false, onClose?: () => void) {
     this.hud.closePopover();
     const attacks = acts.filter((a) => a.a === 'attack');
     const items: Option[] = acts.filter((a) => a.a !== 'attack')
@@ -1390,7 +1403,7 @@ export class DuelView {
     const mineHand = c.zone === 'hand' && c.owner === this.me;
     const oppHand = c.zone === 'hand' && c.owner !== this.me;
     const at = this.stage.toScreen(view.x, oppHand ? bottom : top - (mineHand ? 8 : 0));
-    this.hud.openPopover(items, { x: at.x, y: at.y, above: !oppHand });
+    this.hud.openPopover(items, { x: at.x, y: at.y, above: !oppHand }, onClose);
   }
 
   private startTargeting(card: Card, acts: Action[]) {
@@ -2083,25 +2096,17 @@ export class DuelView {
     if (how === 'normal') sfx.summon();
     else if (how !== 'flip') sfx.specialSummon();
     const view = this.cards.get(c.uid);
-    // the card drops onto its zone from above, larger, then settles with a shockwave
+    // the card has already travelled to its zone (the move event): once it lands, it hits the board with a
+    // shockwave. It is never lifted again, so it touches down exactly once.
+    this.layout();
     if (view && !this.reducedMotion && how !== 'flip') {
-      this.layout();
-      const to = view.to;
-      if (to) {
-        this.tw.kill(view);
-        this.busy.add(view);
-        const from = { x: (view.x + to.x) / 2, y: Math.min(view.y, to.y) - 60 };
-        Object.assign(view, { x: from.x, y: from.y, sx: to.sx * 1.6, sy: to.sy * 1.6, angle: to.angle, alpha: view.alpha });
-        view.field = false;
-        view.lift = 0;
-        await this.tw.to(view, { x: to.x, y: to.y, sx: to.sx, sy: to.sy }, { duration: 260 * this.spd, ease: ease.cubicIn });
-        view.field = true;
-        this.busy.delete(view);
-        if (this.dead) return;
-        shake(this.tw, this.stage.shaker, 140, how === 'normal' ? 2 : 3.5);
-        this.fx.burst(to.x, to.y, evolveColor(c.def, true), { n: 18, speed: [80, 240], life: 520, spread: 18, z: 0 });
-      }
-    } else this.layout();
+      for (let i = 0; i < 12 && this.tw.isTweening(view) && !this.dead; i++) await this.tw.wait(40);
+      if (this.dead) return;
+      const at = view.to ?? view;
+      shake(this.tw, this.stage.shaker, 140, how === 'normal' ? 2 : 3.5);
+      this.fx.flash(at.x, at.y, evolveColor(c.def, true), 70, 320 * this.spd, 0);
+      this.fx.burst(at.x, at.y, evolveColor(c.def, true), { n: 18, speed: [80, 240], life: 520, spread: 18, z: 0 });
+    }
     if (this.dead) return;
     await this.tw.wait(120 * this.spd);
     if (how !== 'flip') this.landFx(c, how !== 'normal');

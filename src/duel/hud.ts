@@ -236,12 +236,13 @@ export class Hud {
   closeStrip() { this.strip?.remove(); this.strip = null; }
 
   /** A small menu of actions beside a point on the screen (CSS px). */
-  openPopover(items: Option[], at: { x: number; y: number; above: boolean }) {
+  openPopover(items: Option[], at: { x: number; y: number; above: boolean }, onClose?: () => void) {
     this.closePopover();
+    this.popoverClosed = onClose;
     const backdrop = html('<div class="duel-pop-back"></div>');
     const menu = html(`<div class="duel-pop" role="menu"></div>`);
     items.forEach((item, index) => {
-      const b = makeButton(item.label, () => { this.closePopover(); item.run(); }, { icon: item.icon, danger: item.danger, primary: index === 0 && items.length > 1 && !item.danger && item.icon !== 'info' });
+      const b = makeButton(item.label, () => { item.run(); this.closePopover(); }, { icon: item.icon, danger: item.danger, primary: index === 0 && items.length > 1 && !item.danger && item.icon !== 'info' });
       b.setAttribute('role', 'menuitem');
       b.style.animationDelay = `${index * 28}ms`;
       menu.append(b);
@@ -258,7 +259,14 @@ export class Hud {
     this.popover = backdrop;
     menu.querySelector('button')?.focus({ preventScroll: true });
   }
-  closePopover() { this.popover?.remove(); this.popover = null; }
+  private popoverClosed?: () => void;
+  closePopover() {
+    this.popover?.remove();
+    this.popover = null;
+    const closed = this.popoverClosed;
+    this.popoverClosed = undefined;
+    closed?.();
+  }
 
   /** Anything open that takes the board's presses? */
   get busy() { return !!(this.overlay || this.popover || (this.dialog && !this.dialog.hidden && this.dialog.classList.contains('modal'))); }
