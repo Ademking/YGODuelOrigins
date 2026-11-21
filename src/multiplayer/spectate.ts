@@ -53,13 +53,19 @@ export class WatchHost {
   private history: DecisionPacket[] = [];
   private chatLog: { side: 0 | 1; text: string }[] = [];
   private closed = false;
+  /** The number of spectators changed (the host tells its opponent, and the spectators hear it from the room). */
+  onViewers = (_count: number) => {};
   constructor(readonly code: string, factory: RoomFactory, config: RoomConfig) {
     this.room = factory({ ...config, maxUsers: MAX_SPECTATORS + 1, password: code }, watchRoomId(code));
     this.action = this.room.makeAction('watch');
     this.action.onMessage((raw, { peerId }) => this.receive(raw, peerId));
-    this.room.onPeerLeave(({ peerId }) => { this.viewers.delete(peerId); });
+    this.room.onPeerLeave(({ peerId }) => { if (this.viewers.delete(peerId)) this.countChanged(); });
   }
   get spectators() { return this.viewers.size; }
+  private countChanged() {
+    this.broadcast({ type: 'viewers', n: this.viewers.size });
+    this.onViewers(this.viewers.size);
+  }
   /** A new duel (or rematch) in this room: spectators already watching switch to it. */
   start(setup: Omit<WatchSetup, 'game'>, network: Lockstep) {
     if (this.closed) return;
@@ -96,8 +102,9 @@ export class WatchHost {
     if (!this.viewers.has(peer) && this.viewers.size >= MAX_SPECTATORS) { void this.send({ type: 'refused', reason: 'full' }, [peer]); return; }
     if (!this.setup) return;
     if (m.revision !== this.setup.revision) { void this.send({ type: 'refused', reason: 'version' }, [peer]); return; }
+    const added = !this.viewers.has(peer);
     this.viewers.add(peer);
-    void this.catchUp(peer);
+    void this.catchUp(peer).then(() => { if (added) this.countChanged(); });
   }
   /** The setup, then the decisions so far in chunks; new decisions follow through broadcast. */
   private async catchUp(peer: string) {
@@ -178,6 +185,9 @@ export class Spectator {
   onSetup = (_setup: WatchSetup, _network: SpectatorNetwork) => {};
   onEnd = (_end: WatchEnd) => {};
   onError = (_message: string) => {};
+  /** How many spectators watch this duel, this one included, as the host last said. */
+  spectators = 0;
+  onSpectators = (_count: number) => {};
   private room: Room;
   private action;
   private host?: string;
@@ -241,6 +251,10 @@ export class Spectator {
       return;
     }
     if (!this.setup) return;
+    if (m.type === 'viewers') {
+      if (Number.isInteger(m.n) && (m.n as number) >= 0 && (m.n as number) <= MAX_SPECTATORS) { this.spectators = m.n as number; this.onSpectators(this.spectators); }
+      return;
+    }
     // chat carries on across rematches: it belongs to the room, not one duel
     if (m.type === 'chat') { this.addChat(m.side, m.text); return; }
     if (m.type === 'chatlog' && Array.isArray(m.lines)) {

@@ -294,7 +294,7 @@ const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden=
 export type DuelChatSource = { chat: ChatLine[]; onChat: (line?: ChatLine) => void; say?: (text: string) => Promise<void>; opponent?: { name: string } };
 export function mountDuelChat(session: DuelChatSource | PrivateRoom, focus: (typing: boolean) => void, onEmote: (line: ChatLine, emote: [string, string]) => void = () => {}, readOnly = false) {
   const shell = element('div', '', 'mp-scope contents');
-  const rail = element('nav', '', 'fixed right-[64px] bottom-[calc(env(safe-area-inset-bottom)+12px)] z-[110] flex gap-2'); rail.setAttribute('aria-label', t('Duel chat and emotes'));
+  const rail = element('nav', '', 'fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-[110] flex gap-2'); rail.setAttribute('aria-label', t('Duel chat and emotes'));
   const railButton = (svg: string, label: string) => {
     const b = element('button', '', 'mp-icon relative'); b.type = 'button'; b.title = label;
     b.setAttribute('aria-label', label); b.setAttribute('aria-expanded', 'false'); b.innerHTML = svg;
@@ -340,9 +340,6 @@ export function mountDuelChat(session: DuelChatSource | PrivateRoom, focus: (typ
   chatButton.onclick = () => show(drawer.hidden ? 'chat' : null);
   emoteButton.onclick = () => show(emotes.hidden ? 'emote' : null);
   close.onclick = () => { show(null); chatButton.focus(); };
-  // the music list opens in the same corner
-  const musicOpened = (e: Event) => { if (!shell.isConnected) document.removeEventListener('pointerdown', musicOpened); else if ((e.target as Element).closest?.('.music-btn')) show(null); };
-  document.addEventListener('pointerdown', musicOpened);
   shell.addEventListener('focusin', e => { if (drawer.contains(e.target as Node)) focus(true); });
   shell.addEventListener('focusout', e => { if (!drawer.contains(e.relatedTarget as Node)) focus(false); });
   shell.addEventListener('keydown', e => {

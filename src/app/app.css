@@ -158,7 +158,7 @@ html[dir="rtl"] .duel-root .ad-log, html[dir="rtl"] .duel-root input { direction
 /* portrait: bars above and below the board */
 .duel-bar { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
 .duel-bar.top { top: 0; padding-top: max(8px, env(safe-area-inset-top)); background: linear-gradient(#07060ff2, #07060f00); }
-.duel-bar.bottom { bottom: 0; padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-right: 124px; background: linear-gradient(#07060f00, #07060ff2); }
+.duel-bar.bottom { bottom: 0; padding-bottom: max(8px, env(safe-area-inset-bottom)); padding-right: 10px; background: linear-gradient(#07060f00, #07060ff2); }
 .duel-bar .duel-plate { flex: 1; }
 
 /* Life Point plates */
@@ -224,6 +224,31 @@ html[dir="rtl"] .duel-root .ad-log, html[dir="rtl"] .duel-root input { direction
 .duel-ask.wide { width: min(760px, 100%); }
 .duel-ask-body { display: flex; align-items: flex-start; gap: 14px; }
 .duel-ask-card { flex: none; width: 64px; cursor: help; transition: transform .15s; } .duel-ask-card:hover { transform: scale(1.06); }
+.duel-ask-card.big { width: 108px; box-shadow: 0 0 24px #e0b34f44; }
+
+/* the card just summoned or activated, beside the board */
+.duel-preview { position: absolute; left: 12px; top: 50%; translate: 0 -50%; z-index: 2; pointer-events: none; display: flex; flex-direction: column; gap: 8px; width: clamp(110px, 13vw, 170px);
+  padding: 8px; background: linear-gradient(#1d1733f0, #120e22f0); border: 1px solid #d8b25e66; box-shadow: 0 14px 36px #000b; animation: preview-in .32s cubic-bezier(.2, .9, .3, 1.1) both; }
+.duel-preview.theirs { border-color: #ff6b8a88; box-shadow: 0 14px 36px #000b, 0 0 22px #e5536b33; }
+.duel-preview.mine { box-shadow: 0 14px 36px #000b, 0 0 22px #e0b34f33; }
+.duel-preview.out { animation: preview-out .3s ease-in forwards; }
+.duel-preview-card { flex: none; }
+.duel-preview-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.duel-preview-text b { font-family: var(--font-display); font-size: 13px; line-height: 1.25; color: var(--color-brass-txt); overflow-wrap: anywhere; }
+.duel-preview-text span { font-size: 11px; color: var(--color-dim); }
+.duel-preview.theirs .duel-preview-text b { color: #ffb3c1; }
+@keyframes preview-in { from { opacity: 0; transform: translateX(-24px) scale(.92); } }
+@keyframes preview-out { to { opacity: 0; transform: translateX(-16px); } }
+
+/* how many are watching */
+.duel-watchers { position: absolute; right: 12px; top: 12px; z-index: 2; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 5px 10px;
+  font-size: 13px; color: var(--color-ink); background: #120e22e6; border: 1px solid #ffffff1f; }
+.duel-watchers svg { color: var(--color-brass); }
+
+/* Graveyard and other piles: every card has a details button */
+.duel-pile-cell { position: relative; }
+.duel-pile-info { position: absolute; right: -4px; top: -4px; z-index: 2; display: grid; place-items: center; width: 26px; height: 26px; color: var(--color-ink); background: #120e22f2; border: 1px solid #d8b25e88; box-shadow: 0 2px 8px #000; }
+.duel-pile-info:hover { color: var(--color-brass-lit); border-color: var(--color-brass); }
 .duel-ask-text { flex: 1; font-size: 14.5px; line-height: 1.5; color: var(--color-ink); text-align: center; overflow-wrap: anywhere; }
 .duel-ask-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; overflow-y: auto; min-height: 0; padding: 2px; }
 .duel-ask-list > .mp-btn { flex: none; width: 100%; justify-content: flex-start; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
@@ -348,7 +373,10 @@ html[dir="rtl"] .duel-root .ad-log, html[dir="rtl"] .duel-root input { direction
   .duel-plate-pic { width: 40px; height: 40px; }
   .duel-lp { font-size: 19px; }
   .duel-bar .duel-menu-btn { width: 40px; height: 40px; }
-  .duel-bar.bottom { padding-right: 64px; }
+  .duel-root.online .duel-bar.bottom { padding-right: 112px; }
+  .duel-preview { left: 50%; top: 8px; translate: -50% 0; flex-direction: row; width: min(300px, calc(100% - 20px)); }
+  .duel-preview-card { width: 54px; }
+  .duel-ask-card.big { width: 84px; }
   .duel-rps-hands { margin-top: 22px; }
 }
 @media (max-aspect-ratio: 20/23) { .duel-end-actions { flex-direction: column; width: min(340px, 100%); } .duel-end-actions > .mp-btn { width: 100%; } }
@@ -429,5 +457,3 @@ input.ad-input:focus { border-color: #d8b25e; box-shadow: 0 0 0 3px #d8b25e2e; }
 .anime-cards .card { background-image: url(/cards/anime/back.png); }
 /* An anime face shows the card back until it has been painted into its frame. */
 .card > img[data-paint] { opacity: 0; }
-/* the Deck Builder's own buttons sit in that corner: no music button there (the music keeps playing) */
-body[data-screen="DeckEditor"] :is(.music-btn, .music-sheet) { display: none; }

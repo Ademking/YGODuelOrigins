@@ -643,4 +643,6 @@ export const ES: Dictionary = {
   "You are timed out": "Estás aislado temporalmente",
   "Your Discord account is banned from the game's server, so you can't play online. You can still duel the CPU.": "Tu cuenta de Discord está baneada del servidor del juego, así que no puedes jugar en línea. Aún puedes batirte en duelo contra la CPU.",
   "You are timed out on the game's Discord server, so you can't play online until {time}. You can still duel the CPU.": "Estás aislado temporalmente en el servidor de Discord del juego, así que no puedes jugar en línea hasta {time}. Aún puedes batirte en duelo contra la CPU.",
+  "Chain {n}": "Cadena {n}",
+  "{n} watching": "{n} espectadores",
 };

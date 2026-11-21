@@ -6,7 +6,7 @@ import { APP_ID, PROTOCOL, cleanName, cleanChat, validDeck, decode, encode, newC
 import { cleanCountry, cleanSeed, cleanTeam, type Look, type Team } from './profile';
 import { cleanAccount } from './account';
 import { Lockstep, type DecisionPacket, type DuelNetwork } from './lockstep';
-import { Spectator, WatchHost, isWatchCode } from './spectate';
+import { MAX_SPECTATORS, Spectator, WatchHost, isWatchCode } from './spectate';
 
 import type { ChatLine } from './lobby';
 import { t } from '../i18n';
@@ -88,6 +88,9 @@ export class PrivateRoom {
   private watch?: WatchHost;
   /** The code spectators join with: the host makes it, the guest learns it from the duel's start. */
   watchCode?: string;
+  /** Spectators watching this room's duel: the host counts them and tells the guest. */
+  spectators = 0;
+  onSpectators = (_count: number) => {};
   /**
    * `watchFactory` lets the host open a watch room for spectators (production passes Trystero's joinRoom; tests that
    * leave it out have no spectators).
@@ -189,6 +192,8 @@ export class PrivateRoom {
       this.start(this.pendingFirst);
     } else if (m.type === 'decision' && this.network) {
       this.network.receive(m.packet as DecisionPacket);
+    } else if (m.type === 'viewers' && !this.isHost) {
+      if (Number.isInteger(m.n) && (m.n as number) >= 0 && (m.n as number) <= MAX_SPECTATORS) this.setSpectators(m.n as number);
     } else if (m.type === 'chat') {
       const text = cleanChat(m.text);
       if (!text || Date.now() - this.receivedChat < 800) return;
@@ -213,7 +218,10 @@ export class PrivateRoom {
     const looks: Match['looks'] = [{ avatar: this.hello.avatar, country: this.hello.country, team: this.hello.team }, { avatar: this.opponent.avatar, country: this.opponent.country, team: this.opponent.team }];
     // the host shows this duel (and each rematch) to spectators
     if (this.isHost && this.watchFactory && this.watchCode) {
-      this.watch ??= new WatchHost(this.watchCode, this.watchFactory, { ...config, ...(this.relay.length ? { turnConfig: this.relay } : {}) });
+      if (!this.watch) {
+        this.watch = new WatchHost(this.watchCode, this.watchFactory, { ...config, ...(this.relay.length ? { turnConfig: this.relay } : {}) });
+        this.watch.onViewers = (n) => { this.setSpectators(n); void this.send({ type: 'viewers', n }).catch(() => {}); };
+      }
       this.watch.start({ revision: this.hello.revision, names: [this.hello.name, this.opponent.name], looks,
         decks: [this.hello.deck, this.opponent.deck], first, seed: this.network.seed }, this.network);
     }
@@ -238,6 +246,7 @@ export class PrivateRoom {
     if (this.chat.length > 100) this.chat.shift();
     this.onChat(line);
   }
+  private setSpectators(n: number) { this.spectators = n; this.onSpectators(n); }
   async say(text: string) {
     text = cleanChat(text);
     if (!text || Date.now() - this.lastChat < 800 || !this.peer) return;

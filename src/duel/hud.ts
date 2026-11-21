@@ -172,6 +172,33 @@ export class Hud {
 
   showCard(def: CardDef | null, info: PanelInfo = {}) { this.info?.show(def, info); }
 
+  private previewEl: HTMLElement | null = null;
+  private previewTimer = 0;
+  /** A card just summoned or activated, shown beside the board for a moment (the newest replaces the last). */
+  preview(id: string, name: string, caption: string, side: 'mine' | 'theirs', ms = 2200) {
+    this.previewEl?.remove();
+    clearTimeout(this.previewTimer);
+    const el = html(`<div class="duel-preview ${side}" aria-live="polite"><div class="duel-preview-card">${cardHtml(id, '', true)}</div>
+      <div class="duel-preview-text"><b>${esc(name)}</b><span>${esc(caption)}</span></div></div>`);
+    this.play.append(el);
+    this.previewEl = el;
+    this.previewTimer = window.setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
+  }
+
+  private watchEl: HTMLElement | null = null;
+  /** The number of spectators; hidden while nobody watches (a spectator always counts at least themself). */
+  watchers(n: number, spectating: boolean) {
+    const count = spectating ? Math.max(1, n) : n;
+    if (!this.watchEl) {
+      this.watchEl = html(`<div class="duel-watchers"></div>`);
+      this.play.append(this.watchEl);
+    }
+    this.watchEl.hidden = count === 0;
+    this.watchEl.title = t('{n} watching', { n: count });
+    this.watchEl.setAttribute('aria-label', this.watchEl.title);
+    this.watchEl.innerHTML = `${icon('eye', 'size-4')}<b>${num(count)}</b>`;
+  }
+
   /** A layer in the play area; `modal` dims the board and takes every press. */
   private layer(kind: string, modal: boolean, dim = 0.4) {
     const layer = html(`<div class="duel-layer ${kind} ${modal ? 'modal' : ''}" style="--dim:${dim}"></div>`);

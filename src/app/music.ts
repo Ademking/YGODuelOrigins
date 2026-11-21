@@ -1,8 +1,8 @@
 // Background music: Yu-Gi-Oh! tracks streamed from YouTube through an off-screen embedded player, with a corner
-// button that opens the song list, play / pause, previous / next and mute. The choice is remembered.
+// Music section in Settings (song list, play / pause, previous / next and mute). The choice is remembered.
 import { icon } from './icons';
 import { t } from '../i18n';
-import { esc, html, shieldFromCanvas } from './dom';
+import { esc, html } from './dom';
 import { onJingle } from '../ui/sfx';
 
 const SONGS = [
@@ -97,45 +97,50 @@ function play(track = state.track) {
 function pause() { state.playing = false; save(); player?.pauseVideo(); draw(); }
 function setMuted(muted: boolean) { state.muted = muted; save(); if (muted) player?.mute(); else player?.unMute(); draw(); }
 
-// ---------------------------------------------------------------- corner button and song list
-const button = html<HTMLButtonElement>(`<button class="music-btn mp-icon fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40" aria-label="${esc(t('Music'))}" aria-expanded="false"></button>`);
-const sheet = html(`<div class="music-sheet mp-panel fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+64px)] z-40 w-[min(300px,calc(100vw-24px))] p-3" hidden role="dialog" aria-label="${esc(t('Music'))}"></div>`);
+// ---------------------------------------------------------------- the Music section of Settings
+// Every open Settings panel (title screen, duel menu) holds one of these; they all redraw when the music changes.
+const panels = new Set<HTMLElement>();
 
-function draw() {
-  button.innerHTML = icon(state.playing && !state.muted ? 'music' : 'musicOff');
-  button.classList.toggle('on', state.playing && !state.muted);
-  sheet.innerHTML = `
-    <div class="mb-2 flex items-center gap-1.5">
-      <button class="mp-icon" data-prev aria-label="${esc(t('Previous'))}">${icon('skipBack', 'size-4')}</button>
-      <button class="mp-icon" data-toggle aria-label="${esc(state.playing ? t('Pause music') : t('Play music'))}">${icon(state.playing ? 'pause' : 'play', 'size-4')}</button>
-      <button class="mp-icon" data-next aria-label="${esc(t('Next'))}">${icon('skipNext', 'size-4')}</button>
-      <span class="min-w-0 flex-1"></span>
-      <button class="mp-icon ${state.muted ? 'on' : ''}" data-mute aria-label="${esc(state.muted ? t('Unmute') : t('Mute'))}">${icon(state.muted ? 'mute' : 'volume', 'size-4')}</button>
+function drawPanel(root: HTMLElement) {
+  root.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="flex-1 text-sm">${esc(t('Music'))}</span>
+      <button type="button" class="mp-icon !size-9" data-prev aria-label="${esc(t('Previous'))}">${icon('skipBack', 'size-4')}</button>
+      <button type="button" class="mp-icon !size-9 ${state.playing ? 'on' : ''}" data-toggle aria-label="${esc(state.playing ? t('Pause music') : t('Play music'))}">${icon(state.playing ? 'pause' : 'play', 'size-4')}</button>
+      <button type="button" class="mp-icon !size-9" data-next aria-label="${esc(t('Next'))}">${icon('skipNext', 'size-4')}</button>
+      <button type="button" class="mp-icon !size-9 ${state.muted ? 'on' : ''}" data-mute aria-label="${esc(state.muted ? t('Unmute') : t('Mute'))}">${icon(state.muted ? 'mute' : 'volume', 'size-4')}</button>
     </div>
-    <ol class="flex flex-col gap-0.5">${SONGS.map(([, name], index) => `<li><button data-song="${index}" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-start text-sm ${index === state.track ? 'text-brass-txt' : 'text-ink hover:text-brass-lit'}">
+    <ol class="mt-1 flex max-h-44 flex-col gap-0.5 overflow-y-auto">${SONGS.map(([, name], index) => `<li><button type="button" data-song="${index}" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-start text-sm ${index === state.track ? 'text-brass-txt' : 'text-ink hover:text-brass-lit'}">
       <span class="w-4 flex-none text-center">${index === state.track && state.playing ? icon('music', 'size-3.5') : `<small class="text-faint">${index + 1}</small>`}</span>${esc(name)}</button></li>`).join('')}</ol>`;
 }
 
-sheet.addEventListener('click', (event) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>('button');
-  if (!target) return;
-  if (target.dataset.song) play(Number(target.dataset.song));
-  else if ('prev' in target.dataset) play(state.track - 1);
-  else if ('next' in target.dataset) play(state.track + 1);
-  else if ('toggle' in target.dataset) { if (state.playing) pause(); else play(); }
-  else if ('mute' in target.dataset) setMuted(!state.muted);
-});
-const open = (show: boolean) => { sheet.hidden = !show; button.setAttribute('aria-expanded', String(show)); };
-button.onclick = () => open(sheet.hidden);
-document.addEventListener('pointerdown', (event) => {
-  if (!sheet.hidden && !sheet.contains(event.target as Node) && !button.contains(event.target as Node)) open(false);
-});
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') open(false); });
+function draw() {
+  for (const root of panels) {
+    if (!root.isConnected && root.dataset.mounted) { panels.delete(root); continue; }
+    drawPanel(root);
+  }
+}
 
-/** Put the music button on the page; the music itself starts with the player's first click or key press. */
+/** Play / pause, previous / next, mute and the song list, for a Settings panel. */
+export function musicControls() {
+  const root = html('<div class="music-panel"></div>');
+  root.addEventListener('click', (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>('button');
+    if (!target) return;
+    if (target.dataset.song) play(Number(target.dataset.song));
+    else if ('prev' in target.dataset) play(state.track - 1);
+    else if ('next' in target.dataset) play(state.track + 1);
+    else if ('toggle' in target.dataset) { if (state.playing) pause(); else play(); }
+    else if ('mute' in target.dataset) setMuted(!state.muted);
+  });
+  panels.add(root);
+  drawPanel(root);
+  requestAnimationFrame(() => { root.dataset.mounted = '1'; });
+  return root;
+}
+
+/** Start the music with the player's first click or key press (its controls live in Settings). */
 export function mountMusic() {
-  draw();
-  document.body.append(shieldFromCanvas(sheet), shieldFromCanvas(button));
   const start = () => { if (state.playing) play(); };
   document.addEventListener('pointerdown', start, { once: true, capture: true });
   document.addEventListener('keydown', start, { once: true, capture: true });

@@ -6,6 +6,8 @@ import { reportDuelError, reportRejectedAnswer } from '../monitoring';
 import { mountDuelChat } from '../multiplayer/ui';
 import { go, modal as htmlModal, cardHtml, esc, html } from '../app/dom';
 import { showCardSheet } from '../app/cardInfo';
+import { volumeControls } from '../app/settings';
+import { musicControls } from '../app/music';
 import { icon, type IconName } from '../app/icons';
 import type { Action, Card, DeckList, Phase, Prompt, UIEvent } from '../engine/duel';
 import type { Difficulty } from '../engine/ai';
@@ -61,6 +63,8 @@ export interface DuelInit { multiplayer?: Match; lobby?: Lobby; deck: DeckList; 
 const PHASES: Phase[] = ['DP', 'SP', 'M1', 'BP', 'M2', 'EP'];
 const GOLD = 0xd8b25e, GOLD_LIT = 0xf2d48c, RED = 0xe5536b, HOVER_GLOW = 0x7fdcea, EQUIP_TARGET_GLOW = 0xd9a2ff, SET_ONLY_GLOW = 0x8f9fd0;
 const PICK = 0xffcf48, PICKED = 0x53ffad;
+/** Line colours: your attack, the opponent's attack. */
+const ATTACK_MINE = 0x3d82ff, ATTACK_THEIRS = 0xff3347;
 const hexColor = (css: string) => Number.parseInt(css.replace('#', '').slice(0, 6), 16);
 
 /** One duel-log line as HTML: turn headers stand out, the acting player is bold, and the kind of event picks the colour. */
@@ -103,6 +107,14 @@ export class DuelView {
   private zoneIcons: Sprite[][] = [[], []];
   private shadows = new Graphics();
   private glowG = new Map<number, Graphics>();
+  private pileEdges = new Graphics();
+  /** The card behind each chain link (and who activated it), for the target lines. */
+  private chainSources = new Map<number, { uid: number; player: Side }>();
+  private lastLink = 0;
+  /** Lines from a card to what it targets, kept until its chain link resolves. */
+  private links: { from: number; to: number; color: number; link: number }[] = [];
+  private linkG = new Graphics();
+  private previewBox: Container | null = null;
   private marks = new Graphics();
   private dropHints = new Graphics();
   private arrow = new Graphics();
@@ -110,12 +122,10 @@ export class DuelView {
   private lastZoneMask = -1;
   private stats = new Map<number, { box: Container; key: string }>();
   private badges = new Map<number, { box: Container; label: Text; key: string }>();
-  private chainBadges = new Map<number, { box: Container; link: number }>();
   private counts: { side: Side; zone: Zone; box: Container; label: Text }[] = [];
   private equipBadge!: Sprite;
   private turnLabel!: Text;
   private phaseBtns = new Map<Phase, PhaseButton>();
-  private phaseCursor = new Graphics();
   private holograms = new Map<number, Sprite>();
   hologramsEnabled = false;
   private fieldMatName: FieldMatName | null = null;
@@ -187,8 +197,11 @@ export class DuelView {
     world.addChild(this.layers.bg, this.layers.mat, this.layers.cards, this.layers.ui, this.layers.fx);
     this.buildBackground();
     this.drawBoard();
-    this.layers.cards.addChild(this.shadows, this.disabledOverlay, this.dropHints);
+    this.layers.cards.addChild(this.shadows, this.pileEdges, this.disabledOverlay, this.dropHints);
     this.shadows.zIndex = 19;
+    this.pileEdges.zIndex = 19.2;
+    this.layers.ui.addChild(this.linkG);
+    this.linkG.zIndex = 3;
     this.disabledOverlay.zIndex = 55;
     this.dropHints.zIndex = 56;
     this.layers.ui.addChild(this.marks, this.arrow);
@@ -330,6 +343,15 @@ export class DuelView {
     }
     this.layout(true);
     if (d.multiplayer) this.startClocks(d.multiplayer.network.clock);
+    // how many are watching: the players see it once someone watches, a spectator always (they count themself)
+    const counted = d.multiplayer?.session ?? d.spectate?.viewer;
+    if (counted) {
+      this.host.classList.add('online');
+      const show = (n: number) => this.hud.watchers(n, !!d.spectate);
+      counted.onSpectators = show;
+      show(counted.spectators);
+      this.cleanup.push(() => { counted.onSpectators = () => {}; });
+    }
     const ids = [d.deck, d.opp.deck].flatMap((x) => [...x.main, ...x.extra]).concat(d.debug ? Object.values(d.debug).flat() : []);
     void loadCardFaces(ids);
     void (async () => {
@@ -422,8 +444,6 @@ export class DuelView {
     const inner = b.quad(-EDGE_U + 0.06, EDGE_U - 0.06, -EDGE_W + 0.06, EDGE_W - 0.06);
     mat.poly(flatPts(inner)).stroke({ width: 1, color: GOLD, alpha: 0.35 });
     // the midline
-    const l = b.proj(-EDGE_U + 0.1, 0), r = b.proj(EDGE_U - 0.1, 0);
-    mat.moveTo(l.x, l.y).lineTo(r.x, r.y).stroke({ width: 1, color: GOLD, alpha: 0.25 });
     this.layers.mat.addChild(mat);
     this.tiles = [new Graphics(), new Graphics()];
     for (const g of this.tiles) { g.zIndex = -50; this.layers.mat.addChild(g); }
@@ -496,8 +516,6 @@ export class DuelView {
     const b = this.board;
     const big = this.portrait;
     const bw = big ? 86 : 70, bh = big ? 54 : 30, gap = big ? 90 : 78;
-    this.phaseCursor.zIndex = 349;
-    this.layers.ui.addChild(this.phaseCursor);
     PHASES.forEach((phase, i) => {
       const root = new Container();
       root.position.set(b.CX + (i - 2.5) * gap, b.Y.phase);
@@ -548,17 +566,6 @@ export class DuelView {
       b.enabled = acts.some((a) => a.a === 'phase' && a.to === to);
       this.paintPhase(b, bw, bh);
     }
-    // a gold cursor slides under the current phase
-    const current = this.phaseBtns.get(cur);
-    if (current) {
-      const target = { x: current.root.x };
-      const state = this.phaseCursor as unknown as { x: number };
-      this.tw.kill(state);
-      if (!this.phaseCursor.width) this.phaseCursor.x = target.x;
-      this.phaseCursor.clear().roundRect(-bw / 2 + 8, bh / 2 + 3, bw - 16, 3, 1.5).fill({ color: GOLD_LIT });
-      this.phaseCursor.y = this.board.Y.phase;
-      this.tw.add(state, target, { duration: 260, ease: ease.cubicOut });
-    }
   }
 
   private clickPhase(ph: Phase) {
@@ -587,7 +594,9 @@ export class DuelView {
     for (const view of this.cards.values()) view.sync();
     this.syncHolograms();
     this.drawShadows();
+    this.drawPiles();
     this.drawGlows();
+    this.drawLinks();
     this.drawMarks();
     this.drawDisabledZones();
     this.syncFieldMat();
@@ -678,6 +687,44 @@ export class DuelView {
     for (const [uid, g] of this.glowG) if (!this.cards.has(uid)) { g.destroy(); this.glowG.delete(uid); }
   }
 
+  /**
+   * Lines linking a card to what it acts on, held until the attack or chain link resolves (they stay through chain
+   * prompts and while the prompt is hidden): blue your attack, red the opponent's, cyan your effect's target,
+   * magenta the opponent's. A light runs along each from source to target.
+   */
+  private drawLinks() {
+    const g = this.linkG.clear();
+    if (this.ended) return;
+    const lines: { a: Pt; b: Pt; color: number }[] = [];
+    const centre = (uid: number) => {
+      const v = this.cards.get(uid), c = this.duel.byUid(uid);
+      return v?.visible && c && c.zone !== 'deck' ? { x: v.x, y: v.y - v.lift } : null;
+    };
+    const attack = this.duel.activeAttack;
+    if (attack && this.duel.onField(attack.attacker)) {
+      const a = centre(attack.attacker.uid);
+      const mine = attack.attacker.ctrl === this.me;
+      const b = attack.target ? centre(attack.target.uid) : { x: this.board.CX, y: mine ? this.board.Y.oppHand + 50 : this.board.Y.myHand - 60 };
+      if (a && b) lines.push({ a, b, color: mine ? ATTACK_MINE : ATTACK_THEIRS });
+    }
+    for (const link of this.links) {
+      const a = centre(link.from), b = centre(link.to);
+      if (a && b) lines.push({ a, b, color: link.color });
+    }
+    const t = (this.tw.now % 1100) / 1100;
+    for (const { a, b, color } of lines) {
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - Math.min(110, len * 0.28) };
+      const at = (k: number) => ({ x: (1 - k) ** 2 * a.x + 2 * (1 - k) * k * c.x + k * k * b.x, y: (1 - k) ** 2 * a.y + 2 * (1 - k) * k * c.y + k * k * b.y });
+      for (const [width, alpha] of [[12, 0.12], [6, 0.28], [2.6, 0.95]] as const) g.moveTo(a.x, a.y).quadraticCurveTo(c.x, c.y, b.x, b.y).stroke({ width, color, alpha, cap: 'round' });
+      // the head, and a light travelling along the line
+      const end = at(0.97), angle = Math.atan2(b.y - end.y, b.x - end.x), head = 14;
+      g.poly([b.x, b.y, b.x - Math.cos(angle - 0.45) * head, b.y - Math.sin(angle - 0.45) * head, b.x - Math.cos(angle + 0.45) * head, b.y - Math.sin(angle + 0.45) * head]).fill({ color });
+      for (const k of [t, (t + 0.5) % 1]) { const p = at(k); g.circle(p.x, p.y, 3.2).fill({ color: 0xffffff, alpha: 0.9 }).circle(p.x, p.y, 7).fill({ color, alpha: 0.35 }); }
+      g.circle(a.x, a.y, 5).fill({ color, alpha: 0.9 });
+    }
+  }
+
   /** The attack in progress (gold attacker, red target) and red crosshairs on targeted cards. */
   private drawMarks() {
     const g = this.marks.clear();
@@ -686,8 +733,9 @@ export class DuelView {
       const attacker = this.cards.get(attack.attacker.uid);
       const target = attack.target ? this.cards.get(attack.target.uid) : undefined;
       if (attacker?.visible && this.duel.onField(attack.attacker) && (!attack.target || (target?.visible && this.duel.onField(attack.target)))) {
-        g.poly(flatPts(attacker.corners(10))).stroke({ width: 3, color: GOLD, alpha: 0.9 });
-        if (target) g.poly(flatPts(target.corners(10))).stroke({ width: 3, color: RED, alpha: 0.9 });
+        const color = attack.attacker.ctrl === this.me ? ATTACK_MINE : ATTACK_THEIRS;
+        g.poly(flatPts(attacker.corners(10))).stroke({ width: 3, color, alpha: 0.9 });
+        if (target) g.poly(flatPts(target.corners(10))).stroke({ width: 3, color, alpha: 0.9 });
       }
     }
     for (const mark of this.targetMarks) {
@@ -777,7 +825,7 @@ export class DuelView {
     return active ? 0xfff6e0 : 0x8f8aa3;
   }
 
-  /** ATK / DEF plates under your monsters (above the opponent's), turn counters and chain links. */
+  /** ATK / DEF plates under your monsters (above the opponent's) and turn counters. */
   private syncBadges() {
     const seen = new Set<number>();
     for (const s of [0, 1] as Side[]) {
@@ -849,36 +897,6 @@ export class DuelView {
     }
     for (const [uid, badge] of this.badges) if (!counted.has(uid)) { badge.box.destroy({ children: true }); this.badges.delete(uid); }
 
-    // chain links waiting to resolve
-    for (const [uid, badge] of this.chainBadges) {
-      const view = this.cards.get(uid);
-      const card = this.duel.byUid(uid);
-      if (!view?.visible || !card || card.zone === 'hand' || card.zone === 'deck') { badge.box.visible = false; continue; }
-      badge.box.visible = true;
-      const corners = view.quad.length ? view.quad : view.corners();
-      badge.box.position.set(Math.max(...corners.map((p) => p.x)) - 4, Math.min(...corners.map((p) => p.y)) + 4);
-      badge.box.scale.set(0.92 + 0.08 * this.pulse);
-    }
-  }
-
-  private addChainBadge(card: Card, link: number) {
-    this.chainBadges.get(card.uid)?.box.destroy({ children: true });
-    const box = new Container();
-    const bg = new Graphics().circle(0, 0, 13).fill({ color: 0x5a0626, alpha: 0.95 }).circle(0, 0, 12).stroke({ width: 2, color: 0xff7aa8 });
-    const label = this.stage.text(String(link), { fontSize: 13, fontWeight: 'bold', fill: 0xffffff }, 1.6);
-    label.anchor.set(0.5);
-    box.addChild(bg, label);
-    box.zIndex = 335;
-    this.layers.cards.addChild(box);
-    this.chainBadges.set(card.uid, { box, link });
-  }
-
-  private clearChainBadges(link?: number) {
-    for (const [uid, badge] of this.chainBadges) {
-      if (link !== undefined && badge.link !== link) continue;
-      badge.box.destroy({ children: true });
-      this.chainBadges.delete(uid);
-    }
   }
 
   private drawEquipBadge() {
@@ -972,7 +990,7 @@ export class DuelView {
 
   canSee(c: Card) {
     if (c.zone === 'gy') return true;
-    if (this.init0.spectate) return c.zone !== 'deck';
+    if (this.init0.spectate) return c.zone === 'banished' || this.duel.onField(c) ? c.faceUp : c.zone === 'hand' ? this.duel.handRevealed(c.owner) : false;
     if (c.zone === 'banished') return c.faceUp;
     if (this.duel.onField(c)) return c.faceUp || c.ctrl === this.me;
     if (c.zone === 'hand') return c.owner === this.me || this.duel.handRevealed(c.owner);
@@ -995,8 +1013,9 @@ export class DuelView {
       const mine = s === this.me;
       const pile = (arr: Card[], z: Zone, face: boolean) => arr.forEach((c, i) => {
         const p = b.zonePos(s, z);
-        const visible = i >= arr.length - 6;
-        this.place(c, p.x, p.y - Math.min(i, 30) * 0.35 * p.s, mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, visible ? dur : 0, visible, true);
+        // a pile stands as thick as its cards: only the top two are drawn, the edges below are painted by drawPiles
+        const visible = i >= arr.length - 2;
+        this.place(c, p.x, p.y - this.pileLift(i, p.s), mine ? 0 : 180, FIELD_SCALE * p.s * p.k, face, 20 + i, visible ? dur : 0, visible, true);
       });
       pile(P.deck, 'deck', false);
       pile(P.extra, 'extra', false);
@@ -1007,14 +1026,15 @@ export class DuelView {
       const sp = mine ? Math.min(b.handSpacing, b.handRow / Math.max(n, 1)) : CW * oppScale + 4;
       P.hand.forEach((c, i) => {
         const k = i - (n - 1) / 2;
-        const hov = mine && this.hoverCard === c;
-        // your hand fans gently; the hovered card rises and grows
-        const fan = mine && !this.portrait ? 2.2 : 0;
+        const hov = mine && this.hoverCard === c && !this.init0.spectate;
+        // a straight row; the hovered card rises and grows
         const x = b.CX + k * sp;
-        const y = mine ? b.Y.myHand + Math.abs(k) * Math.abs(k) * (fan ? 1.6 : 0) - (hov ? 46 : 0) : b.Y.oppHand;
-        const angle = mine ? (hov ? 0 : k * fan) : this.init0.spectate ? 0 : 180;
+        const y = mine ? b.Y.myHand - (hov ? 46 : 0) : b.Y.oppHand;
+        const angle = mine ? 0 : 180;
         const sc = mine ? b.handScale * (hov ? 1.14 : 1) : oppScale;
-        this.place(c, x, y, angle, sc, mine || d.handRevealed(s) || !!this.init0.spectate, (hov ? 290 : 200) + i, dur, true, false);
+        // a spectator sees neither hand, unless it was revealed
+        const shown = (mine && !this.init0.spectate) || d.handRevealed(s);
+        this.place(c, x, y, angle, sc, shown, (hov ? 290 : 200) + i, dur, true, false);
       });
       P.m.forEach((c, i) => {
         if (!c) return;
@@ -1060,6 +1080,41 @@ export class DuelView {
     this.tw.add(v, { x, y, angle: v.angle + turn, sx: scale, sy: scale }, { duration: dist > 160 ? dur * 1.25 : dur, ease: ease.cubicOut });
   }
 
+  /** How far the i-th card of a pile sits above the mat. */
+  private pileLift(i: number, s: number) { return Math.min(i, 48) * 0.42 * s; }
+
+  /** The edges of every pile, from the mat up to its top card, so a full Deck looks full. */
+  private drawPiles() {
+    const g = this.pileEdges.clear();
+    for (const side of [0, 1] as Side[]) {
+      const P = this.duel.players[side];
+      for (const [zone, cards] of [['deck', P.deck], ['extra', P.extra], ['gy', P.gy], ['banished', this.duel.banishedFor(side)]] as const) {
+        if (cards.length < 2) continue;
+        const p = this.board.zonePos(side, zone);
+        const sc = FIELD_SCALE * p.s * p.k;
+        const top = this.pileLift(cards.length - 1, p.s);
+        const base = this.board.cardQuad({ x: p.x, y: p.y, angle: side === this.me ? 0 : 180, sx: sc, sy: sc }, 0, true);
+        const up = (lift: number) => base.map((q) => ({ x: q.x, y: q.y - lift }));
+        const roof = up(top);
+        const face = zone === 'gy' || zone === 'banished';
+        const edge = face ? 0x8a7d62 : 0x3a1d10, light = face ? 0xd8ccb0 : 0x9a5a2c;
+        // the side walls: each edge of the bottom card joined to the same edge of the top card
+        for (let i = 0; i < 4; i++) {
+          const j = (i + 1) % 4;
+          g.poly(flatPts([roof[i], roof[j], base[j], base[i]])).fill({ color: edge });
+        }
+        // a fine line every few cards, like stacked card edges
+        const lines = Math.min(12, Math.floor(cards.length / 4));
+        for (let n = 1; n <= lines; n++) {
+          const q = up((top * n) / (lines + 1));
+          const bottom = [...q.keys()].sort((a, b) => q[b].y - q[a].y).slice(0, 2).map((k) => q[k]);
+          g.moveTo(bottom[0].x, bottom[0].y).lineTo(bottom[1].x, bottom[1].y);
+        }
+        g.stroke({ width: 0.8, color: light, alpha: 0.55 });
+      }
+    }
+  }
+
   private refreshCounts() {
     for (const count of this.counts) {
       const P = this.duel.players[count.side];
@@ -1068,7 +1123,7 @@ export class DuelView {
       if (!n) continue;
       if (count.label.text !== String(n)) count.label.text = String(n);
       const p = this.board.zonePos(count.side, count.zone);
-      const corner = this.board.cardQuad({ x: p.x, y: p.y, angle: 0, sx: FIELD_SCALE * p.s * p.k, sy: FIELD_SCALE * p.s * p.k }, 0, true)[2];
+      const corner = this.board.cardQuad({ x: p.x, y: p.y - this.pileLift(n - 1, p.s), angle: 0, sx: FIELD_SCALE * p.s * p.k, sy: FIELD_SCALE * p.s * p.k }, 0, true)[2];
       const w = Math.max(20, count.label.width + 10), h = 17;
       const g = count.box.children[0] as Graphics;
       g.clear().roundRect(-w / 2, -h / 2, w, h, 3).fill({ color: 0x07060f, alpha: 0.94 }).roundRect(-w / 2, -h / 2, w, h, 3).stroke({ width: 1, color: 0x6d5a34 });
@@ -1474,7 +1529,7 @@ export class DuelView {
           this.showDialog(t('Chain?'), [context, p.text, t('Activate a card in response?')].filter(Boolean).join('\n'), [
             ...opts.map((a) => ({ label: t('Activate {card}', { card: cardName(a.card.def) }), run: () => this.choose(a), card: a.card, hover: () => this.hud.showCard(a.card.def) })),
             { label: t('No'), run: () => this.choose(null), icon: 'close' as const, danger: true },
-          ], true, attack?.attacker);
+          ], true, this.chainSubject(p) ?? attack?.attacker, true);
           break;
         }
         case 'select':
@@ -1514,6 +1569,17 @@ export class DuelView {
     });
   }
 
+  /** The card a chain window is about: the link just activated, the monster just summoned, or the attacker. */
+  private chainSubject(p: Extract<Prompt, { t: 'chain' }>): Card | undefined {
+    const ev = p.ev;
+    const visible = (c: Card | undefined) => c && this.duel.byUid(c.uid) && this.canSee(c) ? c : undefined;
+    if (ev.e === 'chain') return visible(ev.link.card);
+    if (ev.e === 'summon' || ev.e === 'summoning') return visible(ev.cards[0]);
+    if (ev.e === 'attack') return visible(ev.attacker);
+    const last = this.chainSources.get(this.lastLink);
+    return last ? visible(this.duel.byUid(last.uid)) : undefined;
+  }
+
   private shouldAutoPass(p: Extract<Prompt, { t: 'chain' }>): boolean {
     if (this.chainMode === 'always') return false;
     if (p.core) return p.optionalWindow === true;
@@ -1534,11 +1600,11 @@ export class DuelView {
   /** A small card picture for prompts: face-up when you may see it. */
   private thumbId(c: Card) { return this.canSee(c) ? c.def.id : null; }
 
-  private showDialog(title: string, body: string, opts: (Omit<Option, 'card'> & { card?: Card })[], modal = true, about?: Card) {
+  private showDialog(title: string, body: string, opts: (Omit<Option, 'card'> & { card?: Card })[], modal = true, about?: Card, bigCard = false) {
     const box = panel(title, '', 'duel-ask');
     const content = html(`<div class="duel-ask-body"></div>`);
     if (about) {
-      const pic = html(`<button type="button" class="duel-ask-card" aria-label="${esc(this.canSee(about) ? cardName(about.def) : t('Face-down card'))}">${cardHtml(this.thumbId(about), '', true)}</button>`);
+      const pic = html(`<button type="button" class="duel-ask-card ${bigCard ? 'big' : ''}" aria-label="${esc(this.canSee(about) ? cardName(about.def) : t('Face-down card'))}">${cardHtml(this.thumbId(about), '', true)}</button>`);
       pic.addEventListener('pointerenter', () => this.hud.showCard(about.def, { hidden: !this.canSee(about) }));
       pic.addEventListener('click', () => { if (this.portrait) this.cardSheet(about); else this.hud.showCard(about.def, { hidden: !this.canSee(about) }); });
       content.append(pic);
@@ -1707,21 +1773,25 @@ export class DuelView {
       if (z === 'gy' && s === this.me && prompt?.t === 'main') return prompt.actions.filter((action) => action.a === 'act' && action.card === card);
       return extraDeckActions(card, this.me, prompt ?? null);
     };
-    if (cards.some((card) => pileActions(card).length)) {
+    if (cards.some((card) => pileActions(card).length) && !this.portrait) {
       box.querySelector('header')!.append(html(`<span class="text-xs text-brass-txt">${esc(z === 'gy' ? t('Select a highlighted card to activate') : t('Select a highlighted card to summon'))}</span>`));
     }
     const grid = html('<div class="duel-pile-grid"></div>');
     [...cards].reverse().forEach((c) => {
       const actions = pileActions(c);
-      const tile = html<HTMLButtonElement>(`<button type="button" class="duel-pick ${actions.length ? 'ready' : ''}" aria-label="${esc(cardName(c.def))}">${cardHtml(c.def.id)}</button>`);
+      const cell = html(`<div class="duel-pile-cell"><button type="button" class="duel-pick ${actions.length ? 'ready' : ''}" aria-label="${esc(cardName(c.def))}">${cardHtml(c.def.id)}</button>
+        <button type="button" class="duel-pile-info" aria-label="${esc(t('Details'))}">${icon('info', 'size-4')}</button></div>`);
+      const tile = cell.querySelector<HTMLButtonElement>('.duel-pick')!;
       tile.addEventListener('pointerenter', () => this.hud.showCard(c.def));
+      // a card with something to do does it; any other card opens its details
       tile.onclick = () => {
         this.hud.showCard(c.def);
-        if (this.portrait && !actions.length) { showCardSheet(c.def); return; }
         const available = pileActions(c);
         if (available.length) { this.closeOverlay(); this.pickFrom(c, available); }
+        else showCardSheet(c.def);
       };
-      grid.append(tile);
+      cell.querySelector<HTMLButtonElement>('.duel-pile-info')!.onclick = () => showCardSheet(c.def);
+      grid.append(cell);
     });
     box.append(grid, makeButton(t('Close'), () => this.closeOverlay(), { cls: 'mx-auto mt-3 min-w-36' }));
     this.hud.openOverlay(box, 0.55);
@@ -1765,22 +1835,10 @@ export class DuelView {
         try { localStorage.setItem('arcana-duel.reduced-effects', this.reducedEffects ? '1' : '0'); } catch { /* ignore */ }
       }),
     );
-    // volume, inline
-    const volume = html(`<div class="duel-volume"><div class="flex items-center gap-2">${icon('volume', 'size-5 text-brass')}<span class="flex-1">${esc(t('Game volume'))}</span><b data-pct></b></div>
-      <div class="flex items-center gap-3"><input type="range" min="0" max="100" class="volume flex-1" aria-label="${esc(t('Game volume'))}"><button type="button" class="mp-btn small" data-mute></button></div></div>`);
-    const input = volume.querySelector('input')!, muteBtn = volume.querySelector<HTMLButtonElement>('[data-mute]')!;
-    const refresh = () => {
-      const value = Math.round(sfx.volume * 100);
-      input.value = String(value);
-      input.style.setProperty('--v', `${value}%`);
-      volume.querySelector('[data-pct]')!.textContent = `${value}%`;
-      muteBtn.textContent = sfx.muted ? t('Unmute') : t('Mute');
-      muteBtn.classList.toggle('on', sfx.muted);
-    };
-    input.oninput = () => { sfx.setVolume(Number(input.value) / 100); if (sfx.muted && sfx.volume > 0) sfx.setMuted(false); refresh(); };
-    muteBtn.onclick = () => { sfx.setMuted(!sfx.muted); refresh(); };
-    refresh();
-    list.append(volume);
+    // sound and music in one place
+    const audio = html('<div class="duel-volume"></div>');
+    audio.append(volumeControls(), musicControls());
+    list.append(audio);
     if (!this.init0.watch) list.append(makeButton(t('Surrender'), () => { this.closeOverlay(); void this.askSurrender(); }, { icon: 'flag', danger: true }));
     list.append(makeButton(t('Quit to Home'), () => { this.closeOverlay(); this.surrender(true); void go('Title'); }, { icon: 'home', danger: true }));
     box.append(list);
@@ -1946,7 +2004,8 @@ export class DuelView {
       case 'turn':
         this.turnLabel.text = t('Turn {n}', { n: e.turn });
         this.drawTurnGlow(e.player);
-        this.clearChainBadges();
+        this.links = [];
+        this.chainSources.clear();
         sfx.turn();
         await this.banner(this.init0.watch ? t("{player}'s Turn", { player: this.duel.name(e.player) }) : t(e.player === this.me ? 'Your Turn' : "Opponent's Turn"), 800 * s, this.init0.watch ? 30 : 46, e.player === this.me || this.init0.watch ? GOLD : RED, true);
         return;
@@ -1962,7 +2021,6 @@ export class DuelView {
         return;
       case 'move':
         if (e.to !== 'mzone') this.revealedGods.delete(e.card.uid);
-        if (e.from === 'mzone' || e.from === 'szone' || e.from === 'fzone') this.clearChainBadgeOf(e.card);
         if (e.to === 'mzone' && e.from !== 'mzone' && e.card.faceUp) { if (await this.godSummonFx(e.card)) this.revealedGods.add(e.card.uid); }
         this.layout();
         await this.tw.wait(240 * s);
@@ -1982,19 +2040,20 @@ export class DuelView {
       case 'summon': return this.summonFx(e.card, e.how);
       case 'equip': sfx.equip(); this.equipFx(e.card, e.target); return;
       case 'flip': return this.flipFx(e.card);
-      case 'activate': return this.activateFx(e.card, e.link);
+      case 'activate': return this.activateFx(e.card, e.link, e.player);
       case 'target': return this.targetFx(e.cards);
       case 'resolve':
         if (e.link > 1 || e.negated) await this.banner(t(e.negated ? 'Chain {n}: negated' : 'Chain {n} resolves', { n: e.link }), 380 * s, 24, e.negated ? RED : 0xff7aa8);
-        this.clearChainBadges(e.link);
-        if (e.link === 1) { this.clearTargets(); this.clearChainBadges(); }
+        this.links = this.links.filter((l) => l.link !== e.link);
+        this.chainSources.delete(e.link);
+        if (e.link === 1) { this.clearTargets(); this.links = []; this.chainSources.clear(); }
         return;
       case 'attack': return this.attackFx(e.attacker, e.target);
       case 'destroy': return this.destroyFx(e.card, e.by);
       case 'lp': return this.lpFx(e.player, e.delta, e.lp);
       case 'end':
         this.clearTargets();
-        this.clearChainBadges();
+        this.links = [];
         this.layout();
         await this.tw.wait(400);
         if (e.reason === 'Exodia the Forbidden One' && e.winner !== -1) await this.exodiaFx(e.winner);
@@ -2005,10 +2064,7 @@ export class DuelView {
     }
   }
 
-  private clearChainBadgeOf(card: Card) {
-    const badge = this.chainBadges.get(card.uid);
-    if (badge) { badge.box.destroy({ children: true }); this.chainBadges.delete(card.uid); }
-  }
+
 
   /** A full-width layer over the play area for the big reveals. */
   private screenLayer(z: number) {
@@ -2095,6 +2151,7 @@ export class DuelView {
     }
     if (how === 'normal') sfx.summon();
     else if (how !== 'flip') sfx.specialSummon();
+    if (c.faceUp) this.hud.preview(c.def.id, cardName(c.def), t(how === 'normal' ? 'Normal Summon' : how === 'flip' ? 'Flip Summon' : 'Special Summon'), c.ctrl === this.me ? 'mine' : 'theirs');
     const view = this.cards.get(c.uid);
     // the card has already travelled to its zone (the move event): once it lands, it hits the board with a
     // shockwave. It is never lifted again, so it touches down exactly once.
@@ -2152,6 +2209,9 @@ export class DuelView {
   private clearTargets() { for (const m of this.targetMarks) m.g.destroy(); this.targetMarks = []; }
 
   private async targetFx(cards: Card[]) {
+    // a line from the card whose effect targets, to each target: cyan for yours, magenta for the opponent's
+    const source = this.chainSources.get(this.lastLink);
+    if (source) for (const c of cards) if (c.uid !== source.uid) this.links.push({ from: source.uid, to: c.uid, color: source.player === this.me ? 0x38e6ff : 0xff4fd8, link: this.lastLink });
     for (const c of cards) {
       const view = this.cards.get(c.uid);
       if (!view) continue;
@@ -2165,14 +2225,16 @@ export class DuelView {
     await this.banner(t('Target: {card}', { card: [...new Set(names)].join(', ') }), 700 * this.spd, 26, 0xff3b4e);
   }
 
-  private async activateFx(c: Card, link: number) {
+  private async activateFx(c: Card, link: number, player: Side) {
     if (c.def.kind === 'spell' && c.def.stype === 'field') sfx.field(); else sfx.activate();
     this.layout();
     if (c.def.kind !== 'monster') {
       await this.tw.wait(240 * this.spd);
       this.landFx(c, false);
     }
-    if (this.duel.onField(c)) this.addChainBadge(c, link);
+    this.chainSources.set(link, { uid: c.uid, player });
+    this.hud.preview(c.def.id, cardName(c.def), link > 1 ? `${t(c.def.kind === 'monster' ? 'Activate Effect' : 'Activate')} · ${t('Chain {n}', { n: link })}` : t(c.def.kind === 'monster' ? 'Activate Effect' : 'Activate'), player === this.me ? 'mine' : 'theirs', 2600);
+    this.lastLink = link;
     if (this.hoverAny) this.hover(this.hoverAny); else this.hud.showCard(c.def);
     const tint = c.def.kind === 'trap' ? 0xff60b0 : c.def.kind === 'spell' ? 0x40ffd0 : 0xffb040;
     const cx = this.board.CX, cy = this.board.Y.phase;

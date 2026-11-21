@@ -6,6 +6,7 @@ import { loadCardTexts } from '../../i18n/cards';
 import { debugModeEnabled, toggleDebugMode } from '../../ui/debugMode';
 import { cardHtml, esc, setCardImage, go, html, sheet, type Screen } from '../dom';
 import { settingsRows, volumeControls } from '../settings';
+import { musicControls } from '../music';
 
 const DISCORD = 'https://discord.gg/VYfWyXyRuf';
 const GITHUB = 'https://github.com/Ademking/YGODuelOrigins';
@@ -133,7 +134,7 @@ const title: Screen = (root) => {
     `<section class="${index ? 'mt-5 border-t border-white/10 pt-5' : ''}"><h3 class="eyebrow mb-2">${esc(version)}</h3><ul class="grid list-disc gap-2 pl-5 text-ink/90 marker:text-brass">${notes.map((note) => `<li>${esc(note)}</li>`).join('')}</ul></section>`).join(''));
   root.querySelector<HTMLButtonElement>('[data-settings]')!.onclick = () => {
     const dialog = sheet(t('Settings'), '<div data-body class="grid gap-5"></div>', 'w-[min(440px,calc(100vw-24px))]');
-    dialog.querySelector('[data-body]')!.append(volumeControls(), settingsRows());
+    dialog.querySelector('[data-body]')!.append(volumeControls(), musicControls(), settingsRows());
   };
   root.querySelector<HTMLButtonElement>('[data-lang]')!.onclick = () => {
     const dialog = sheet(t('Language'), `<div class="grid gap-2 sm:grid-cols-2">${LOCALES.map((language) =>
