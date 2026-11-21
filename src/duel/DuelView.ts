@@ -31,7 +31,6 @@ import { sfx } from '../ui/sfx';
 import { actionIndicator } from '../ui/actionIndicator';
 import { attackTargetLabel } from '../ui/attackTarget';
 import { extraDeckActions } from '../ui/pileActions';
-import { evolveColor, evolveShader } from '../ui/evolveEffect';
 import { fusionVortexShader } from '../ui/fusionVortex';
 import { ritualCircleShader } from '../ui/ritualCircle';
 import { activeFieldMat, FIELD_MATS, fieldMatShader, fieldArtUrl, type FieldMatName } from '../ui/fieldMat';
@@ -500,12 +499,20 @@ export class DuelView {
           g.poly(flatPts(q)).stroke({ width: 1.4, color: 0xe8eaee, alpha: edge * 0.8 });
           g.moveTo(q[0].x, q[0].y).lineTo(q[2].x, q[2].y).moveTo(q[1].x, q[1].y).lineTo(q[3].x, q[3].y).stroke({ width: 1.4, color: 0xe8eaee, alpha: edge * 0.8 });
         } else if (zone === 'gy') {
-          const ru = hu * 0.62, rv = ru * UNIT_X / UNIT_Y;
-          const ring: Pt[] = [];
-          for (let i = 0; i <= 32; i++) { const a = (i / 32) * Math.PI * 2; ring.push(b.proj(c.u + Math.cos(a) * ru, c.w + Math.sin(a) * rv)); }
-          g.poly(flatPts(ring)).stroke({ width: 1.4, color: 0xe8eaee, alpha: edge * 0.8 });
-          const cross = [b.proj(c.u, c.w - rv * 0.55), b.proj(c.u, c.w + rv * 0.55), b.proj(c.u - ru * 0.4, c.w - rv * 0.15), b.proj(c.u + ru * 0.4, c.w - rv * 0.15)];
-          g.moveTo(cross[0].x, cross[0].y).lineTo(cross[1].x, cross[1].y).moveTo(cross[2].x, cross[2].y).lineTo(cross[3].x, cross[3].y).stroke({ width: 1.6, color: 0xe8eaee, alpha: edge * 0.8 });
+          // a disc cut in two by an S-shaped gap: only the two lobes are painted, so the gap shows the mat
+          const ru = hu * 0.7, rv = ru * UNIT_X / UNIT_Y;
+          const place = (x: number, y: number) => b.proj(c.u + x * ru, c.w + y * rv);
+          for (const lobe of [-1, 1]) {
+            const rim: Pt[] = [], cut: Pt[] = [];
+            for (let i = 0; i <= 40; i++) {
+              const y = -Math.cos((Math.PI * i) / 40), r = Math.sqrt(Math.max(0, 1 - y * y));
+              const inner = clamp(-0.3 * Math.sin(Math.PI * y) + lobe * 0.1, -r, r);
+              if (r - lobe * inner < 0.002) continue;
+              rim.push(place(lobe * r, y));
+              cut.push(place(inner, y));
+            }
+            g.poly(flatPts([...rim, ...cut.reverse()])).fill({ color: 0xe8eaee, alpha: edge * 0.7 });
+          }
         }
       }
     }
@@ -695,7 +702,8 @@ export class DuelView {
   private drawLinks() {
     const g = this.linkG.clear();
     if (this.ended) return;
-    const lines: { a: Pt; b: Pt; color: number }[] = [];
+    const lines: { a: Pt; b: Pt; color: number; from: Pt[] | null; to: Pt[] | null }[] = [];
+    const quad = (uid: number) => { const v = this.cards.get(uid); return v?.visible ? v.corners(4) : null; };
     const centre = (uid: number) => {
       const v = this.cards.get(uid), c = this.duel.byUid(uid);
       return v?.visible && c && c.zone !== 'deck' ? { x: v.x, y: v.y - v.lift } : null;
@@ -705,23 +713,53 @@ export class DuelView {
       const a = centre(attack.attacker.uid);
       const mine = attack.attacker.ctrl === this.me;
       const b = attack.target ? centre(attack.target.uid) : { x: this.board.CX, y: mine ? this.board.Y.oppHand + 50 : this.board.Y.myHand - 60 };
-      if (a && b) lines.push({ a, b, color: mine ? ATTACK_MINE : ATTACK_THEIRS });
+      if (a && b) lines.push({ a, b, color: mine ? ATTACK_MINE : ATTACK_THEIRS, from: quad(attack.attacker.uid), to: attack.target ? quad(attack.target.uid) : null });
     }
     for (const link of this.links) {
       const a = centre(link.from), b = centre(link.to);
-      if (a && b) lines.push({ a, b, color: link.color });
+      if (a && b) lines.push({ a, b, color: link.color, from: quad(link.from), to: quad(link.to) });
     }
-    const t = (this.tw.now % 1100) / 1100;
-    for (const { a, b, color } of lines) {
+    for (const { a, b, color, from, to } of lines) {
       const len = Math.hypot(b.x - a.x, b.y - a.y);
-      const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - Math.min(110, len * 0.28) };
+      if (len < 8) continue;
+      const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - Math.min(90, len * 0.22) };
       const at = (k: number) => ({ x: (1 - k) ** 2 * a.x + 2 * (1 - k) * k * c.x + k * k * b.x, y: (1 - k) ** 2 * a.y + 2 * (1 - k) * k * c.y + k * k * b.y });
-      for (const [width, alpha] of [[12, 0.12], [6, 0.28], [2.6, 0.95]] as const) g.moveTo(a.x, a.y).quadraticCurveTo(c.x, c.y, b.x, b.y).stroke({ width, color, alpha, cap: 'round' });
-      // the head, and a light travelling along the line
-      const end = at(0.97), angle = Math.atan2(b.y - end.y, b.x - end.x), head = 14;
-      g.poly([b.x, b.y, b.x - Math.cos(angle - 0.45) * head, b.y - Math.sin(angle - 0.45) * head, b.x - Math.cos(angle + 0.45) * head, b.y - Math.sin(angle + 0.45) * head]).fill({ color });
-      for (const k of [t, (t + 0.5) % 1]) { const p = at(k); g.circle(p.x, p.y, 3.2).fill({ color: 0xffffff, alpha: 0.9 }).circle(p.x, p.y, 7).fill({ color, alpha: 0.35 }); }
-      g.circle(a.x, a.y, 5).fill({ color, alpha: 0.9 });
+      // start where the curve leaves the source card and stop where it meets the target, so neither is covered
+      const edge = (quad: Pt[] | null, fromEnd: boolean) => {
+        if (!quad) return fromEnd ? 1 : 0;
+        let lo = fromEnd ? 0.5 : 0, hi = fromEnd ? 1 : 0.5;
+        for (let i = 0; i < 14; i++) {
+          const mid = (lo + hi) / 2, p = at(mid), inside = inPoly(quad, p.x, p.y);
+          if (fromEnd ? inside : !inside) hi = mid; else lo = mid;
+        }
+        return fromEnd ? lo : hi;
+      };
+      const t0 = edge(from, false), t1 = edge(to, true);
+      if (t1 - t0 < 0.05) continue;
+      const pts: Pt[] = [];
+      for (let i = 0; i <= 28; i++) pts.push(at(t0 + ((t1 - t0) * i) / 28));
+      const path = () => { g.moveTo(pts[0].x, pts[0].y); for (const p of pts.slice(1)) g.lineTo(p.x, p.y); return g; };
+      path().stroke({ width: 7, color, alpha: 0.13, cap: 'round', join: 'round' });
+      path().stroke({ width: 1.8, color, alpha: 0.95, cap: 'round', join: 'round' });
+      // two short bright dashes flowing towards the target
+      const flow = (this.tw.now % 1400) / 1400;
+      for (const off of [0, 0.5]) {
+        const k0 = (flow + off) % 1, k1 = Math.min(1, k0 + 0.12);
+        const s0 = Math.floor(k0 * 28), s1 = Math.floor(k1 * 28);
+        if (s1 <= s0) continue;
+        g.moveTo(pts[s0].x, pts[s0].y);
+        for (let i = s0 + 1; i <= s1; i++) g.lineTo(pts[i].x, pts[i].y);
+        g.stroke({ width: 1.6, color: 0xffffff, alpha: 0.75 * Math.sin(Math.PI * k0), cap: 'round' });
+      }
+      // a slim notched head
+      const tip = pts[pts.length - 1], back = pts[pts.length - 3];
+      const ang = Math.atan2(tip.y - back.y, tip.x - back.x), size = 11;
+      const wing = (side: number) => ({ x: tip.x - Math.cos(ang + side * 0.38) * size, y: tip.y - Math.sin(ang + side * 0.38) * size });
+      const notch = { x: tip.x - Math.cos(ang) * size * 0.62, y: tip.y - Math.sin(ang) * size * 0.62 };
+      const l = wing(-1), r = wing(1);
+      g.poly([tip.x, tip.y, l.x, l.y, notch.x, notch.y, r.x, r.y]).fill({ color }).poly([tip.x, tip.y, l.x, l.y, notch.x, notch.y, r.x, r.y]).stroke({ width: 1, color: 0xffffff, alpha: 0.55 });
+      // and a small ring at the source
+      g.circle(pts[0].x, pts[0].y, 3).stroke({ width: 1.4, color, alpha: 0.95 });
     }
   }
 
@@ -740,17 +778,39 @@ export class DuelView {
     }
     for (const mark of this.targetMarks) {
       const view = this.cards.get(mark.uid);
+      const c = mark.g.clear();
       if (!view?.visible) continue;
       const age = this.tw.now - mark.born;
-      const k = clamp(age / 260, 0, 1);
-      const s = 1.8 - 0.8 * ease.backOut(k);
-      const r = Math.max(24, Math.min(CW * view.sx, CH * view.sy) * 0.42) * s;
-      const a = k * (0.75 + 0.25 * Math.cos(age / 650 * Math.PI));
-      const c = mark.g;
-      c.clear().circle(0, 0, r).stroke({ width: 4, color: 0xff3b4e, alpha: a });
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) c.moveTo(dx * r * 0.55, dy * r * 0.55).lineTo(dx * r * 1.25, dy * r * 1.25);
-      c.stroke({ width: 3, color: 0xff3b4e, alpha: a });
-      c.position.set(view.x, view.y - view.lift);
+      const k = clamp(age / 320, 0, 1), inK = ease.backOut(k);
+      const color = this.links.find((l) => l.to === mark.uid)?.color ?? 0xff3b4e;
+      const pulse = 0.5 + 0.5 * Math.cos((age / 900) * Math.PI);
+      // brackets close in on the card, then breathe
+      const q = view.corners(14 + (1 - inK) * 26 + pulse * 3);
+      for (let i = 0; i < 4; i++) {
+        const p = q[i], prev = q[(i + 3) % 4], next = q[(i + 1) % 4];
+        const arm = (to: Pt) => ({ x: p.x + (to.x - p.x) * 0.22, y: p.y + (to.y - p.y) * 0.22 });
+        const a1 = arm(prev), a2 = arm(next);
+        c.moveTo(a1.x, a1.y).lineTo(p.x, p.y).lineTo(a2.x, a2.y);
+      }
+      c.stroke({ width: 6, color, alpha: 0.18 * k, join: 'miter' });
+      for (let i = 0; i < 4; i++) {
+        const p = q[i], prev = q[(i + 3) % 4], next = q[(i + 1) % 4];
+        const arm = (to: Pt) => ({ x: p.x + (to.x - p.x) * 0.22, y: p.y + (to.y - p.y) * 0.22 });
+        const a1 = arm(prev), a2 = arm(next);
+        c.moveTo(a1.x, a1.y).lineTo(p.x, p.y).lineTo(a2.x, a2.y);
+      }
+      c.stroke({ width: 2.2, color, alpha: k, join: 'miter' });
+      // the sight: four thin arcs turning around a dot
+      const cx = view.x, cy = view.y - view.lift;
+      const r = Math.max(12, Math.min(CW * view.sx, CH * view.sy) * 0.2) * (1.6 - 0.6 * inK);
+      const spin = age / 1400;
+      for (let i = 0; i < 4; i++) {
+        const start = spin + (i * Math.PI) / 2 + 0.28, end = start + Math.PI / 2 - 0.56;
+        c.moveTo(cx + Math.cos(start) * r, cy + Math.sin(start) * r).arc(cx, cy, r, start, end);
+      }
+      c.stroke({ width: 1.6, color, alpha: 0.9 * k });
+      c.circle(cx, cy, 2.2).fill({ color: 0xffffff, alpha: 0.9 * k });
+      c.position.set(0, 0);
     }
   }
 
@@ -2033,7 +2093,6 @@ export class DuelView {
         sfx.set();
         this.layout();
         await this.tw.wait(240 * s);
-        this.landFx(e.card, false);
         await this.tw.wait(220 * s);
         return;
       case 'shuffle': await this.shuffleFx(e.player); return;
@@ -2116,30 +2175,6 @@ export class DuelView {
     layer.destroy({ children: true });
   }
 
-  /** A card lands on the field: a ring on the ground and a curse-mark shader burst. */
-  private landFx(card: Card, big: boolean) {
-    if (!this.duel.onField(card) || this.reducedMotion) return;
-    const target = this.board.zonePos(card.ctrl, card.zone, Math.max(0, card.slot));
-    const color = evolveColor(card.def, card.faceUp);
-    this.fx.ring(target.x, target.y, color, { from: 14, to: big ? 90 : 60, ms: 520 * this.spd, squash: 0.55, width: 3, z: 0 });
-    const size = Math.max(1, ZW * target.s * target.k * 1.8);
-    const quad = new ShaderQuad(evolveShader(color, size, size), size * 1.65, size * 1.65, { amount: 0 }, undefined, this.stage.app.ticker, 'evolve');
-    const wrap = new Container();
-    wrap.addChild(quad);
-    quad.position.set(-size * 0.825, -size * 0.825);
-    wrap.position.set(target.x, target.y);
-    wrap.zIndex = 61;
-    wrap.scale.set(0.12);
-    this.layers.cards.addChild(wrap);
-    this.tw.add(wrap.scale, { x: 1, y: 1 }, { duration: 420 * this.spd, ease: ease.cubicOut });
-    const state = { amount: 0 };
-    this.tw.add(state, { amount: 1 }, {
-      duration: 360 * this.spd, hold: 100 * this.spd, yoyo: true, ease: ease.sineInOut,
-      onUpdate: () => { quad.uniforms.amount = state.amount; },
-      onComplete: () => wrap.destroy({ children: true }),
-    });
-  }
-
   private async summonFx(c: Card, how: Extract<UIEvent, { t: 'summon' }>['how']) {
     if (how !== 'flip') {
       const alreadyRevealed = this.revealedGods.delete(c.uid);
@@ -2151,22 +2186,16 @@ export class DuelView {
     }
     if (how === 'normal') sfx.summon();
     else if (how !== 'flip') sfx.specialSummon();
-    if (c.faceUp) this.hud.preview(c.def.id, cardName(c.def), t(how === 'normal' ? 'Normal Summon' : how === 'flip' ? 'Flip Summon' : 'Special Summon'), c.ctrl === this.me ? 'mine' : 'theirs');
     const view = this.cards.get(c.uid);
-    // the card has already travelled to its zone (the move event): once it lands, it hits the board with a
-    // shockwave. It is never lifted again, so it touches down exactly once.
+    // the card has already travelled to its zone (the move event): once it lands, the board gives a little. It is never lifted again, so it touches down exactly once.
     this.layout();
     if (view && !this.reducedMotion && how !== 'flip') {
       for (let i = 0; i < 12 && this.tw.isTweening(view) && !this.dead; i++) await this.tw.wait(40);
       if (this.dead) return;
-      const at = view.to ?? view;
       shake(this.tw, this.stage.shaker, 140, how === 'normal' ? 2 : 3.5);
-      this.fx.flash(at.x, at.y, evolveColor(c.def, true), 70, 320 * this.spd, 0);
-      this.fx.burst(at.x, at.y, evolveColor(c.def, true), { n: 18, speed: [80, 240], life: 520, spread: 18, z: 0 });
     }
     if (this.dead) return;
     await this.tw.wait(120 * this.spd);
-    if (how !== 'flip') this.landFx(c, how !== 'normal');
     await this.tw.wait(380 * this.spd);
   }
 
@@ -2230,10 +2259,8 @@ export class DuelView {
     this.layout();
     if (c.def.kind !== 'monster') {
       await this.tw.wait(240 * this.spd);
-      this.landFx(c, false);
     }
     this.chainSources.set(link, { uid: c.uid, player });
-    this.hud.preview(c.def.id, cardName(c.def), link > 1 ? `${t(c.def.kind === 'monster' ? 'Activate Effect' : 'Activate')} · ${t('Chain {n}', { n: link })}` : t(c.def.kind === 'monster' ? 'Activate Effect' : 'Activate'), player === this.me ? 'mine' : 'theirs', 2600);
     this.lastLink = link;
     if (this.hoverAny) this.hover(this.hoverAny); else this.hud.showCard(c.def);
     const tint = c.def.kind === 'trap' ? 0xff60b0 : c.def.kind === 'spell' ? 0x40ffd0 : 0xffb040;
@@ -2288,10 +2315,6 @@ export class DuelView {
     const z = view.z;
     view.z = 450;
     sfx.attack();
-    const beam = new Graphics();
-    beam.blendMode = 'add';
-    beam.zIndex = 610;
-    this.layers.fx.addChild(beam);
     try {
       await this.tw.to(view, { x: home.x - (dx / dist) * 10, y: home.y - (dy / dist) * 10, lift: 10 }, { duration: 110 * speed, ease: ease.sineOut });
       const flight = { p: 0 };
@@ -2301,18 +2324,11 @@ export class DuelView {
         onUpdate: () => {
           view.x = home.x + dx * reach * flight.p;
           view.y = home.y + dy * reach * flight.p;
-          const x = lerp(home.x, destination.x, flight.p), y = lerp(home.y, destination.y, flight.p);
-          beam.clear()
-            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 20, color: 0xff182f, alpha: 0.1 })
-            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 9, color: 0xff182f, alpha: 0.3 })
-            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 4, color: 0xff2639, alpha: 0.85 })
-            .moveTo(home.x, home.y).lineTo(x, y).stroke({ width: 1.5, color: 0xffd0c8, alpha: 1 });
         },
       });
       if (this.dead) return;
       sfx.hit();
       this.fx.flash(destination.x, destination.y, 0xff3344, 60, 260 * speed, 611);
-      this.fx.burst(destination.x, destination.y, 0xffb070, { n: 22, speed: [120, 320], life: 480, z: 612, streaks: true });
       if (target) this.fx.ring(destination.x, destination.y, 0xff4654, { from: 8, to: 60, ms: 260 * speed });
       shake(this.tw, this.stage.shaker, 180, target ? 5 : 7);
       if (targetView) {
@@ -2324,13 +2340,11 @@ export class DuelView {
           this.busy.delete(targetView);
         }
       }
-      this.tw.add(beam, { alpha: 0 }, { duration: 200 * speed });
       await this.tw.to(view, { x: home.x, y: home.y, lift: 0 }, { duration: 220 * speed, ease: ease.backOut });
     } finally {
       view.lift = 0;
       view.z = z;
       this.busy.delete(view);
-      this.tw.later(220 * speed, () => beam.destroy());
     }
   }
 

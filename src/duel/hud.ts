@@ -172,19 +172,6 @@ export class Hud {
 
   showCard(def: CardDef | null, info: PanelInfo = {}) { this.info?.show(def, info); }
 
-  private previewEl: HTMLElement | null = null;
-  private previewTimer = 0;
-  /** A card just summoned or activated, shown beside the board for a moment (the newest replaces the last). */
-  preview(id: string, name: string, caption: string, side: 'mine' | 'theirs', ms = 2200) {
-    this.previewEl?.remove();
-    clearTimeout(this.previewTimer);
-    const el = html(`<div class="duel-preview ${side}" aria-live="polite"><div class="duel-preview-card">${cardHtml(id, '', true)}</div>
-      <div class="duel-preview-text"><b>${esc(name)}</b><span>${esc(caption)}</span></div></div>`);
-    this.play.append(el);
-    this.previewEl = el;
-    this.previewTimer = window.setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
-  }
-
   private watchEl: HTMLElement | null = null;
   /** The number of spectators; hidden while nobody watches (a spectator always counts at least themself). */
   watchers(n: number, spectating: boolean) {
